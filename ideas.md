@@ -1,4 +1,4 @@
-# 5 AMD Hackathon Project Ideas
+# 3 AMD Hackathon Project Ideas
 
 ## 1. AI DevOps Agent
 
@@ -19,26 +19,7 @@ Use Hugging Face models like Qwen, Llama, Mistral, or DeepSeek for reasoning, cl
 
 ---
 
-## 2. Multi-Agent Workflow Orchestrator
-
-**Short Description:**  
-A system that takes a high-level goal, breaks it into tasks, assigns specialized AI agents, tracks progress, and updates the plan dynamically.
-
-**Track:**  
-Track 1: AI Agents & Agentic Workflows
-
-**Why It Is Useful to AMD:**  
-It highlights AMD’s ability to support complex agentic workloads where multiple agents reason, plan, and execute in parallel.
-
-**How AMD Developer Cloud Can Be Used:**  
-Use AMD Developer Cloud to host the LLM backend, run parallel agent calls, evaluate plans, and process multiple workflows at once.
-
-**How Hugging Face Can Be Used:**  
-Use Hugging Face open-source models for planner agents, reviewer agents, task generators, and summarizers. Hugging Face Spaces can host the interactive prototype.
-
----
-
-## 3. FinContext Agent: Portfolio-Aware Financial Intelligence Platform
+## 2. FinContext Agent: Portfolio-Aware Financial Intelligence Platform
 
 ## Description
 FinContext Agent is a large-context AI system designed for the financial sector that analyzes massive documents such as SEC filings, earnings transcripts, and financial reports, and connects them directly to a user’s portfolio. It generates risk scores, detects changes in financial disclosures over time, and produces citation-backed analyst insights on how new information impacts portfolio exposure and investment decisions.
@@ -62,28 +43,10 @@ Hugging Face is used for accessing and deploying open-source LLMs (Qwen, Llama, 
 - Banks and asset management companies  
 - FinTech startups  
 - Individual investors seeking advanced portfolio insights  
----
-
-## 4. Multimodal AI Inspection System
-
-**Short Description:**  
-A vision-based AI system that analyzes images or video to detect defects, anomalies, safety risks, or medical/industrial issues, then explains findings in natural language.
-
-**Track:**  
-Track 3: Vision & Multimodal AI
-
-**Why It Is Useful to AMD:**  
-It demonstrates AMD GPUs for high-throughput image/video processing, multimodal inference, and real-world industrial AI applications.
-
-**How AMD Developer Cloud Can Be Used:**  
-Use AMD Developer Cloud to run vision-language models, process image/video batches, and benchmark throughput on AMD GPUs.
-
-**How Hugging Face Can Be Used:**  
-Use Hugging Face models like Qwen-VL, Llama Vision, CLIP, SAM, or DETR-style models for image understanding, object detection, and explanation generation.
 
 ---
 
-## 5. AI Kernel Optimization Agent
+## 3. AI Kernel Optimization Agent
 
 **Short Description:**  
 An advanced developer tool where an AI agent analyzes slow GPU code, suggests optimizations, generates improved kernels, and benchmarks performance.
