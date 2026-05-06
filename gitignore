@@ -1,0 +1,8 @@
+.env
+fincontext.db
+fincontext_demo.db
+/models/
+qdrant_storage/
+__pycache__/
+.venv/
+*.pyc

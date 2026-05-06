@@ -35,7 +35,7 @@ The AMD hardware angle: AMD MI300X has 192 GB of HBM3 VRAM. A 70B-parameter mode
 | Buy/sell/hold recommendations | Legal non-goal, compliance requirement |
 | Broker integrations | Out of scope for hackathon |
 
-The directory `fincontext-agent/apps/worker-api/` and `fincontext-agent/apps/web/` are stubs from a deprecated plan. Do not build anything there. The new frontend is `fincontext-agent/apps/demo-ui/` (Gradio).
+The directory `apps/worker-api/` and `apps/web/` are stubs from a deprecated plan. Do not build anything there. The new frontend is `apps/demo-ui/` (Gradio).
 
 ---
 
@@ -431,7 +431,7 @@ Both agents should coordinate on `packages/schemas/python/state.py` — this is 
 
 This is what we show to judges (in order):
 
-1. **Upload the seed portfolio CSV** (`fincontext-agent/demo/seed_portfolio.csv`) — AMD, NVDA, MSFT, JPM, TSLA
+1. **Upload the seed portfolio CSV** (`/demo/seed_portfolio.csv`) — AMD, NVDA, MSFT, JPM, TSLA
 2. **Trigger portfolio analysis** — the 4-agent graph runs, pre-ingested data is already in Qdrant
 3. **Show the disclosure diff for AMD** — side-by-side comparison of Item 1A risk factor language across 2022–2025 10-Ks, with classified changes highlighted
 4. **Ask a question:** "What changed in supply-chain or customer concentration risk for my semiconductor holdings?"
