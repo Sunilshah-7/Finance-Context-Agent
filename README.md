@@ -10,6 +10,10 @@ This repository contains innovative project ideas for the [AMD Developer Hackath
 
 ## You can find project ideas at [ideas.md](ideas.md).
 
+## Detailed Project Plan
+
+- [FinContext Agent](Entrypoint.md): portfolio-aware financial intelligence platform using AMD GPUs, AMD Developer Cloud, Hugging Face models, and a HuggingFace Spaces Gradio demo.
+
 ## 🚀 Getting Started
 
 ### Prerequisites
