@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 FinContext Agent — AMD Developer Hackathon 2026 submission (Track 1: AI Agents & Agentic Workflows). A portfolio-aware financial intelligence platform that ingests SEC filings from EDGAR, detects material disclosure changes year-over-year, scores risk per portfolio holding, and produces citation-grounded analyst memos. The entire compute and storage stack runs on one AMD Developer Cloud VM; the public demo UI lives on HuggingFace Spaces.
 
-**Hackathon constraint: 9-day build phase May 11–19, 2026. Two developers. $100 AMD Developer Cloud credit.**
+**Hackathon constraint: 9-day build phase May 11–19, 2026. Three developers. $100 AMD Developer Cloud credit.**
 
-All planning docs are in `fincontext-agent/docs/`. No application code exists yet — the build phase starts May 11.
+All planning docs are in `docs/`. No application code exists yet — the build phase ends May 11.
 
 ## Critical Architecture Decision
 
@@ -44,30 +44,30 @@ The Inference Gateway is the only external-facing model endpoint. Agent API call
 ## Repository Layout (target — no code written yet)
 
 ```
-fincontext-agent/
-  services/
-    agent-api/          # FastAPI + LangGraph 4-node agent graph
-    ingestion-worker/   # SEC EDGAR fetch, parse, chunk, embed → Qdrant + SQLite
-    inference-gateway/  # FastAPI proxy to vLLM, embedding, reranker
-  apps/
-    demo-ui/            # Gradio app — deployed to HuggingFace Spaces
-  packages/
-    schemas/            # Shared Pydantic models (Python) + generated TS types
-    evals/              # Retrieval recall, citation precision, latency benchmarks
-  infra/
-    amd-gpu/            # Docker Compose: vLLM 72B, vLLM 14B, embedding, reranker, Qdrant
-    schema.sql          # SQLite schema
-  configs/
-    .env.example
-  docs/
+
+services/
+      agent-api/          # FastAPI + LangGraph 4-node agent graph
+      ingestion-worker/   # SEC EDGAR fetch, parse, chunk, embed → Qdrant + SQLite
+      inference-gateway/  # FastAPI proxy to vLLM, embedding, reranker
+apps/
+      demo-ui/            # Gradio app — deployed to HuggingFace Spaces
+packages/
+      schemas/            # Shared Pydantic models (Python) + generated TS types
+      evals/              # Retrieval recall, citation precision, latency benchmarks
+infra/
+      amd-gpu/            # Docker Compose: vLLM 72B, vLLM 14B, embedding, reranker, Qdrant
+      schema.sql          # SQLite schema
+configs/
+      .env.example
+docs/
 ```
 
 ## Commands
 
 **Start all GPU and storage services (AMD VM only):**
 ```bash
-cd fincontext-agent/infra/amd-gpu
-cp ../../configs/.env.example .env       # fill HF_TOKEN, model vars
+cd infra/amd-gpu
+cp configs/.env.example .env       # fill HF_TOKEN, model vars
 docker compose up -d                      # starts all model services + Qdrant
 docker compose logs -f vllm-72b          # watch 72B model load (~3-5 min)
 curl http://localhost:8000/health         # verify vLLM ready
@@ -76,12 +76,12 @@ curl http://localhost:6333/healthz        # verify Qdrant ready
 
 **One-time: create SQLite schema:**
 ```bash
-sqlite3 fincontext-agent/fincontext.db < fincontext-agent/infra/schema.sql
+sqlite3 fincontext.db < infra/schema.sql
 ```
 
 **Pre-ingest all demo data (do this before build phase demo):**
 ```bash
-cd fincontext-agent/services/ingestion-worker
+cd services/ingestion-worker
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 python ingest.py --tickers AMD,NVDA,MSFT,JPM,TSLA \
@@ -93,7 +93,7 @@ python ingest.py --tickers AMD,NVDA,MSFT,JPM,TSLA \
 
 **Run agent API (development):**
 ```bash
-cd fincontext-agent/services/agent-api
+cd services/agent-api
 source .venv/bin/activate
 uvicorn main:app --host 0.0.0.0 --port 8090 --reload
 ```
@@ -107,7 +107,7 @@ pytest tests/test_retrieval.py::test_hybrid_merge -x      # single test
 
 **Run Gradio demo locally:**
 ```bash
-cd fincontext-agent/apps/demo-ui
+cd apps/demo-ui
 pip install -r requirements.txt
 AGENT_API_URL=http://localhost:8090 python app.py          # http://localhost:7860
 ```
@@ -116,7 +116,7 @@ AGENT_API_URL=http://localhost:8090 python app.py          # http://localhost:78
 ```bash
 huggingface-cli login
 # push only the demo-ui subdirectory as the Space root
-git subtree push --prefix fincontext-agent/apps/demo-ui space main
+git subtree push --prefix /apps/demo-ui space main
 ```
 
 ## LangGraph Agent Graph (4 nodes)
@@ -168,7 +168,7 @@ Required Qdrant payload filters on every query: `ticker` (eq), `filing_type` (in
 
 ## Pre-Ingestion Strategy
 
-**Never demo live ingestion in front of judges.** Pre-ingest all data before May 19.
+**Never demo live ingestion in front of judges.** Pre-ingest all data before May 10.
 
 Demo corpus:
 - Tickers: AMD, NVDA, MSFT, JPM, TSLA
