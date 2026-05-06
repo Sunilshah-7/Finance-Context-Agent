@@ -529,8 +529,15 @@ To avoid conflicts when Claude Code and Codex are both working:
 
 If either agent needs to touch a file owned by the other, stop and coordinate first.
 
+### Commit Authorship
+
+Only human teammates appear as contributors in this repo. Do not add `Co-Authored-By`, `Signed-off-by`, or any other trailer that lists an AI agent, tool, or automated system as an author or co-author. Every commit must show only the human git user configured on the machine (`git config user.name` / `git config user.email`).
+
+When writing a commit message, end it with the description — no trailers of any kind from agents.
+
 ### Never do these
 
+- Add `Co-Authored-By: Claude ...` or any AI agent name to commit messages
 - Force push to `main`
 - Merge your own PR without teammate review (on feature branches that affect both services)
 - Commit `.env` files, API keys, or `fincontext.db`

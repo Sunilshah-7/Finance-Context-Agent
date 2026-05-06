@@ -196,6 +196,10 @@ Copy `configs/.env.example` to `.env` in any service directory. Never commit `.e
 
 `SEC_USER_AGENT` is required by SEC EDGAR and must be set to: `FinContextAgent/0.1 your-email@example.com`. Requests without this header are blocked by EDGAR.
 
+## Git Authorship
+
+Only human teammates appear as contributors. Never add `Co-Authored-By`, `Signed-off-by`, or any agent/tool name to commit messages. Commits must show only the git user configured on the machine.
+
 ## Compliance Rules (never break)
 
 - Every factual claim in a memo must have a `[citation_id]` referencing a retrieved chunk
