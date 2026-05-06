@@ -1,23 +1,88 @@
 # services/inference-gateway
 
-Internal gateway for model calls running near AMD GPU inference services.
+Lightweight FastAPI proxy that sits between the Agent API and all model-serving processes (vLLM 72B, vLLM 14B, TEI embedding, TEI reranker). Every model call from the Agent API goes through this gateway.
 
-## Build Responsibilities
+## Why this exists
 
-- Route chat completion calls to vLLM.
-- Route embedding calls to embedding model service.
-- Route reranking calls to reranker service.
-- Enforce internal auth.
-- Record latency and token metrics.
-- Normalize OpenAI-compatible responses.
+- Agent API code is independent of which model is loaded or where it runs — swap models without touching agent code
+- All model calls get request IDs, latency logging, and error normalization in one place
+- The AMD benchmark panel gets its metrics from gateway logs
+- Rate limiting and circuit-breaking can be added here without touching the Agent API
 
-## Key Endpoints
+## Routing
 
-```text
-POST /v1/chat/completions
-POST /v1/embeddings
-POST /v1/rerank
-GET /health
-GET /metrics
+| Request | Model field | Routes to | Port |
+|---------|-------------|-----------|------|
+| POST /v1/chat/completions | fincontext-reasoner | vLLM 72B | 8000 |
+| POST /v1/chat/completions | fincontext-planner | vLLM 14B | 8001 |
+| POST /v1/embeddings | fincontext-embedding | TEI embedding | 8002 |
+| POST /v1/rerank | fincontext-reranker | TEI reranker | 8003 |
+| GET /health | — | all services | — |
+| GET /metrics | — | aggregated logs | — |
+
+## Endpoints
+
+```
+POST /v1/chat/completions  — OpenAI-compatible, routed by model name
+POST /v1/embeddings        — OpenAI-compatible, routes to TEI
+POST /v1/rerank            — HuggingFace TEI rerank format
+GET  /health               — checks all 4 backend services
+GET  /metrics              — returns recent request latency and token stats
 ```
 
+## Stack
+
+- Python 3.12
+- FastAPI
+- httpx (async proxy to backends)
+- structlog (structured JSON logging for metrics collection)
+
+## File Structure (target)
+
+```
+services/inference-gateway/
+  main.py          # FastAPI app + route definitions
+  router.py        # Routing logic based on model name
+  middleware.py    # Request ID injection, latency measurement
+  metrics.py       # In-memory metrics store (last N requests)
+  models.py        # Pydantic request/response models
+  requirements.txt
+```
+
+## Running
+
+```bash
+pip install -r requirements.txt
+uvicorn main:app --host 0.0.0.0 --port 8080 --reload
+
+# Verify all backends are reachable
+curl http://localhost:8080/health
+```
+
+## Metrics Output (for benchmark panel)
+
+`GET /metrics` returns the last 1,000 requests aggregated by model:
+
+```json
+{
+  "fincontext-reasoner": {
+    "count": 12,
+    "avg_input_tokens": 8420,
+    "avg_output_tokens": 1850,
+    "avg_time_to_first_token_ms": 380,
+    "avg_total_latency_ms": 18240,
+    "avg_tokens_per_second": 52.3
+  },
+  "fincontext-planner": {
+    "count": 47,
+    "avg_total_latency_ms": 2850,
+    "avg_tokens_per_second": 112.1
+  }
+}
+```
+
+The Agent API benchmark endpoint (`GET /api/benchmark/metrics`) fetches this and adds GPU info from `rocm-smi`.
+
+## Important: No Business Logic Here
+
+This service is a transparent proxy. It must not modify request bodies, inject prompts, or alter model outputs. Its only jobs are routing, logging, and health checking.

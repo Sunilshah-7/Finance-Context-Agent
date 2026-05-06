@@ -1,67 +1,100 @@
 # FinContext Agent
 
-Portfolio-aware financial intelligence platform for Track 1: AI Agents & Agentic Workflows.
+Portfolio-aware financial intelligence platform for AMD Developer Hackathon 2026, Track 1: AI Agents & Agentic Workflows.
 
-FinContext Agent ingests SEC filings, earnings transcripts, investor presentations, and financial reports, then connects document-level changes to a user portfolio. It produces citation-backed answers, disclosure-change alerts, risk scores, and analyst-style portfolio impact memos.
+FinContext Agent ingests SEC filings from EDGAR, detects material disclosure changes year-over-year, scores holding-level risk, and produces citation-grounded analyst memos via a 4-agent LangGraph workflow running on AMD Developer Cloud.
 
-## Why This Project Fits AMD
+## Architecture
 
-The core workload is large-context, high-throughput financial document reasoning. AMD Instinct GPUs on AMD Developer Cloud are used for:
+```
+HuggingFace Spaces (demo UI)
+  └── Gradio app → calls Agent API over HTTPS
 
-- Long-context LLM serving with vLLM on ROCm.
-- Batch parsing and summarization across 10-K, 10-Q, 8-K, transcript, and PDF corpora.
-- Embedding generation and reranking for retrieval.
-- Multi-agent reasoning pipelines that evaluate risk, exposure, and filing changes in parallel.
-- Benchmarks that compare latency, tokens/sec, cost per analyzed filing, and concurrent portfolio runs.
+AMD Developer Cloud VM (all compute and storage)
+  ├── Agent API (port 8090)      FastAPI + LangGraph, 4-node agent graph
+  ├── Inference Gateway (8080)   FastAPI proxy to model services
+  ├── vLLM reasoner (8000)       Qwen2.5-72B-Instruct, FP16, ROCm
+  ├── vLLM planner (8001)        Qwen2.5-14B-Instruct, FP16, ROCm
+  ├── Embeddings (8002)          BAAI/bge-large-en-v1.5, TEI
+  ├── Reranker (8003)            BAAI/bge-reranker-large, TEI
+  ├── Qdrant (6333)              Vector store, Docker
+  └── SQLite (on-disk)           Metadata: portfolios, holdings, jobs, findings
+```
 
-## Recommended Stack
+AMD MI300X has 192 GB of HBM3 VRAM. Qwen2.5-72B runs in FP16 on a single GPU without tensor parallelism, with a full 65,536-token context window. An entire 10-K annual report processes in a single context pass.
 
-- Frontend: Next.js, TypeScript, Tailwind CSS, shadcn/ui, Recharts.
-- Edge/API: Cloudflare Pages, Workers, Queues, D1, R2, Vectorize, Workers KV, AI Gateway.
-- Agent backend: Python, FastAPI, LangGraph, LlamaIndex, Pydantic, Celery or Dramatiq.
-- GPU inference: AMD Developer Cloud, ROCm, vLLM OpenAI-compatible server.
-- Models: Qwen2.5/3, Llama 3.1/3.3, Mistral, FinGPT/finance-tuned variants when licensing allows.
-- Retrieval: BGE or E5 embeddings, BGE reranker, hybrid BM25/vector retrieval.
-- Data: SEC EDGAR APIs, company filings, earnings call transcripts, portfolio CSV/broker export.
-- Storage: Cloudflare R2 for source documents, D1 for app metadata, Vectorize for demo vector search, Postgres/pgvector for production option.
-- Observability: OpenTelemetry, Cloudflare Analytics, LangSmith-compatible traces or OpenLLMetry.
+## Directory Layout
 
-## Document Map
-
-- [Product and Scope](docs/product-scope.md)
-- [Architecture](docs/architecture.md)
-- [Component Build Plan](docs/component-build-plan.md)
-- [Agent Design](docs/agent-design.md)
-- [Data and Retrieval](docs/data-and-retrieval.md)
-- [Risk Scoring](docs/risk-scoring.md)
-- [AMD GPU Plan](docs/amd-gpu-plan.md)
-- [Cloudflare Deployment](docs/cloudflare-deployment.md)
-- [API Contracts](docs/api-contracts.md)
-- [Security and Compliance](docs/security-compliance.md)
-- [Demo Plan](docs/demo-plan.md)
-- [Milestones](docs/milestones.md)
-- [References](docs/references.md)
-
-## Proposed Repository Layout
-
-```text
+```
 fincontext-agent/
-  apps/
-    web/                       # Next.js UI deployed to Cloudflare Pages
-    worker-api/                # Cloudflare Worker API gateway
   services/
-    agent-api/                 # FastAPI + LangGraph orchestration on AMD cloud
-    ingestion-worker/          # Filing ingestion, parsing, chunking, OCR/table extraction
-    inference-gateway/         # OpenAI-compatible proxy to vLLM and reranker services
+    agent-api/         FastAPI + LangGraph agent orchestration
+    ingestion-worker/  SEC EDGAR fetch, parse, chunk, embed → Qdrant + SQLite
+    inference-gateway/ FastAPI proxy to vLLM, embedding, reranker services
+  apps/
+    demo-ui/           Gradio demo app — deployed to HuggingFace Spaces
   packages/
-    schemas/                   # Shared Pydantic/TypeScript schemas
-    evals/                     # Retrieval, citation, risk-score, latency evals
+    schemas/           Shared Pydantic models (Python) + TypeScript types
+    evals/             Retrieval recall, citation precision, latency benchmarks
   infra/
-    amd-gpu/                   # ROCm/vLLM deployment assets
-    cloudflare/                # Wrangler configs, D1 migrations, R2/Queue bindings
+    amd-gpu/           Docker Compose: all model services + Qdrant
+    schema.sql         SQLite schema
   configs/
     .env.example
+  demo/
+    seed_portfolio.csv Demo portfolio: AMD, NVDA, MSFT, JPM, TSLA
   docs/
 ```
 
-This repository currently contains the planning package and starter config templates. The layout above is the target implementation structure for the hackathon build.
+## Quick Start (AMD VM)
+
+```bash
+# 1. Start all model services
+cd infra/amd-gpu
+cp ../../configs/.env.example .env   # fill HF_TOKEN
+docker compose -f vllm-rocm-compose.yml up -d
+# Wait 3-5 minutes for 72B model to load
+
+# 2. Apply SQLite schema
+sqlite3 ../fincontext.db < ../infra/schema.sql
+
+# 3. Pre-ingest demo data (run once before demo)
+cd services/ingestion-worker
+pip install -r requirements.txt
+python ingest.py --tickers AMD,NVDA,MSFT,JPM,TSLA --filing-types 10-K,10-Q --years 4
+
+# 4. Start services
+cd services/inference-gateway && uvicorn main:app --port 8080 &
+cd services/agent-api && uvicorn main:app --port 8090 &
+
+# 5. Verify
+curl http://localhost:8090/health
+```
+
+## Document Map
+
+| Document | Content |
+|----------|---------|
+| [Architecture](docs/architecture.md) | System design, request lifecycle, data flow |
+| [Agent Design](docs/agent-design.md) | 4-node LangGraph graph, per-node implementation spec |
+| [Component Build Plan](docs/component-build-plan.md) | Ordered build steps with tests per step |
+| [Milestones](docs/milestones.md) | 9-day hackathon timeline, day-by-day deliverables |
+| [Data and Retrieval](docs/data-and-retrieval.md) | EDGAR ingestion, chunking, hybrid retrieval, Qdrant schema |
+| [AMD GPU Plan](docs/amd-gpu-plan.md) | Hardware story, vLLM setup, ROCm troubleshooting, cost management |
+| [Deployment](docs/cloudflare-deployment.md) | AMD VM setup, HuggingFace Spaces deployment, networking |
+| [API Contracts](docs/api-contracts.md) | All FastAPI endpoint specs with request/response examples |
+| [Demo Plan](docs/demo-plan.md) | 9-step demo script, screen-by-screen UI description, judge talking points |
+| [Risk Scoring](docs/risk-scoring.md) | Risk score formula, categories, output schema |
+| [Product Scope](docs/product-scope.md) | MVP definition, non-goals, user stories |
+| [Security](docs/security-compliance.md) | Auth, compliance rules, investment disclaimer requirements |
+| [References](docs/references.md) | Research papers, tools, and resources cited |
+
+## Why This Beats Cloudflare
+
+A prior architecture plan used Cloudflare Pages, Workers, D1, R2, Vectorize, and Queues. That plan was replaced because Cloudflare Workers have a 128 MB memory limit incompatible with ML workloads, and learning 9 new Cloudflare services in 9 days is a schedule risk the team cannot absorb. See `docs/architecture.md` for the full decision record.
+
+## HuggingFace Integration
+
+- Models: `Qwen/Qwen2.5-72B-Instruct`, `Qwen/Qwen2.5-14B-Instruct`, `BAAI/bge-large-en-v1.5`, `BAAI/bge-reranker-large` — all from HuggingFace Hub
+- Demo UI deployed as a public HuggingFace Space
+- `HF_TOKEN` used for authenticated model downloads
