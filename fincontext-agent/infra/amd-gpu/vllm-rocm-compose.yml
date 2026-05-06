@@ -1,0 +1,38 @@
+services:
+  vllm:
+    image: vllm/vllm-openai-rocm:latest
+    container_name: fincontext-vllm
+    restart: unless-stopped
+    devices:
+      - /dev/kfd
+      - /dev/dri
+    group_add:
+      - video
+    ipc: host
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp=unconfined
+    ports:
+      - "8000:8000"
+    environment:
+      HF_TOKEN: ${HF_TOKEN}
+      HF_HOME: ${HF_HOME:-/models/huggingface}
+    volumes:
+      - ${MODEL_CACHE_DIR:-/models}:/models
+    command:
+      - --model
+      - ${VLLM_MODEL_ID:-Qwen/Qwen2.5-72B-Instruct}
+      - --served-model-name
+      - ${VLLM_SERVED_MODEL_NAME:-fincontext-reasoner}
+      - --tensor-parallel-size
+      - ${TENSOR_PARALLEL_SIZE:-1}
+      - --max-model-len
+      - ${MAX_MODEL_LEN:-65536}
+      - --gpu-memory-utilization
+      - ${GPU_MEMORY_UTILIZATION:-0.90}
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+

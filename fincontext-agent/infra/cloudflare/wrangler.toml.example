@@ -1,0 +1,41 @@
+name = "fincontext-agent-api"
+main = "src/index.ts"
+compatibility_date = "2026-05-06"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+ENVIRONMENT = "preview"
+PUBLIC_APP_URL = "https://fincontext-agent.pages.dev"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "fincontext_preview"
+database_id = "replace-with-d1-id"
+
+[[r2_buckets]]
+binding = "DOCUMENTS_BUCKET"
+bucket_name = "fincontext-documents"
+
+[[r2_buckets]]
+binding = "REPORTS_BUCKET"
+bucket_name = "fincontext-reports"
+
+[[queues.producers]]
+binding = "INGESTION_QUEUE"
+queue = "fincontext-ingestion"
+
+[[queues.producers]]
+binding = "ANALYSIS_QUEUE"
+queue = "fincontext-analysis"
+
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "fincontext_chunks"
+
+# Secrets to set with wrangler secret put:
+# AMD_AGENT_API_URL
+# AMD_AGENT_API_KEY
+# HF_TOKEN
+# SESSION_SECRET
+# SEC_USER_AGENT
+
