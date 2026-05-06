@@ -1,15 +1,10 @@
 # Architecture
 
-## Decision: Single-VM, Not Cloudflare
+## Decision: Single-VM Architecture
 
-The previous plan used Cloudflare (Pages, Workers, D1, R2, Vectorize, Queues) as the app/edge layer. This was replaced with a single-VM deployment for the following reasons:
+The MVP runs compute, storage, retrieval, and orchestration on one AMD Developer Cloud VM. This keeps the system simple enough for a 9-day hackathon build: localhost service calls, one database file, one vector store, one GPU host, and one public Gradio interface on HuggingFace Spaces.
 
-- Cloudflare Workers have a 128 MB memory limit and 50 ms CPU-time limit — all real ML work has to be offloaded to AMD cloud anyway, so the Worker is just a relay
-- Learning 9 unfamiliar Cloudflare services under a 9-day deadline is unacceptable schedule risk
-- Cloudflare Vectorize lacks the combined vector + metadata filter queries that Qdrant supports natively
-- Running everything on one AMD cloud VM means localhost inter-service calls, no cross-cloud auth, no Wrangler setup
-
-The new frontend is a Gradio app on HuggingFace Spaces. It satisfies the hackathon's HuggingFace integration requirement, deploys with a `git push`, and is publicly accessible to judges.
+The frontend is a Gradio app on HuggingFace Spaces. It satisfies the hackathon's HuggingFace integration requirement, deploys with a `git push`, and is publicly accessible to judges.
 
 ## High-Level Architecture
 

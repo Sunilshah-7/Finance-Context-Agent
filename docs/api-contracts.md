@@ -1,6 +1,6 @@
 # API Contracts
 
-All APIs are FastAPI services running on the AMD Developer Cloud VM. There is no Cloudflare Worker API. The Gradio UI (HuggingFace Spaces) communicates directly with the Agent API over HTTPS.
+All APIs are FastAPI services running on the AMD Developer Cloud VM. The Gradio UI on HuggingFace Spaces communicates directly with the Agent API over HTTPS.
 
 Authentication: all Agent API endpoints require `Authorization: Bearer {AGENT_API_KEY}` header.
 

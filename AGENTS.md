@@ -24,10 +24,8 @@ The AMD hardware angle: AMD MI300X has 192 GB of HBM3 VRAM. A 70B-parameter mode
 
 | What NOT to build | Why |
 |---|---|
-| Cloudflare Workers / Pages | 128 MB memory limit, 50 ms CPU limit — incompatible with ML |
-| Cloudflare D1 / R2 / Vectorize | 9 unfamiliar services = 3-4 days setup, kills timeline |
-| Cloudflare Queues / KV / AI Gateway | Same reason |
-| A Next.js frontend | Gradio on HuggingFace Spaces is 10x faster to ship |
+| A separate edge/API platform | Adds cross-service wiring and auth for no MVP benefit |
+| A JavaScript frontend | Gradio on HuggingFace Spaces is 10x faster to ship |
 | 9 LangGraph agents | Requires 50+ hours of implementation, we have 9 days |
 | Live demo ingestion | Never show a progress bar to judges, pre-load all data |
 | PDF parsing for MVP | EDGAR HTML is parseable and reliable; PDF is a trap |
@@ -35,7 +33,7 @@ The AMD hardware angle: AMD MI300X has 192 GB of HBM3 VRAM. A 70B-parameter mode
 | Buy/sell/hold recommendations | Legal non-goal, compliance requirement |
 | Broker integrations | Out of scope for hackathon |
 
-The directory `apps/worker-api/` and `apps/web/` are stubs from a deprecated plan. Do not build anything there. The new frontend is `apps/demo-ui/` (Gradio).
+The frontend is `apps/demo-ui/` (Gradio). Do not add a separate web app unless the MVP is already complete.
 
 ---
 
@@ -73,7 +71,7 @@ Qdrant runs in Docker on the AMD VM. It provides:
 - Persistent storage via Docker volume
 - Snapshot export for sharing pre-ingested demo data between teammates
 
-Why Qdrant over Cloudflare Vectorize: Vectorize has limited payload filter operators. Qdrant lets us do `ticker = "AMD" AND filing_type IN ["10-K", "10-Q"] AND filed_at >= "2023-01-01"` as a single query with the vector search. Vectorize would require post-filtering in application code.
+Why Qdrant: it lets us do `ticker = "AMD" AND filing_type IN ["10-K", "10-Q"] AND filed_at >= "2023-01-01"` as a single query with vector search, while also supporting snapshots for sharing pre-ingested demo data.
 
 Why Qdrant over Chroma: Qdrant has better documentation, a stable REST API, and production-grade performance. Chroma is fine for prototypes but Qdrant is easier to operate in a shared team environment.
 
@@ -105,7 +103,7 @@ Gradio is HuggingFace's UI framework. A Gradio app deployed to HuggingFace Space
 - Satisfies the hackathon's HuggingFace integration requirement
 - Is publicly accessible for judges without any auth setup
 - Deploys with a single `git push`
-- Takes 2 hours to build, not 2 days like Next.js + Cloudflare Pages
+- Takes 2 hours to build, not 2 days like a custom JavaScript frontend
 - Supports SSE streaming for live memo generation
 
 ---

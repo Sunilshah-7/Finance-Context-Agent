@@ -25,8 +25,8 @@ AMD MI300X has 192 GB of HBM3 VRAM. Qwen2.5-72B runs in FP16 on a single GPU wit
 
 ## Directory Layout
 
-```
-fincontext-agent/
+```text
+.
   services/
     agent-api/         FastAPI + LangGraph agent orchestration
     ingestion-worker/  SEC EDGAR fetch, parse, chunk, embed → Qdrant + SQLite
@@ -34,7 +34,7 @@ fincontext-agent/
   apps/
     demo-ui/           Gradio demo app — deployed to HuggingFace Spaces
   packages/
-    schemas/           Shared Pydantic models (Python) + TypeScript types
+    schemas/           Shared Pydantic models
     evals/             Retrieval recall, citation precision, latency benchmarks
   infra/
     amd-gpu/           Docker Compose: all model services + Qdrant
@@ -52,7 +52,7 @@ fincontext-agent/
 # 1. Start all model services
 cd infra/amd-gpu
 cp ../../configs/.env.example .env   # fill HF_TOKEN
-docker compose -f vllm-rocm-compose.yml up -d
+docker compose up -d
 # Wait 3-5 minutes for 72B model to load
 
 # 2. Apply SQLite schema
@@ -81,7 +81,7 @@ curl http://localhost:8090/health
 | [Milestones](docs/milestones.md) | 9-day hackathon timeline, day-by-day deliverables |
 | [Data and Retrieval](docs/data-and-retrieval.md) | EDGAR ingestion, chunking, hybrid retrieval, Qdrant schema |
 | [AMD GPU Plan](docs/amd-gpu-plan.md) | Hardware story, vLLM setup, ROCm troubleshooting, cost management |
-| [Deployment](docs/cloudflare-deployment.md) | AMD VM setup, HuggingFace Spaces deployment, networking |
+| [Deployment](docs/deployment.md) | AMD VM setup, HuggingFace Spaces deployment, networking |
 | [API Contracts](docs/api-contracts.md) | All FastAPI endpoint specs with request/response examples |
 | [Demo Plan](docs/demo-plan.md) | 9-step demo script, screen-by-screen UI description, judge talking points |
 | [Risk Scoring](docs/risk-scoring.md) | Risk score formula, categories, output schema |
@@ -89,9 +89,9 @@ curl http://localhost:8090/health
 | [Security](docs/security-compliance.md) | Auth, compliance rules, investment disclaimer requirements |
 | [References](docs/references.md) | Research papers, tools, and resources cited |
 
-## Why This Beats Cloudflare
+## Why This Architecture Is Focused
 
-A prior architecture plan used Cloudflare Pages, Workers, D1, R2, Vectorize, and Queues. That plan was replaced because Cloudflare Workers have a 128 MB memory limit incompatible with ML workloads, and learning 9 new Cloudflare services in 9 days is a schedule risk the team cannot absorb. See `docs/architecture.md` for the full decision record.
+The current plan keeps compute, storage, retrieval, and orchestration on one AMD Developer Cloud VM. That keeps the hackathon build small enough to finish, avoids cross-cloud service wiring, and lets the demo focus on AMD GPU inference plus the HuggingFace Spaces UI.
 
 ## HuggingFace Integration
 

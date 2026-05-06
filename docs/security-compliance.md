@@ -21,8 +21,8 @@ FinContext provides AI-assisted research summaries based on source documents and
 ## Controls
 
 - Encrypt data in transit with HTTPS.
-- Use Cloudflare access controls and Worker secrets.
-- Store portfolios and generated reports in private R2 buckets.
+- Require Agent API bearer-token authentication for all non-health endpoints.
+- Store portfolios, generated reports, and job artifacts on the AMD VM with restricted filesystem permissions.
 - Use signed URLs with short expiration.
 - Separate tenants by user and portfolio ID.
 - Log metadata, not raw portfolio contents, unless necessary for debugging.
@@ -76,4 +76,3 @@ Every memo should store:
 - risk scoring version.
 - job ID.
 - timestamp.
-

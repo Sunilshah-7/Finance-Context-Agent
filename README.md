@@ -12,7 +12,7 @@ This repository contains innovative project ideas for the [AMD Developer Hackath
 
 ## Detailed Project Plan
 
-- [FinContext Agent](fincontext-agent/README.md): portfolio-aware financial intelligence platform using AMD GPUs, AMD Developer Cloud, Hugging Face models, and Cloudflare deployment.
+- [FinContext Agent](Entrypoint.md): portfolio-aware financial intelligence platform using AMD GPUs, AMD Developer Cloud, Hugging Face models, and a HuggingFace Spaces Gradio demo.
 
 ## 🚀 Getting Started
 

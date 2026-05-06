@@ -2,7 +2,7 @@
 
 Shared data contracts used by all Python services. Every Pydantic model that crosses service boundaries lives here.
 
-**TypeScript types are not generated for this project.** The previous plan called for TypeScript type generation because the frontend was Next.js. The current frontend is Gradio (Python), so all services share the Python schemas directly.
+**TypeScript types are not generated for this project.** The frontend is Gradio (Python), so all services share the Python schemas directly.
 
 ## What lives here
 

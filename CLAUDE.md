@@ -12,15 +12,7 @@ All planning docs are in `docs/`. No application code exists yet — the build p
 
 ## Critical Architecture Decision
 
-An earlier version of this plan (see branch `codex-plan-branch`) used Cloudflare Pages, Workers, D1, R2, Vectorize, and Queues as the app/edge layer. That architecture was **deliberately abandoned** because:
-
-- Cloudflare Workers have a 128 MB memory limit and 50 ms CPU-time limit per request — incompatible with any real ML workload
-- Learning 9 unfamiliar Cloudflare services under a 9-day deadline is a schedule risk that cannot be absorbed
-- Cloudflare Vectorize has limited payload filtering compared to Qdrant
-- The AMD Developer Cloud VM can run the API, store files, and run Qdrant in Docker at zero extra cost
-- All inter-service communication becomes localhost calls instead of cross-cloud HTTPS hops
-
-**Do not reintroduce Cloudflare dependencies.** The `apps/worker-api/` and `apps/web/` directories in the repo are stubs from the old plan and are not being built. The new frontend is Gradio in `apps/demo-ui/`.
+All compute, storage, retrieval, and API services run on one AMD Developer Cloud VM. The public demo UI is a Gradio app in `apps/demo-ui/` deployed to HuggingFace Spaces. Do not add a separate edge/API layer or a JavaScript frontend; the project is intentionally optimized for the 9-day hackathon timeline.
 
 ## Deployment Architecture
 
@@ -116,7 +108,7 @@ AGENT_API_URL=http://localhost:8090 python app.py          # http://localhost:78
 ```bash
 huggingface-cli login
 # push only the demo-ui subdirectory as the Space root
-git subtree push --prefix /apps/demo-ui space main
+git subtree push --prefix apps/demo-ui space main
 ```
 
 ## LangGraph Agent Graph (4 nodes)

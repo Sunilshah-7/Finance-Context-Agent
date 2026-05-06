@@ -15,18 +15,12 @@ Useful implementation notes from the official docs:
 - vLLM exposes OpenAI-compatible serving, which simplifies integration with existing agent frameworks.
 - Current vLLM docs list AMD ROCm support for Linux environments and ROCm 6.3+.
 
-## Cloudflare
+## HuggingFace
 
-- Cloudflare Pages overview: https://developers.cloudflare.com/pages/
-- Cloudflare Pages Functions: https://developers.cloudflare.com/pages/functions/
-- Cloudflare Pages Functions get started: https://developers.cloudflare.com/pages/functions/get-started/
-- Cloudflare Workers overview: https://developers.cloudflare.com/workers/
-- Cloudflare Workers AI product page: https://www.cloudflare.com/developer-platform/products/workers-ai/
+- HuggingFace Spaces Gradio documentation: https://huggingface.co/docs/hub/spaces-sdks-gradio
+- HuggingFace Text Embeddings Inference documentation: https://huggingface.co/docs/text-embeddings-inference/index
 
-Useful implementation notes from the official docs:
+Useful implementation notes:
 
-- Pages can deploy full-stack applications to Cloudflare's global network.
-- Pages Functions run server-side code with Workers.
-- Workers provide a serverless execution environment.
-- Cloudflare's developer platform includes storage and AI-adjacent services such as R2, D1, Vectorize, and AI Gateway.
-
+- Gradio Spaces provide a simple public demo surface for judges.
+- HuggingFace Hub hosts the Qwen and BGE models used by the AMD GPU backend.

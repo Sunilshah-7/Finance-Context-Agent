@@ -12,7 +12,7 @@ These tasks must be completed before the official build phase starts. They are n
 # On AMD VM
 # Install ROCm following AMD documentation
 # Install Docker and docker-compose
-cd fincontext-agent/infra/amd-gpu
+cd infra/amd-gpu
 docker compose up -d
 curl http://localhost:8000/health      # vLLM 72B ready
 curl http://localhost:8001/health      # vLLM 14B ready
@@ -24,7 +24,7 @@ Expected time: 4–6 hours (most of this is model download time — 72B is ~140 
 ### Task 2: EDGAR filings pre-ingested for all demo tickers
 
 ```bash
-cd fincontext-agent/services/ingestion-worker
+cd services/ingestion-worker
 python ingest.py --tickers AMD,NVDA,MSFT,JPM,TSLA \
                  --filing-types 10-K,10-Q \
                  --years 4
@@ -278,5 +278,5 @@ Do not start these until the core pipeline is demo-ready.
 | Day 1-2 | EDGAR HTML parsing is messier than expected | Use only the 5 pre-ingested demo tickers |
 | Day 3-4 | LangGraph state mutations cause unexpected behavior | Test each node in complete isolation before graph integration |
 | Day 5 | Qwen2.5-72B generates hallucinated citations | Citation post-processor handles this — test it first |
-| Day 6-7 | HuggingFace Spaces can't reach AMD VM | Expose Agent API with a tunnel (ngrok or Cloudflare Tunnel as a fallback) |
+| Day 6-7 | HuggingFace Spaces can't reach AMD VM | Expose Agent API with ngrok as a temporary fallback |
 | Day 8 | Demo run-through reveals blocking issues | Reserve full Day 8 for this — do not add features on Day 8 |

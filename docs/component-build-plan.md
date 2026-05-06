@@ -17,7 +17,7 @@ rocm-smi
 docker --version && docker compose version
 
 # Start all GPU services
-cd fincontext-agent/infra/amd-gpu
+cd infra/amd-gpu
 docker compose up -d
 
 # Verify each service is healthy
@@ -31,7 +31,7 @@ curl http://localhost:6333/healthz     # Qdrant
 ### SQLite Schema
 
 ```bash
-sqlite3 fincontext-agent/fincontext.db < fincontext-agent/infra/schema.sql
+sqlite3 fincontext.db < infra/schema.sql
 # Verify tables were created
 sqlite3 fincontext.db ".tables"
 # Expected: portfolios holdings documents chunks chunks_fts analysis_jobs findings
