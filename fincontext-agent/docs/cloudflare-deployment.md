@@ -1,192 +1,355 @@
-# Cloudflare Deployment
+# Deployment: HuggingFace Spaces + AMD Developer Cloud
 
-## Deployment Role
+This document replaces the previous Cloudflare deployment plan. The decision to drop Cloudflare is documented in `docs/architecture.md`.
 
-Cloudflare should host the public app, edge API, storage coordination, job queues, and demo vector index. AMD Developer Cloud should host the GPU inference and agent services.
+## Summary
 
-## Cloudflare Services
+| Component | Where it runs | Technology |
+|-----------|--------------|------------|
+| Demo UI | HuggingFace Spaces | Gradio |
+| Agent API | AMD Developer Cloud VM | FastAPI + LangGraph |
+| Inference Gateway | AMD Developer Cloud VM | FastAPI proxy |
+| vLLM (72B + 14B) | AMD Developer Cloud VM | Docker |
+| Embedding + Reranker | AMD Developer Cloud VM | Docker (TEI) |
+| Vector store | AMD Developer Cloud VM | Docker (Qdrant) |
+| Metadata DB | AMD Developer Cloud VM | SQLite |
 
-| Service | Use |
-| --- | --- |
-| Pages | Next.js frontend |
-| Workers or Pages Functions | API gateway and authenticated endpoints |
-| D1 | metadata database |
-| R2 | document and report object storage |
-| Queues | async ingestion and analysis jobs |
-| Vectorize | demo vector store |
-| KV | config cache, public model metadata |
-| AI Gateway | observability, caching, provider routing for model requests |
-| Turnstile | abuse protection on public demo |
+---
 
-## Target Routes
+## AMD Developer Cloud VM Setup
 
-```text
-/                         dashboard
-/portfolio                holdings and exposure
-/documents                filing explorer
-/documents/:id            parsed document and citations
-/diff/:ticker             latest vs prior filing changes
-/memo/:jobId              generated analyst memo
-/api/portfolio/upload     CSV upload
-/api/jobs                 create/list jobs
-/api/jobs/:id             job status
-/api/analyze              start analysis
-/api/chat                 citation-backed Q&A
+### 1. Provision a VM
+
+Log in to AMD Developer Cloud and provision an instance with:
+- AMD Instinct GPU (MI300X preferred, MI250 acceptable)
+- At least 64 GB system RAM
+- At least 500 GB disk (for models + Qdrant data + EDGAR HTML cache)
+- Ubuntu 22.04 LTS
+
+### 2. Install ROCm
+
+Follow AMD's official ROCm installation guide for Ubuntu 22.04. Verify:
+```bash
+rocm-smi
+# Should show GPU device with full 192 GB VRAM for MI300X
 ```
 
-## Worker Responsibilities
-
-- Validate auth/session.
-- Validate portfolio and prompt payloads.
-- Store files in R2.
-- Create D1 rows.
-- Enqueue background jobs.
-- Call AMD Agent API using service credentials.
-- Stream model outputs to the browser.
-- Redact secrets and signed URLs from client responses.
-
-## D1 Setup
-
-Create databases:
+### 3. Install Docker
 
 ```bash
-wrangler d1 create fincontext_prod
-wrangler d1 create fincontext_preview
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+newgrp docker
+docker --version  # verify
 ```
 
-Apply migrations:
+### 4. Configure Environment
 
 ```bash
-wrangler d1 migrations apply fincontext_prod
-wrangler d1 migrations apply fincontext_preview
+cd fincontext-agent
+cp configs/.env.example configs/.env
+# Edit .env:
+# - Set HF_TOKEN to your HuggingFace access token
+# - Set VLLM_MODEL_ID to Qwen/Qwen2.5-72B-Instruct
+# - Set VLLM_14B_MODEL_ID to Qwen/Qwen2.5-14B-Instruct
+# - Set SEC_USER_AGENT to FinContextAgent/0.1 your-email@example.com
+# - Set AGENT_API_KEY to a strong random string
 ```
 
-## R2 Setup
-
-Create buckets:
+### 5. Start All Services
 
 ```bash
-wrangler r2 bucket create fincontext-documents
-wrangler r2 bucket create fincontext-reports
+cd fincontext-agent/infra/amd-gpu
+docker compose up -d
+
+# Monitor model load progress (72B takes 3-5 minutes to load)
+docker compose logs -f vllm-72b
+
+# Verify all services healthy
+curl http://localhost:8000/health    # vLLM 72B
+curl http://localhost:8001/health    # vLLM 14B
+curl http://localhost:8002/health    # embedding
+curl http://localhost:8003/health    # reranker
+curl http://localhost:6333/healthz   # Qdrant
 ```
 
-Recommended object keys:
-
-```text
-portfolios/{user_id}/{portfolio_id}/upload.csv
-filings/{ticker}/{filing_type}/{accession}/source.html
-filings/{ticker}/{filing_type}/{accession}/parsed.md
-filings/{ticker}/{filing_type}/{accession}/tables/{table_id}.json
-reports/{portfolio_id}/{job_id}/memo.json
-reports/{portfolio_id}/{job_id}/memo.md
-```
-
-## Queue Setup
-
-Queues:
+### 6. Initialize Database and Collection
 
 ```bash
-wrangler queues create fincontext-ingestion
-wrangler queues create fincontext-analysis
+cd fincontext-agent
+sqlite3 fincontext.db < infra/schema.sql
+
+# Create Qdrant collection
+python -c "
+from qdrant_client import QdrantClient
+from qdrant_client.models import Distance, VectorParams
+c = QdrantClient('http://localhost:6333')
+c.create_collection('fincontext_chunks', vectors_config=VectorParams(size=1024, distance=Distance.COSINE))
+c.create_payload_index('fincontext_chunks', 'ticker', 'keyword')
+c.create_payload_index('fincontext_chunks', 'filing_type', 'keyword')
+c.create_payload_index('fincontext_chunks', 'filed_at', 'keyword')
+print('Collection created')
+"
 ```
 
-Message types:
+### 7. Run Pre-Ingestion
 
-```json
-{
-  "type": "portfolio.analysis.requested",
-  "portfolio_id": "p_123",
-  "job_id": "job_123",
-  "tickers": ["AMD", "MSFT"],
-  "requested_by": "user_123"
+```bash
+cd fincontext-agent/services/ingestion-worker
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+python ingest.py \
+  --tickers AMD,NVDA,MSFT,JPM,TSLA \
+  --filing-types 10-K,10-Q \
+  --years 4 \
+  --db-path ../../fincontext.db \
+  --qdrant-url http://localhost:6333 \
+  --gateway-url http://localhost:8080
+
+# Verify ingestion
+sqlite3 ../../fincontext.db "SELECT ticker, count(*) FROM chunks GROUP BY ticker;"
+```
+
+### 8. Start Inference Gateway and Agent API
+
+```bash
+# Terminal 1: Inference Gateway
+cd fincontext-agent/services/inference-gateway
+pip install -r requirements.txt
+uvicorn main:app --host 0.0.0.0 --port 8080
+
+# Terminal 2: Agent API
+cd fincontext-agent/services/agent-api
+pip install -r requirements.txt
+uvicorn main:app --host 0.0.0.0 --port 8090
+
+# Verify Agent API is healthy
+curl http://localhost:8090/health
+```
+
+### 9. Expose Agent API Externally
+
+The Gradio app on HuggingFace Spaces needs to reach the Agent API. Options:
+
+**Option A: AMD VM public IP with firewall rule (preferred)**
+- Open port 8090 in the AMD cloud firewall/security group
+- Set `AMD_VM_PUBLIC_IP` in the Gradio app's HuggingFace Space secrets
+- Use HTTPS via an nginx reverse proxy with a self-signed cert (or Let's Encrypt if you have a domain)
+
+```nginx
+# /etc/nginx/sites-available/fincontext
+server {
+    listen 443 ssl;
+    server_name _;
+    ssl_certificate /etc/nginx/ssl/cert.pem;
+    ssl_certificate_key /etc/nginx/ssl/key.pem;
+
+    location / {
+        proxy_pass http://localhost:8090;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        # SSE support
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 300s;
+    }
 }
 ```
 
-## Vectorize Setup
+**Option B: Cloudflare Tunnel (fallback if direct exposure fails)**
+```bash
+# Install cloudflared on AMD VM
+curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared
+chmod +x cloudflared
+# Create a tunnel (does not require Cloudflare account for quick tunnels)
+./cloudflared tunnel --url http://localhost:8090
+# Cloudflare prints a public HTTPS URL — use this as AGENT_API_URL in Gradio
+```
 
-For the demo, use one index:
+**Option C: ngrok (simplest fallback)**
+```bash
+ngrok http 8090
+# ngrok prints a public HTTPS URL — use this as AGENT_API_URL in Gradio
+```
+
+---
+
+## HuggingFace Spaces Deployment
+
+### 1. Create the Space
 
 ```bash
-wrangler vectorize create fincontext_chunks --dimensions=1024 --metric=cosine
+pip install huggingface_hub
+huggingface-cli login  # enter your HF token
+
+# Create a new Gradio Space
+huggingface-cli repo create fincontext-agent --type space --space-sdk gradio
 ```
 
-If the chosen embedding dimension differs, change `--dimensions`.
+### 2. Set Space Secrets
 
-Production note:
-
-- Vectorize is excellent for a Cloudflare-native demo.
-- For strict tenant isolation, larger corpora, and SQL joins, consider Postgres + pgvector or Qdrant behind the AMD Agent API.
-
-## Secrets
-
-Set these with `wrangler secret put`:
-
-```text
-AMD_AGENT_API_URL
-AMD_AGENT_API_KEY
-HF_TOKEN
-SESSION_SECRET
-SEC_USER_AGENT
+In HuggingFace Space settings → Secrets, add:
+```
+AGENT_API_URL = https://your-amd-vm-ip:8090   (or tunnel URL)
+AGENT_API_KEY = your-strong-api-key
 ```
 
-Do not expose AMD GPU endpoints directly to the browser.
+These are available as environment variables in the Gradio app at runtime.
 
-## Build and Deploy
+### 3. Deploy the Gradio App
 
-Frontend:
+The Space repository needs the files from `apps/demo-ui/` at its root.
+
+Using git subtree push (recommended):
+```bash
+# Add the Space as a remote
+git remote add space https://huggingface.co/spaces/{HF_USERNAME}/fincontext-agent
+
+# Push only the demo-ui subdirectory as the Space root
+git subtree push --prefix fincontext-agent/apps/demo-ui space main
+```
+
+Alternatively, maintain `apps/demo-ui/` as a separate git repo and push directly:
+```bash
+cd fincontext-agent/apps/demo-ui
+git init
+git remote add origin https://huggingface.co/spaces/{HF_USERNAME}/fincontext-agent
+git add .
+git commit -m "Initial Gradio app"
+git push origin main
+```
+
+### 4. HuggingFace Space README (required)
+
+The Space's `README.md` is shown on the Space page. It must explain the AMD hardware story for judges:
+
+```markdown
+---
+title: FinContext Agent
+emoji: 📊
+colorFrom: blue
+colorTo: indigo
+sdk: gradio
+sdk_version: 4.x
+app_file: app.py
+pinned: false
+---
+
+# FinContext Agent
+
+Portfolio-aware financial intelligence platform built for the AMD Developer Hackathon 2026.
+
+## What it does
+
+Analyzes SEC filings (10-K and 10-Q) for your stock portfolio using a 4-agent LangGraph workflow:
+detects material disclosure changes year-over-year, scores holding-level risk, and generates
+citation-grounded analyst memos.
+
+## AMD Hardware
+
+The inference backend runs on AMD Developer Cloud with AMD Instinct MI300X (192 GB HBM3 VRAM).
+
+Key AMD advantage: Qwen2.5-72B runs in FP16 on a **single** MI300X with full 65,536-token
+context window. This allows processing an entire 10-K annual report in one pass with no context
+fragmentation. NVIDIA H100 (80 GB) cannot hold a 72B FP16 model without multi-GPU setup.
+
+## HuggingFace Models Used
+
+- `Qwen/Qwen2.5-72B-Instruct` — analyst memo generation
+- `Qwen/Qwen2.5-14B-Instruct` — retrieval planning, disclosure classification
+- `BAAI/bge-large-en-v1.5` — document embeddings
+- `BAAI/bge-reranker-large` — evidence reranking
+
+## Architecture
+
+```
+Gradio (HuggingFace Spaces)
+    ↓ HTTPS
+AMD Developer Cloud VM
+  ├── FastAPI Agent API (LangGraph)
+  ├── Inference Gateway (vLLM proxy)
+  ├── Qwen2.5-72B via vLLM/ROCm
+  ├── Qwen2.5-14B via vLLM/ROCm
+  ├── BGE embeddings + reranker via TEI
+  └── Qdrant vector store
+```
+```
+
+### 5. Verify Deployment
+
+After pushing, wait ~2 minutes for the Space to build. Then:
+1. Open the Space URL (shown in HuggingFace after deployment)
+2. Confirm the Gradio UI loads
+3. Upload the seed portfolio CSV (`demo/seed_portfolio.csv`)
+4. Click "Analyze" and verify the job starts (requires AMD VM to be running and reachable)
+
+---
+
+## Monitoring (Minimal)
+
+For the hackathon, monitoring is minimal:
 
 ```bash
-cd apps/web
-npm install
-npm run build
-wrangler pages deploy .vercel/output/static --project-name fincontext-agent
+# Check GPU memory usage
+watch -n 5 rocm-smi
+
+# Check running containers
+docker compose ps
+
+# Check Agent API logs
+uvicorn logs or journalctl -u fincontext-agent-api -f
+
+# Check Qdrant storage
+curl http://localhost:6333/collections/fincontext_chunks
 ```
 
-Worker API:
+The AMD benchmark panel in the Gradio UI shows real-time tokens/sec, GPU memory utilization, and per-request latency collected by the Inference Gateway.
+
+---
+
+## Cost Management ($100 AMD Credit)
+
+Estimated GPU costs:
+- MI300X: approximately $1.99–$3.00/hour depending on AMD Developer Cloud pricing tier
+- $100 credit = approximately 33–50 hours of GPU time
+
+Usage breakdown:
+- Pre-ingestion (embedding 15,000 chunks): ~30 minutes of GPU time
+- Development + debugging (running the graph ~50 times): ~3–4 hours
+- Demo sessions (20 end-to-end runs): ~2 hours
+- **Total estimated: 6–8 GPU hours out of 33–50 available**
+
+To protect the credit:
+- Shut down vLLM containers when not actively developing
+- Use `docker compose stop vllm-72b vllm-14b` and restart when needed
+- The 72B model takes 3-5 minutes to reload — plan for this in your workflow
+- Do NOT leave the AMD VM running overnight with vLLM active unless intentionally benchmarking
+
+---
+
+## Sharing Pre-Ingested Data Between Teammates
+
+After running ingestion on the AMD VM, create a shareable snapshot:
 
 ```bash
-cd apps/worker-api
-npm install
-npm run deploy
+# Qdrant snapshot
+curl -X POST "http://localhost:6333/collections/fincontext_chunks/snapshots"
+# Returns a snapshot filename — download it
+curl "http://localhost:6333/collections/fincontext_chunks/snapshots/{snapshot_name}" \
+  -o fincontext_chunks_snapshot.tar
+
+# SQLite backup
+cp fincontext.db fincontext_demo.db
 ```
 
-Local dev:
-
+Share both files with your teammate. They restore with:
 ```bash
-wrangler pages dev apps/web/.vercel/output/static --compatibility-date=2026-05-06
+# Restore Qdrant
+curl -X POST "http://localhost:6333/collections/fincontext_chunks/snapshots/upload" \
+  -F "snapshot=@fincontext_chunks_snapshot.tar"
+
+# Restore SQLite
+cp fincontext_demo.db fincontext.db
 ```
 
-## Networking to AMD Developer Cloud
-
-Recommended:
-
-- Put Agent API behind HTTPS.
-- Require bearer token or mTLS.
-- Allowlist Cloudflare egress where possible.
-- Add request-level tenant IDs and job IDs.
-- Use signed R2 URLs or short-lived object tokens for document transfer.
-
-## Streaming
-
-For interactive chat and memo generation:
-
-- Browser connects to Cloudflare Worker.
-- Worker calls AMD Agent API.
-- Agent API streams SSE tokens.
-- Worker forwards SSE stream.
-- UI renders answer and citation cards incrementally.
-
-## Deployment Checklist
-
-- Cloudflare Pages project created.
-- D1 databases created and migrations applied.
-- R2 buckets created.
-- Queues created and bound.
-- Vectorize index created.
-- Worker secrets configured.
-- AMD Agent API reachable from Worker.
-- CORS locked to the production domain.
-- Rate limits enabled.
-- Demo seed portfolio loaded.
-- Source citation links verified.
-
+Both teammates working from the same snapshot ensures identical retrieval results and prevents "it works on my machine" demo surprises.
