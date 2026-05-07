@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal, Optional
+from typing import Literal, Optional, TypeAlias, Union
 
 from pydantic import BaseModel, Field
 
@@ -147,6 +147,60 @@ class DiffChange(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Document explorer sub-models
+# ---------------------------------------------------------------------------
+
+
+class DocumentSummary(BaseModel):
+    document_id: str
+    filing_type: str
+    filed_at: str
+    accession_number: Optional[str] = None
+    source_url: Optional[str] = None
+    sections_parsed: list[str] = Field(default_factory=list)
+    chunks_indexed: int
+
+
+# ---------------------------------------------------------------------------
+# Chat SSE event sub-models
+# ---------------------------------------------------------------------------
+
+
+class ChatStageEvent(BaseModel):
+    type: Literal["stage"] = "stage"
+    stage: Literal["planning", "retrieving", "analyzing", "writing", "complete"]
+
+
+class ChatTokenEvent(BaseModel):
+    type: Literal["token"] = "token"
+    text: str
+
+
+class ChatCitation(BaseModel):
+    citation_anchor: str
+    chunk_id: str
+    source_url: str
+
+
+class ChatCitationsEvent(BaseModel):
+    type: Literal["citations"] = "citations"
+    citations: list[ChatCitation] = Field(default_factory=list)
+
+
+class ChatDoneEvent(BaseModel):
+    type: Literal["done"] = "done"
+    citation_pass_rate: float
+
+
+ChatStreamEvent: TypeAlias = Union[
+    ChatStageEvent,
+    ChatTokenEvent,
+    ChatCitationsEvent,
+    ChatDoneEvent,
+]
+
+
+# ---------------------------------------------------------------------------
 # Primary request / response models
 # ---------------------------------------------------------------------------
 
@@ -206,6 +260,11 @@ class DiffResponse(BaseModel):
     year_a: str
     year_b: str
     changes: list[DiffChange] = Field(default_factory=list)
+
+
+class DocumentsResponse(BaseModel):
+    ticker: str
+    documents: list[DocumentSummary] = Field(default_factory=list)
 
 
 class ChatRequest(BaseModel):

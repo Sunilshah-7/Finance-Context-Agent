@@ -42,7 +42,7 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 - [x] Create `infra/schema.sql` for SQLite tables: `portfolios`, `holdings`, `documents`, `chunks`, `chunks_fts`, `analysis_jobs`, and `findings`.
 - [x] Add FTS5 triggers in `infra/schema.sql` so inserts into `chunks` populate `chunks_fts`.
 - [x] Create `infra/amd-gpu/docker-compose.yml` with services for `vllm-72b`, `vllm-14b`, `tei-embedding`, `tei-reranker`, and `qdrant`.
-- [ ] Add Qdrant collection initialization script for `fincontext_chunks` with 1024 dimensions and payload indexes for `ticker`, `filing_type`, `filed_at`, and `section`.
+- [x] Add Qdrant collection initialization script for `fincontext_chunks` with 1024 dimensions and payload indexes for `ticker`, `filing_type`, `filed_at`, and `section`.
 - [ ] Provision AMD Developer Cloud VM with AMD Instinct GPU, Ubuntu, ROCm, Docker, and enough disk for models and Qdrant data.
 - [ ] Verify AMD GPU visibility with `rocm-smi`.
 - [ ] Start GPU/storage services with Docker Compose and verify health for ports `8000`, `8001`, `8002`, `8003`, and `6333`.

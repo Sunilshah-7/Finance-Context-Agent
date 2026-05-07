@@ -70,6 +70,28 @@ class ChunkRow(BaseModel):
     vector_id: Optional[str] = None
 
 
+class QdrantChunkPayload(BaseModel):
+    chunk_id: str
+    document_id: str
+    ticker: str
+    cik: str
+    filing_type: str
+    filed_at: str
+    fiscal_period: str
+    section: str
+    item_label: str
+    chunk_index: int
+    token_count: int
+    text_hash: str
+    citation_anchor: str
+    source_url: str
+    company_name: Optional[str] = None
+    accession_number: Optional[str] = None
+    section_title: Optional[str] = None
+    text: Optional[str] = None
+    is_table: bool = False
+
+
 class AnalysisJobRow(BaseModel):
     table_name: ClassVar[str] = "analysis_jobs"
 
@@ -104,3 +126,26 @@ class FindingRow(BaseModel):
     risk_score: Optional[float] = None
     score_delta: Optional[float] = None
     confidence: Optional[float] = None
+
+
+class DisclosureChangeRow(BaseModel):
+    table_name: ClassVar[str] = "disclosure_changes"
+
+    id: str
+    job_id: str
+    ticker: str
+    section: str
+    filing_type: str
+    year_a: str
+    year_b: str
+    change_type: str  # new_risk | removed_risk | intensified_language | softened_language | metric_changed | legal_accounting_update
+    materiality: str  # high | medium | low
+    confidence: float
+    summary: str
+    created_at: str
+    old_text: Optional[str] = None
+    new_text: Optional[str] = None
+    old_citation_anchor: Optional[str] = None
+    new_citation_anchor: Optional[str] = None
+    old_source_url: Optional[str] = None
+    new_source_url: Optional[str] = None

@@ -81,16 +81,7 @@ curl http://localhost:6333/healthz   # Qdrant
 sqlite3 fincontext.db < infra/schema.sql
 
 # Create Qdrant collection
-python -c "
-from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams
-c = QdrantClient('http://localhost:6333')
-c.create_collection('fincontext_chunks', vectors_config=VectorParams(size=1024, distance=Distance.COSINE))
-c.create_payload_index('fincontext_chunks', 'ticker', 'keyword')
-c.create_payload_index('fincontext_chunks', 'filing_type', 'keyword')
-c.create_payload_index('fincontext_chunks', 'filed_at', 'keyword')
-print('Collection created')
-"
+python3 infra/qdrant/init_collection.py
 ```
 
 ### 7. Run Pre-Ingestion

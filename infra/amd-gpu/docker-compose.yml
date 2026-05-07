@@ -73,8 +73,6 @@ services:
       - ${VLLM_PLANNER_SERVED_NAME:-fincontext-planner}
       - --tensor-parallel-size
       - "${VLLM_PLANNER_TENSOR_PARALLEL:-1}"
-      - --max-model-len
-      - "${VLLM_PLANNER_MAX_MODEL_LEN:-32768}"
       - --gpu-memory-utilization
       - "${VLLM_PLANNER_GPU_UTILIZATION:-0.16}"
       - --max-model-len
