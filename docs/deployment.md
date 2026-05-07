@@ -46,8 +46,9 @@ docker --version  # verify
 ### 4. Configure Environment
 
 ```bash
-cd fincontext-agent
-cp configs/.env.example configs/.env
+# From repo root: copy env template into the compose directory
+cd infra/amd-gpu
+cp ../../configs/.env.example .env
 # Edit .env:
 # - Set HF_TOKEN to your HuggingFace access token
 # - Set VLLM_MODEL_ID to Qwen/Qwen2.5-72B-Instruct
@@ -76,7 +77,7 @@ curl http://localhost:6333/healthz   # Qdrant
 ### 6. Initialize Database and Collection
 
 ```bash
-cd fincontext-agent
+# From repo root
 sqlite3 fincontext.db < infra/schema.sql
 
 # Create Qdrant collection
