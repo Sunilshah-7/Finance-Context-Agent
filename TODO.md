@@ -22,7 +22,7 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 
 ## Shared Rules
 
-- [ ] Work on feature branches; never commit directly to `main`.
+- [x] Work on feature branches; never commit directly to `main` or `dev`. All PRs target `dev`.
 - [ ] Do not commit `.env`, `fincontext.db`, Qdrant storage, model cache, or secrets.
 - [ ] Use Python 3.12 and Pydantic models from `packages/schemas/python/`.
 - [ ] Every service-to-service model call must go through the Inference Gateway on port `8080`.
@@ -37,19 +37,19 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 
 ## Atomic Tasks
 
-- [ ] Create or verify `.gitignore` includes `.env`, `fincontext.db`, `fincontext_demo.db`, `/models/`, `qdrant_storage/`, `__pycache__/`, `.venv/`, and `*.pyc`.
-- [ ] Create `configs/.env.example` for the current architecture with `AMD_VM_PUBLIC_IP`, `AGENT_API_KEY`, `VLLM_REASONER_URL`, `VLLM_PLANNER_URL`, `EMBEDDING_URL`, `RERANKER_URL`, `INFERENCE_GATEWAY_URL`, `QDRANT_URL`, `QDRANT_COLLECTION`, `SQLITE_DB_PATH`, `HF_TOKEN`, `HF_HOME`, `SEC_USER_AGENT`, `ENVIRONMENT`, and `LOG_LEVEL`.
-- [ ] Create `infra/schema.sql` for SQLite tables: `portfolios`, `holdings`, `documents`, `chunks`, `chunks_fts`, `analysis_jobs`, and `findings`.
-- [ ] Add FTS5 triggers in `infra/schema.sql` so inserts into `chunks` populate `chunks_fts`.
-- [ ] Create `infra/amd-gpu/docker-compose.yml` with services for `vllm-72b`, `vllm-14b`, `tei-embedding`, `tei-reranker`, and `qdrant`.
-- [ ] Add Qdrant collection initialization script for `fincontext_chunks` with 1024 dimensions and payload indexes for `ticker`, `filing_type`, `filed_at`, and `section`.
+- [x] Create or verify `.gitignore` includes `.env`, `fincontext.db`, `fincontext_demo.db`, `/models/`, `qdrant_storage/`, `__pycache__/`, `.venv/`, and `*.pyc`.
+- [x] Create `configs/.env.example` for the current architecture with `AMD_VM_PUBLIC_IP`, `AGENT_API_KEY`, `VLLM_REASONER_URL`, `VLLM_PLANNER_URL`, `EMBEDDING_URL`, `RERANKER_URL`, `INFERENCE_GATEWAY_URL`, `QDRANT_URL`, `QDRANT_COLLECTION`, `SQLITE_DB_PATH`, `HF_TOKEN`, `HF_HOME`, `SEC_USER_AGENT`, `ENVIRONMENT`, and `LOG_LEVEL`.
+- [x] Create `infra/schema.sql` for SQLite tables: `portfolios`, `holdings`, `documents`, `chunks`, `chunks_fts`, `analysis_jobs`, and `findings`.
+- [x] Add FTS5 triggers in `infra/schema.sql` so inserts into `chunks` populate `chunks_fts`.
+- [x] Create `infra/amd-gpu/docker-compose.yml` with services for `vllm-72b`, `vllm-14b`, `tei-embedding`, `tei-reranker`, and `qdrant`.
+- [x] Add Qdrant collection initialization script for `fincontext_chunks` with 1024 dimensions and payload indexes for `ticker`, `filing_type`, `filed_at`, and `section`.
 - [ ] Provision AMD Developer Cloud VM with AMD Instinct GPU, Ubuntu, ROCm, Docker, and enough disk for models and Qdrant data.
 - [ ] Verify AMD GPU visibility with `rocm-smi`.
 - [ ] Start GPU/storage services with Docker Compose and verify health for ports `8000`, `8001`, `8002`, `8003`, and `6333`.
-- [ ] Create `packages/schemas/python/state.py` with `AnalysisState`, `Holding`, `RetrievalPlan`, `EvidenceChunk`, `DisclosureChange`, `RiskScore`, `Citation`, and `AnalystMemo`.
-- [ ] Create `packages/schemas/python/db.py` for SQLite row models.
-- [ ] Create `packages/schemas/python/api.py` for FastAPI request/response models from `docs/api-contracts.md`.
-- [ ] Add `packages/schemas` packaging files so services can install it with `pip install -e ../../packages/schemas`.
+- [x] Create `packages/schemas/python/state.py` with `AnalysisState`, `Holding`, `RetrievalPlan`, `EvidenceChunk`, `DisclosureChange`, `RiskScore`, `Citation`, and `AnalystMemo`.
+- [x] Create `packages/schemas/python/db.py` for SQLite row models.
+- [x] Create `packages/schemas/python/api.py` for FastAPI request/response models from `docs/api-contracts.md`.
+- [x] Add `packages/schemas` packaging files so services can install it with `pip install -e ../../packages/schemas`.
 - [ ] Create `services/agent-api/main.py` with FastAPI app and `GET /health`.
 - [ ] Implement Agent API bearer-token authentication using `AGENT_API_KEY`.
 - [ ] Implement `POST /api/portfolio/upload` to parse CSV, validate required columns, resolve basic portfolio totals, and write portfolio/holdings rows.
@@ -205,8 +205,8 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 
 # Cross-Team Collaboration Tasks
 
-- [ ] **Architecture lock:** Sunil, Abhiyan, and Kishan confirm no separate edge/API platform or JavaScript frontend work will be started.
-- [ ] **Schema lock:** Sunil, Abhiyan, and Kishan review `AnalysisState`, API schemas, SQLite schema, and Qdrant payload schema before service implementation.
+- [x] **Architecture lock:** Sunil, Abhiyan, and Kishan confirm no separate edge/API platform or JavaScript frontend work will be started.
+- [x] **Schema lock:** `AnalysisState`, API schemas, SQLite schema, and Qdrant payload schema all finalized and merged to `dev` in `packages/schemas/python/`.
 - [ ] **Data contract review:** Abhiyan and Kishan validate that ingestion outputs are sufficient for retrieval, diff classification, memo generation, and citation cards.
 - [ ] **Prompt review:** Sunil and Kishan review planner, diff classifier, and memo prompts for structured output, citation discipline, and compliance.
 - [ ] **Compliance review:** All engineers verify no endpoint or UI text produces buy/sell/hold/short recommendations.

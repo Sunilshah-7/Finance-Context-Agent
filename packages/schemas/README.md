@@ -11,7 +11,7 @@ packages/schemas/
   python/
     __init__.py
     state.py      # AnalysisState and all LangGraph node subtypes — the central contract
-    db.py         # SQLite row types: Portfolio, Holding, Document, Chunk, AnalysisJob, Finding
+    db.py         # SQLite row types plus Qdrant chunk payload contract
     api.py        # FastAPI request/response models for Agent API endpoints
 ```
 
@@ -29,6 +29,7 @@ Core types:
 - `DisclosureChange` — a classified change between two filing versions
 - `RiskScore` — computed risk score per holding
 - `AnalystMemo` — the final structured memo
+- `QdrantChunkPayload` — vector-store payload contract for `fincontext_chunks`
 
 ## Rules
 
