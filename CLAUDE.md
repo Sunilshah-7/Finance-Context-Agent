@@ -59,7 +59,7 @@ docs/
 **Start all GPU and storage services (AMD VM only):**
 ```bash
 cd infra/amd-gpu
-cp configs/.env.example .env       # fill HF_TOKEN, model vars
+cp ../../configs/.env.example .env   # fill HF_TOKEN, model vars
 docker compose up -d                      # starts all model services + Qdrant
 docker compose logs -f vllm-72b          # watch 72B model load (~3-5 min)
 curl http://localhost:8000/health         # verify vLLM ready
