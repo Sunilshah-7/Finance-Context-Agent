@@ -465,9 +465,28 @@ These posts also make your submission visible to judges before they open it.
 
 ## Git Workflow
 
+### Branch Hierarchy
+
+```
+main        ← stable, judge-facing; only receives merges from dev at milestones
+  └── dev   ← shared integration branch; everyone branches off here and PRs back here
+        ├── feat/ingestion-worker
+        ├── feat/agent-api-planner-node
+        ├── fix/qdrant-filter-query
+        └── docs/update-api-contracts
+```
+
+**Never commit directly to `main` or `dev`.** All work happens on a feature branch.
+
+`dev` → `main` promotions happen at milestones (e.g., end of Day 4, demo-ready build). One teammate opens the PR; another reviews and merges.
+
 ### Branch Strategy
 
-Never commit directly to `main`. Always work on a feature branch.
+Always branch off `dev`:
+```bash
+git checkout dev && git pull origin dev
+git checkout -b feat/your-feature
+```
 
 | Prefix | When to use | Example |
 |--------|-------------|---------|
@@ -512,11 +531,15 @@ Good commit granularity examples:
 
 ### Pull Request Process
 
-1. Branch off `main`: `git checkout -b feat/your-feature`
-2. Make commits as you work (frequent small commits are fine on a feature branch)
-3. Before opening a PR, squash or clean up commits to logical units
-4. PR title should match the primary commit message format
-5. PR body should describe what the PR does and link to any relevant docs
+1. Branch off `dev`: `git checkout dev && git pull origin dev && git checkout -b feat/your-feature`
+2. Make commits as you work — small, granular, one logical unit per commit
+3. Push your branch and open a PR targeting **`dev`** (never `main` directly)
+4. PR title must match the commit message format: `<type>(<scope>): <short description>`
+5. PR body must describe what changed and why, with a short test plan
+6. At least one teammate must review before merging — do not self-merge
+7. Delete the branch after merge
+
+**`dev` → `main` PR** (milestones only): opened by any teammate, reviewed by at least one other, merged only when `dev` is in a stable, tested state.
 
 ### AI Agent Branch Assignment
 
@@ -529,8 +552,10 @@ If either agent needs to touch a file owned by the other, stop and coordinate fi
 
 ### Never do these
 
-- Force push to `main`
-- Merge your own PR without teammate review (on feature branches that affect both services)
+- Commit directly to `main` or `dev` (always use a feature branch + PR)
+- Force push to `main` or `dev`
+- Merge your own PR without at least one teammate review
+- Open a PR targeting `main` directly (all PRs target `dev`)
 - Commit `.env` files, API keys, or `fincontext.db`
 - Commit the Qdrant data volume or model cache directory
 
