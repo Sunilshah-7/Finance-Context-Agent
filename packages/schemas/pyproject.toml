@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fincontext-schemas"
+version = "0.1.0"
+description = "Shared Python schemas for FinContext Agent"
+requires-python = ">=3.12"
+dependencies = ["pydantic>=2,<3"]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
