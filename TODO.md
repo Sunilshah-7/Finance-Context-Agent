@@ -89,10 +89,10 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 
 - [x] Create `services/ingestion-worker/requirements.txt` with `httpx`, `beautifulsoup4`, `lxml`, `tiktoken`, `qdrant-client`, `pydantic`, and `pytest`.
 - [x] Implement `worker/models.py` for `FilingRef`, `NormalizedDocument`, `NormalizedSection`, `ChunkInput`, and `ChunkWithEmbedding`.
-- [ ] Implement `worker/sec_client.py` with async EDGAR client, required `SEC_USER_AGENT`, ticker-to-CIK cache, submissions fetch, filing filtering, and document download.
-- [ ] Add SEC rate limiter capped at 10 requests per second with polite delay for document downloads.
-- [ ] Add local EDGAR HTML cache to avoid repeated downloads during development.
-- [ ] Write `test_sec_client.py` verifying AMD resolves to CIK `0000002488`.
+- [x] Implement `worker/sec_client.py` with async EDGAR client, required `SEC_USER_AGENT`, ticker-to-CIK cache, submissions fetch, filing filtering, and document download.
+- [x] Add SEC rate limiter capped at 10 requests per second with polite delay for document downloads.
+- [x] Add local EDGAR HTML cache to avoid repeated downloads during development.
+- [x] Write `test_sec_client.py` verifying AMD resolves to CIK `0000002488`.
 - [ ] Implement `worker/parsers/sec_html.py` using BeautifulSoup/lxml to extract `Item 1`, `Item 1A`, `Item 7`, `Item 7A`, and `Item 8`.
 - [ ] Normalize EDGAR HTML by removing XBRL tags, table-of-contents noise, headers, and repeated whitespace.
 - [ ] Add parser fixture for a saved AMD 10-K HTML file.
