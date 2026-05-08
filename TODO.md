@@ -113,6 +113,7 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 - [x] Add citation anchor inspection helper for paragraph/table anchor format checks.
 - [x] Add ingested document summary helper for ticker, filing type, filed date, parsed sections, and chunk counts.
 - [x] Add AMD one-filing smoke runbook for post-Gateway/Qdrant validation.
+- [x] Add validation CLI for SQLite FTS, Qdrant count, citation anchor, and document summary checks.
 - [ ] Run single-ticker ingestion for AMD 10-K one-year test.
 - [ ] Run full demo ingestion for AMD, NVDA, MSFT, JPM, and TSLA with 10-K and latest 10-Q filings.
 - [ ] Verify SQLite `chunks` count matches `chunks_fts` count.
