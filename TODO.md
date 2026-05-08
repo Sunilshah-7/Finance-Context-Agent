@@ -97,10 +97,10 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 - [x] Normalize EDGAR HTML by removing XBRL tags, table-of-contents noise, headers, and repeated whitespace.
 - [ ] Add parser fixture for a saved AMD 10-K HTML file.
 - [ ] Write parser test verifying AMD `Item 1A` extracts at least 1000 words.
-- [ ] Implement `worker/chunking.py` with paragraph-aware 600-1000 token chunks, 100-token overlap, max 1200 tokens, and min 200 tokens.
-- [ ] Ensure tables become standalone chunks and are not split.
-- [ ] Generate stable `citation_anchor`, `chunk_index`, `token_count`, `text_hash`, and `is_table` fields.
-- [ ] Write chunking tests for size bounds, overlap, table handling, and citation format.
+- [x] Implement `worker/chunking.py` with paragraph-aware 600-1000 token chunks, 100-token overlap, max 1200 tokens, and min 200 tokens.
+- [x] Ensure tables become standalone chunks and are not split.
+- [x] Generate stable `citation_anchor`, `chunk_index`, `token_count`, `text_hash`, and `is_table` fields.
+- [x] Write chunking tests for size bounds, overlap, table handling, and citation format.
 - [ ] Implement `worker/embeddings.py` to call Inference Gateway `/v1/embeddings` in batches up to 256 texts.
 - [ ] Add retries with exponential backoff for embedding failures.
 - [ ] Write embedding shape test expecting 1024-dimensional vectors.
