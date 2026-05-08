@@ -84,6 +84,16 @@ class CitationAnchorInspection:
         )
 
 
+@dataclass(frozen=True)
+class IngestedDocumentSummary:
+    document_id: str
+    ticker: str
+    filing_type: str
+    filed_at: str
+    sections_parsed: list[str]
+    chunk_count: int
+
+
 def validate_sqlite_fts(conn: sqlite3.Connection) -> SqliteFtsValidation:
     chunks_count = _scalar_count(conn, "SELECT count(*) FROM chunks")
     fts_count = _count_searchable_fts_rows(conn)
@@ -176,6 +186,47 @@ def inspect_citation_anchors(
     return CitationAnchorInspection(sampled_count=len(rows), invalid_anchors=invalid)
 
 
+def summarize_ingested_documents(
+    conn: sqlite3.Connection,
+    ticker: str | None = None,
+) -> list[IngestedDocumentSummary]:
+    filters: list[str] = []
+    params: list[str] = []
+    if ticker:
+        filters.append("d.ticker = ?")
+        params.append(ticker.upper())
+
+    where_clause = f"WHERE {' AND '.join(filters)}" if filters else ""
+    rows = conn.execute(
+        f"""
+        SELECT
+            d.id,
+            d.ticker,
+            d.filing_type,
+            d.filed_at,
+            d.sections_parsed,
+            count(c.id) AS chunk_count
+        FROM documents d
+        LEFT JOIN chunks c ON c.document_id = d.id
+        {where_clause}
+        GROUP BY d.id, d.ticker, d.filing_type, d.filed_at, d.sections_parsed
+        ORDER BY d.ticker, d.filed_at DESC, d.filing_type
+        """,
+        params,
+    ).fetchall()
+    return [
+        IngestedDocumentSummary(
+            document_id=str(row[0]),
+            ticker=str(row[1]),
+            filing_type=str(row[2]),
+            filed_at=str(row[3]),
+            sections_parsed=_parse_sections_parsed(row[4]),
+            chunk_count=int(row[5]),
+        )
+        for row in rows
+    ]
+
+
 def parse_qdrant_count_response(payload: str | bytes | dict[str, Any]) -> int:
     if isinstance(payload, bytes):
         parsed: dict[str, Any] = json.loads(payload.decode("utf-8"))
@@ -201,6 +252,20 @@ def _valid_citation_anchor(
     prefix = f"{ticker.upper()} {filing_type} {item_label} {kind}"
     pattern = rf"^{re.escape(prefix)} [1-9][0-9]*$"
     return re.match(pattern, citation_anchor) is not None
+
+
+def _parse_sections_parsed(value: Any) -> list[str]:
+    if value in (None, ""):
+        return []
+    if isinstance(value, list):
+        return [str(item) for item in value]
+    try:
+        parsed = json.loads(str(value))
+    except json.JSONDecodeError:
+        return [str(value)]
+    if isinstance(parsed, list):
+        return [str(item) for item in parsed]
+    return [str(parsed)]
 
 
 def _scalar_count(conn: sqlite3.Connection, query: str) -> int:
