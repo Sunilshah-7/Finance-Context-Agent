@@ -101,9 +101,9 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 - [x] Ensure tables become standalone chunks and are not split.
 - [x] Generate stable `citation_anchor`, `chunk_index`, `token_count`, `text_hash`, and `is_table` fields.
 - [x] Write chunking tests for size bounds, overlap, table handling, and citation format.
-- [ ] Implement `worker/embeddings.py` to call Inference Gateway `/v1/embeddings` in batches up to 256 texts.
-- [ ] Add retries with exponential backoff for embedding failures.
-- [ ] Write embedding shape test expecting 1024-dimensional vectors.
+- [x] Implement `worker/embeddings.py` to call Inference Gateway `/v1/embeddings` in batches up to 256 texts.
+- [x] Add retries with exponential backoff for embedding failures.
+- [x] Write embedding shape test expecting 1024-dimensional vectors.
 - [ ] Implement `worker/db.py` to upsert documents and chunks into SQLite.
 - [ ] Implement `worker/vector_store.py` to upsert chunk vectors and payload metadata into Qdrant.
 - [ ] Add duplicate skip logic using `text_hash`.
