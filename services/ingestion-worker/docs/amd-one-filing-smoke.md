@@ -37,35 +37,12 @@ Expected result: the command finishes without EDGAR, Gateway, SQLite, or Qdrant 
 ## Run Validation Helpers
 
 ```bash
-PYTHONPATH=services/ingestion-worker python3 - <<'PY'
-import sqlite3
-from worker.validation import (
-    inspect_citation_anchors,
-    summarize_ingested_documents,
-    validate_qdrant_count,
-    validate_sqlite_fts,
-)
-
-conn = sqlite3.connect("fincontext.db")
-
-for check in (
-    validate_sqlite_fts(conn),
-    validate_qdrant_count(conn, "http://localhost:6333"),
-    inspect_citation_anchors(conn, sample_size=20),
-):
-    print(check.message)
-    if not check.ok:
-        raise SystemExit(1)
-
-for summary in summarize_ingested_documents(conn, ticker="AMD"):
-    print(
-        summary.ticker,
-        summary.filing_type,
-        summary.filed_at,
-        ",".join(summary.sections_parsed),
-        summary.chunk_count,
-    )
-PY
+python3 services/ingestion-worker/validate_ingestion.py \
+  --db-path fincontext.db \
+  --qdrant-url http://localhost:6333 \
+  --qdrant-collection fincontext_chunks \
+  --citation-sample-size 20 \
+  --ticker AMD
 ```
 
 ## Pass Conditions
