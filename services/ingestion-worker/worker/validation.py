@@ -58,6 +58,32 @@ class QdrantCountValidation:
         )
 
 
+@dataclass(frozen=True)
+class CitationAnchorIssue:
+    chunk_id: str
+    citation_anchor: str
+    expected_format: str
+
+
+@dataclass(frozen=True)
+class CitationAnchorInspection:
+    sampled_count: int
+    invalid_anchors: list[CitationAnchorIssue] = field(default_factory=list)
+
+    @property
+    def ok(self) -> bool:
+        return not self.invalid_anchors
+
+    @property
+    def message(self) -> str:
+        if self.ok:
+            return f"Citation anchors valid for {self.sampled_count} sampled chunks"
+        return (
+            "Citation anchor inspection failed: "
+            f"{len(self.invalid_anchors)} invalid of {self.sampled_count} sampled chunks"
+        )
+
+
 def validate_sqlite_fts(conn: sqlite3.Connection) -> SqliteFtsValidation:
     chunks_count = _scalar_count(conn, "SELECT count(*) FROM chunks")
     fts_count = _count_searchable_fts_rows(conn)
@@ -110,6 +136,46 @@ def fetch_qdrant_point_count(
     return parse_qdrant_count_response(payload)
 
 
+def inspect_citation_anchors(
+    conn: sqlite3.Connection,
+    sample_size: int = 20,
+) -> CitationAnchorInspection:
+    rows = conn.execute(
+        """
+        SELECT id, ticker, filing_type, item_label, citation_anchor, is_table
+        FROM chunks
+        ORDER BY ticker, filing_type, filed_at, chunk_index, id
+        LIMIT ?
+        """,
+        (sample_size,),
+    ).fetchall()
+    invalid: list[CitationAnchorIssue] = []
+    for row in rows:
+        chunk_id = str(row[0])
+        ticker = str(row[1])
+        filing_type = str(row[2])
+        item_label = str(row[3])
+        citation_anchor = str(row[4])
+        is_table = bool(row[5])
+        kind = "table" if is_table else "paragraph"
+        expected_format = f"{ticker.upper()} {filing_type} {item_label} {kind} <N>"
+        if not _valid_citation_anchor(
+            citation_anchor=citation_anchor,
+            ticker=ticker,
+            filing_type=filing_type,
+            item_label=item_label,
+            kind=kind,
+        ):
+            invalid.append(
+                CitationAnchorIssue(
+                    chunk_id=chunk_id,
+                    citation_anchor=citation_anchor,
+                    expected_format=expected_format,
+                )
+            )
+    return CitationAnchorInspection(sampled_count=len(rows), invalid_anchors=invalid)
+
+
 def parse_qdrant_count_response(payload: str | bytes | dict[str, Any]) -> int:
     if isinstance(payload, bytes):
         parsed: dict[str, Any] = json.loads(payload.decode("utf-8"))
@@ -122,6 +188,19 @@ def parse_qdrant_count_response(payload: str | bytes | dict[str, Any]) -> int:
     if not isinstance(result, dict) or "count" not in result:
         raise ValueError("Qdrant count response is missing result.count")
     return int(result["count"])
+
+
+def _valid_citation_anchor(
+    *,
+    citation_anchor: str,
+    ticker: str,
+    filing_type: str,
+    item_label: str,
+    kind: str,
+) -> bool:
+    prefix = f"{ticker.upper()} {filing_type} {item_label} {kind}"
+    pattern = rf"^{re.escape(prefix)} [1-9][0-9]*$"
+    return re.match(pattern, citation_anchor) is not None
 
 
 def _scalar_count(conn: sqlite3.Connection, query: str) -> int:
