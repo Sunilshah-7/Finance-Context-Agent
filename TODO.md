@@ -87,27 +87,27 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 
 ## Atomic Tasks
 
-- [ ] Create `services/ingestion-worker/requirements.txt` with `httpx`, `beautifulsoup4`, `lxml`, `tiktoken`, `qdrant-client`, `pydantic`, and `pytest`.
-- [ ] Implement `worker/models.py` for `FilingRef`, `NormalizedDocument`, `NormalizedSection`, `ChunkInput`, and `ChunkWithEmbedding`.
-- [ ] Implement `worker/sec_client.py` with async EDGAR client, required `SEC_USER_AGENT`, ticker-to-CIK cache, submissions fetch, filing filtering, and document download.
-- [ ] Add SEC rate limiter capped at 10 requests per second with polite delay for document downloads.
-- [ ] Add local EDGAR HTML cache to avoid repeated downloads during development.
-- [ ] Write `test_sec_client.py` verifying AMD resolves to CIK `0000002488`.
-- [ ] Implement `worker/parsers/sec_html.py` using BeautifulSoup/lxml to extract `Item 1`, `Item 1A`, `Item 7`, `Item 7A`, and `Item 8`.
-- [ ] Normalize EDGAR HTML by removing XBRL tags, table-of-contents noise, headers, and repeated whitespace.
+- [x] Create `services/ingestion-worker/requirements.txt` with `httpx`, `beautifulsoup4`, `lxml`, `tiktoken`, `qdrant-client`, `pydantic`, and `pytest`.
+- [x] Implement `worker/models.py` for `FilingRef`, `NormalizedDocument`, `NormalizedSection`, `ChunkInput`, and `ChunkWithEmbedding`.
+- [x] Implement `worker/sec_client.py` with async EDGAR client, required `SEC_USER_AGENT`, ticker-to-CIK cache, submissions fetch, filing filtering, and document download.
+- [x] Add SEC rate limiter capped at 10 requests per second with polite delay for document downloads.
+- [x] Add local EDGAR HTML cache to avoid repeated downloads during development.
+- [x] Write `test_sec_client.py` verifying AMD resolves to CIK `0000002488`.
+- [x] Implement `worker/parsers/sec_html.py` using BeautifulSoup/lxml to extract `Item 1`, `Item 1A`, `Item 7`, `Item 7A`, and `Item 8`.
+- [x] Normalize EDGAR HTML by removing XBRL tags, table-of-contents noise, headers, and repeated whitespace.
 - [ ] Add parser fixture for a saved AMD 10-K HTML file.
 - [ ] Write parser test verifying AMD `Item 1A` extracts at least 1000 words.
-- [ ] Implement `worker/chunking.py` with paragraph-aware 600-1000 token chunks, 100-token overlap, max 1200 tokens, and min 200 tokens.
-- [ ] Ensure tables become standalone chunks and are not split.
-- [ ] Generate stable `citation_anchor`, `chunk_index`, `token_count`, `text_hash`, and `is_table` fields.
-- [ ] Write chunking tests for size bounds, overlap, table handling, and citation format.
-- [ ] Implement `worker/embeddings.py` to call Inference Gateway `/v1/embeddings` in batches up to 256 texts.
-- [ ] Add retries with exponential backoff for embedding failures.
-- [ ] Write embedding shape test expecting 1024-dimensional vectors.
-- [ ] Implement `worker/db.py` to upsert documents and chunks into SQLite.
-- [ ] Implement `worker/vector_store.py` to upsert chunk vectors and payload metadata into Qdrant.
-- [ ] Add duplicate skip logic using `text_hash`.
-- [ ] Implement `ingest.py` CLI with arguments for tickers, filing types, years, DB path, Qdrant URL, and Gateway URL.
+- [x] Implement `worker/chunking.py` with paragraph-aware 600-1000 token chunks, 100-token overlap, max 1200 tokens, and min 200 tokens.
+- [x] Ensure tables become standalone chunks and are not split.
+- [x] Generate stable `citation_anchor`, `chunk_index`, `token_count`, `text_hash`, and `is_table` fields.
+- [x] Write chunking tests for size bounds, overlap, table handling, and citation format.
+- [x] Implement `worker/embeddings.py` to call Inference Gateway `/v1/embeddings` in batches up to 256 texts.
+- [x] Add retries with exponential backoff for embedding failures.
+- [x] Write embedding shape test expecting 1024-dimensional vectors.
+- [x] Implement `worker/db.py` to upsert documents and chunks into SQLite.
+- [x] Implement `worker/vector_store.py` to upsert chunk vectors and payload metadata into Qdrant.
+- [x] Add duplicate skip logic using `text_hash`.
+- [x] Implement `ingest.py` CLI with arguments for tickers, filing types, years, DB path, Qdrant URL, and Gateway URL.
 - [ ] Run single-ticker ingestion for AMD 10-K one-year test.
 - [ ] Run full demo ingestion for AMD, NVDA, MSFT, JPM, and TSLA with 10-K and latest 10-Q filings.
 - [ ] Verify SQLite `chunks` count matches `chunks_fts` count.
