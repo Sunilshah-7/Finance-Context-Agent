@@ -107,7 +107,7 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 - [x] Implement `worker/db.py` to upsert documents and chunks into SQLite.
 - [x] Implement `worker/vector_store.py` to upsert chunk vectors and payload metadata into Qdrant.
 - [x] Add duplicate skip logic using `text_hash`.
-- [ ] Implement `ingest.py` CLI with arguments for tickers, filing types, years, DB path, Qdrant URL, and Gateway URL.
+- [x] Implement `ingest.py` CLI with arguments for tickers, filing types, years, DB path, Qdrant URL, and Gateway URL.
 - [ ] Run single-ticker ingestion for AMD 10-K one-year test.
 - [ ] Run full demo ingestion for AMD, NVDA, MSFT, JPM, and TSLA with 10-K and latest 10-Q filings.
 - [ ] Verify SQLite `chunks` count matches `chunks_fts` count.
