@@ -108,6 +108,11 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 - [x] Implement `worker/vector_store.py` to upsert chunk vectors and payload metadata into Qdrant.
 - [x] Add duplicate skip logic using `text_hash`.
 - [x] Implement `ingest.py` CLI with arguments for tickers, filing types, years, DB path, Qdrant URL, and Gateway URL.
+- [x] Add SQLite FTS validation helper for checking searchable chunk rows.
+- [x] Add Qdrant point-count validation helper for comparing indexed vectors with SQLite chunks.
+- [x] Add citation anchor inspection helper for paragraph/table anchor format checks.
+- [x] Add ingested document summary helper for ticker, filing type, filed date, parsed sections, and chunk counts.
+- [x] Add AMD one-filing smoke runbook for post-Gateway/Qdrant validation.
 - [ ] Run single-ticker ingestion for AMD 10-K one-year test.
 - [ ] Run full demo ingestion for AMD, NVDA, MSFT, JPM, and TSLA with 10-K and latest 10-Q filings.
 - [ ] Verify SQLite `chunks` count matches `chunks_fts` count.
