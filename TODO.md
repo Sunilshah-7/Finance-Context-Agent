@@ -87,8 +87,8 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 
 ## Atomic Tasks
 
-- [ ] Create `services/ingestion-worker/requirements.txt` with `httpx`, `beautifulsoup4`, `lxml`, `tiktoken`, `qdrant-client`, `pydantic`, and `pytest`.
-- [ ] Implement `worker/models.py` for `FilingRef`, `NormalizedDocument`, `NormalizedSection`, `ChunkInput`, and `ChunkWithEmbedding`.
+- [x] Create `services/ingestion-worker/requirements.txt` with `httpx`, `beautifulsoup4`, `lxml`, `tiktoken`, `qdrant-client`, `pydantic`, and `pytest`.
+- [x] Implement `worker/models.py` for `FilingRef`, `NormalizedDocument`, `NormalizedSection`, `ChunkInput`, and `ChunkWithEmbedding`.
 - [ ] Implement `worker/sec_client.py` with async EDGAR client, required `SEC_USER_AGENT`, ticker-to-CIK cache, submissions fetch, filing filtering, and document download.
 - [ ] Add SEC rate limiter capped at 10 requests per second with polite delay for document downloads.
 - [ ] Add local EDGAR HTML cache to avoid repeated downloads during development.
