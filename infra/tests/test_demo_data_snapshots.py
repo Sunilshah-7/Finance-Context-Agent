@@ -1,3 +1,9 @@
+"""Tests for demo data backup/snapshot ops helpers.
+
+The tests cover SQLite backup behavior and Qdrant request/response handling
+without requiring a live Qdrant server.
+"""
+
 from __future__ import annotations
 
 import importlib.util

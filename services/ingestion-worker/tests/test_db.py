@@ -1,3 +1,5 @@
+"""SQLite/Qdrant payload tests for ingestion persistence contracts."""
+
 from __future__ import annotations
 
 import sqlite3

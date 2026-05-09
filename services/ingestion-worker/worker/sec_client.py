@@ -1,3 +1,10 @@
+"""Async SEC EDGAR client used by the pre-demo ingestion CLI.
+
+The client enforces the SEC User-Agent requirement, caches ticker-to-CIK data
+and filing HTML locally, rate-limits requests to EDGAR, and returns lightweight
+``FilingRef`` records for the parser/chunker pipeline.
+"""
+
 from __future__ import annotations
 
 import asyncio

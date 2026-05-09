@@ -1,3 +1,10 @@
+"""Internal ingestion pipeline models.
+
+These Pydantic models describe the handoff between EDGAR discovery, SEC HTML
+normalization, chunk creation, embedding, SQLite writes, and Qdrant upserts.
+They are service-local pipeline shapes, not shared Agent API response schemas.
+"""
+
 from __future__ import annotations
 
 from pydantic import BaseModel, Field

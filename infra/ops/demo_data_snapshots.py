@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+"""Create repeatable demo-data backups after ingestion succeeds.
+
+This CLI copies the SQLite metadata DB, asks Qdrant to snapshot the
+``fincontext_chunks`` collection, and writes a manifest tying both artifacts
+together. Generated backups stay under gitignored paths and should not be
+committed.
+"""
+
 from __future__ import annotations
 
 import argparse

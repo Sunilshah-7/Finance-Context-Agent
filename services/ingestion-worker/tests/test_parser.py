@@ -1,3 +1,5 @@
+"""SEC HTML parser tests using minimal inline filing fragments."""
+
 from __future__ import annotations
 
 from worker.parsers.sec_html import extract_sections

@@ -1,3 +1,10 @@
+"""SQLite persistence helpers for ingestion output.
+
+These functions upsert filing documents and chunk metadata into the schema in
+``infra/schema.sql``. The chunk text lives in SQLite so later retrieval can use
+the FTS5 BM25 index populated by database triggers.
+"""
+
 from __future__ import annotations
 
 import json

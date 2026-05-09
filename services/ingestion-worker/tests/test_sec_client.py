@@ -1,3 +1,5 @@
+"""EDGAR client tests with mocked SEC HTTP responses and local cache paths."""
+
 from __future__ import annotations
 
 import httpx

@@ -1,3 +1,11 @@
+"""Qdrant payload construction and vector upsert helpers.
+
+The ingestion worker stores chunk text/metadata in SQLite and embeddings in the
+``fincontext_chunks`` Qdrant collection. Payloads are built from the shared
+schema contract so retrieval, memo generation, and citation cards see the same
+field names.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Iterable
