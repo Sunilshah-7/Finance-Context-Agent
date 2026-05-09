@@ -1,3 +1,11 @@
+"""CLI orchestration for pre-demo SEC filing ingestion.
+
+This script connects the ingestion worker pieces in order: EDGAR discovery,
+HTML parsing, paragraph/table chunking, Gateway embedding calls, SQLite writes,
+and Qdrant vector upserts. It is intentionally a one-shot pre-demo tool, not a
+live demo path or long-running service.
+"""
+
 from __future__ import annotations
 
 import argparse

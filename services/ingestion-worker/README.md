@@ -27,7 +27,7 @@ This is a one-shot script, not a long-running server. It is run before the demo 
 - qdrant-client (vector store upsert)
 - sqlite3 (metadata and FTS5 index)
 
-## File Structure (target)
+## File Structure
 
 ```
 services/ingestion-worker/
@@ -42,11 +42,9 @@ services/ingestion-worker/
     db.py              # SQLite writes: documents, chunks tables
     models.py          # Pydantic models for the pipeline (FilingRef, NormalizedSection, ChunkInput, etc.)
   tests/
-    test_sec_client.py  # Verify CIK resolution, filing fetch (uses real EDGAR API)
-    test_parser.py      # Verify section extraction from saved AMD HTML filing
+    test_sec_client.py  # Verify CIK resolution and filing URLs with mocked EDGAR HTTP
+    test_parser.py      # Verify section extraction from small SEC-like HTML snippets
     test_chunking.py    # Verify chunk sizes, overlap, citation anchors
-    fixtures/
-      amd_10k_2024.html # Saved EDGAR HTML for offline testing
   requirements.txt
 ```
 
@@ -68,7 +66,7 @@ python ingest.py \
 # Single ticker test
 python ingest.py --tickers AMD --filing-types 10-K --years 1
 
-# Tests (parser test uses saved HTML fixture, no internet required)
+# Tests (mocked/offline; no real EDGAR, Gateway, or Qdrant required)
 pytest tests/test_parser.py -x
 pytest tests/test_chunking.py -x
 ```
@@ -103,3 +101,10 @@ Required fields (see `docs/data-and-retrieval.md` for full specification):
 - `citation_anchor` — format: `AMD 10-K Item 1A paragraph 42`
 - `source_url` — full EDGAR document URL
 - `is_table` — bool, true for table chunks
+
+## Demo Data Backups
+
+After successful demo ingestion on the AMD VM, use `docs/demo-data-ops.md` to
+create a SQLite backup, Qdrant snapshot, and manifest. Generated DBs, Qdrant
+storage, snapshots, and `backups/` output are local artifacts and must not be
+committed.

@@ -1,3 +1,10 @@
+"""SEC filing HTML normalizer and section extractor.
+
+This parser targets modern EDGAR HTML filings, strips noisy tags/TOC text, and
+extracts the MVP sections used by retrieval: Item 1, Item 1A, Item 7, Item 7A,
+and Item 8. PDF parsing is intentionally out of scope for the hackathon MVP.
+"""
+
 from __future__ import annotations
 
 import re

@@ -1,3 +1,5 @@
+"""Embedding client tests using mocked Gateway responses."""
+
 from __future__ import annotations
 
 import httpx

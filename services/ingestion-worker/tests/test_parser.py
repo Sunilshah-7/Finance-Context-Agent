@@ -1,3 +1,5 @@
+"""SEC HTML parser tests using minimal inline filing fragments."""
+
 from __future__ import annotations
 
 from pathlib import Path

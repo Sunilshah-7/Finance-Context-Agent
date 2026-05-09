@@ -1,3 +1,10 @@
+"""Paragraph-aware chunking for normalized SEC filing sections.
+
+The chunker keeps paragraph evidence readable, isolates tables into standalone
+chunks, computes stable text hashes, and assigns citation anchors such as
+``AMD 10-K Item 1A paragraph 42`` before anything is embedded or stored.
+"""
+
 from __future__ import annotations
 
 import hashlib
