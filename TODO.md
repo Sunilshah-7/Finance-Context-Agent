@@ -50,11 +50,11 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 - [x] Create `packages/schemas/python/db.py` for SQLite row models.
 - [x] Create `packages/schemas/python/api.py` for FastAPI request/response models from `docs/api-contracts.md`.
 - [x] Add `packages/schemas` packaging files so services can install it with `pip install -e ../../packages/schemas`.
-- [ ] Create `services/agent-api/main.py` with FastAPI app and `GET /health`.
+- [x] Create `services/agent-api/main.py` with FastAPI app and `GET /health`.
 - [ ] Implement Agent API bearer-token authentication using `AGENT_API_KEY`.
-- [ ] Implement `POST /api/portfolio/upload` to parse CSV, validate required columns, resolve basic portfolio totals, and write portfolio/holdings rows.
-- [ ] Implement `POST /api/analyze` job creation with initial async background-task stub.
-- [ ] Implement `GET /api/jobs/{job_id}` to read job status from SQLite.
+- [x] Implement `POST /api/portfolio/upload` to parse CSV, validate required columns, resolve basic portfolio totals, and write portfolio/holdings rows.
+- [x] Implement `POST /api/analyze` job creation with initial async background-task stub.
+- [x] Implement `GET /api/jobs/{job_id}` to read job status from SQLite.
 - [ ] Implement Agent API SQLite client functions for portfolios, holdings, documents, chunks, jobs, findings, and benchmark reads.
 - [ ] Add basic Agent API tests for health, portfolio upload validation, job creation, and job status.
 - [ ] Configure firewall/reverse proxy so only Agent API port `8090` is externally reachable.
@@ -153,21 +153,21 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 - [ ] Implement `GET /health` checking all backend services.
 - [ ] Implement `GET /metrics` returning average latency, token counts, time-to-first-token, and tokens/sec by model.
 - [ ] Add Inference Gateway tests with mocked backend services.
-- [ ] Implement `services/agent-api/app/clients/gateway.py` with async chat, embedding, and rerank helpers.
-- [ ] Implement `services/agent-api/app/retrieval.py` hybrid retrieval: BM25, Qdrant vector search, RRF merge, rerank, and diversity filter.
+- [x] Implement `services/agent-api/app/clients/gateway.py` with async chat, embedding, and rerank helpers.
+- [x] Implement `services/agent-api/app/retrieval.py` hybrid retrieval: BM25, Qdrant vector search, RRF merge, rerank, and diversity filter.
 - [ ] Add `GET /api/retrieve` debug endpoint for development.
 - [ ] Write retrieval unit tests for RRF merge and diversity filter.
 - [ ] Write retrieval integration test against local Qdrant and SQLite seed data.
-- [ ] Implement `services/agent-api/app/graph.py` with the 4-node LangGraph sequence.
-- [ ] Implement `portfolio_context_planner` node with Qwen2.5-14B structured retrieval-plan output and fallback plan.
-- [ ] Implement `filing_retrieval` node using the hybrid retrieval module.
+- [x] Implement `services/agent-api/app/graph.py` with the 4-node LangGraph sequence.
+- [x] Implement `portfolio_context_planner` node with Qwen2.5-14B structured retrieval-plan output and fallback plan.
+- [x] Implement `filing_retrieval` node using the hybrid retrieval module.
 - [ ] Implement `disclosure_change` node with text normalization, comparison grouping, Qwen2.5-14B structured classification, and low-confidence filtering.
 - [ ] Implement `analyst_memo` node with risk score computation, Qwen2.5-72B memo generation, citation verification, 14B fallback, and hardcoded disclaimer.
 - [ ] Add isolated unit tests for all 4 LangGraph nodes with mocked Gateway and DB/Qdrant clients.
-- [ ] Add `GET /api/findings/{portfolio_id}` endpoint.
-- [ ] Add `GET /api/diff/{ticker}` endpoint.
-- [ ] Add `POST /api/chat` SSE endpoint for citation-backed Q&A.
-- [ ] Add `GET /api/documents/{ticker}` endpoint for filing explorer.
+- [x] Add `GET /api/findings/{portfolio_id}` endpoint.
+- [x] Add `GET /api/diff/{ticker}` endpoint.
+- [x] Add `POST /api/chat` SSE endpoint for citation-backed Q&A.
+- [x] Add `GET /api/documents/{ticker}` endpoint for filing explorer.
 - [ ] Add `GET /api/benchmark/metrics` endpoint combining Gateway metrics and GPU info.
 - [ ] Create `apps/demo-ui/requirements.txt` with `gradio`, `httpx`, and required plotting/data packages.
 - [ ] Create `apps/demo-ui/api_client.py` for authenticated calls to Agent API.
@@ -193,7 +193,7 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 
 ## Integration Tasks
 
-- [ ] Run full graph smoke test: portfolio_context_planner → filing_retrieval → disclosure_change → analyst_memo.
+- [x] Run full graph smoke test: portfolio_context_planner → filing_retrieval → disclosure_change → analyst_memo.
 - [ ] Verify full analysis returns `risk_scores`, `memo`, `disclosure_changes`, and `citation_pass_rate`.
 - [ ] Verify unsupported memo citations are removed during post-processing.
 - [ ] Verify every Gradio tab works against the deployed AMD VM.

@@ -1,3 +1,23 @@
+"""
+FinContext Agent API
+
+This module defines the FastAPI application for the FinContext Agent. It
+exposes HTTP endpoints to interact with the agent pipeline including:
+
+- health: checks dependent services (inference gateway, Qdrant)
+- portfolio upload: accepts CSV uploads and creates portfolio records
+- analyze: starts background LangGraph analysis jobs
+- job status: query analysis job progress and results
+- documents/findings/diff: access retrieved filing chunks, findings, and diffs
+- chat: stream a short analyst response from the analysis graph
+- benchmark metrics: lightweight diagnostics for demo metrics
+
+The API uses `SQLiteClient` for metadata and job storage, `InferenceGatewayClient`
+to reach model services, `QdrantSearchClient` for vector retrieval, and the
+`analyze` graph to run the 4-node pipeline (planning, retrieval, diff,
+memo generation).
+"""
+
 from __future__ import annotations
 
 import asyncio
