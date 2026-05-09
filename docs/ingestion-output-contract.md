@@ -116,7 +116,7 @@ filters such as:
 - `section in ["item_1a", "item_7"]`
 - `filed_at` bounded by the retrieval plan date range
 
-After PR #22 merges, the validation helpers can confirm:
+The validation helpers merged in PR #22 can confirm:
 
 - SQLite `chunks` are searchable through `chunks_fts`;
 - Qdrant point count matches SQLite chunk count;

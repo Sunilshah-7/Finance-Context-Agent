@@ -208,7 +208,6 @@ The Space's `README.md` is shown on the Space page. It must explain the AMD hard
 ```markdown
 ---
 title: FinContext Agent
-emoji: 📊
 colorFrom: blue
 colorTo: indigo
 sdk: gradio
