@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+"""Command-line wrapper for post-ingestion validation checks.
+
+This script runs the validation helpers as one smoke command after the AMD VM
+has SQLite, Qdrant, and Gateway-backed ingestion data. It is safe to run with
+``--skip-qdrant`` while Qdrant is offline, but full demo readiness should use
+the Qdrant count check too.
+"""
+
 from __future__ import annotations
 
 import argparse

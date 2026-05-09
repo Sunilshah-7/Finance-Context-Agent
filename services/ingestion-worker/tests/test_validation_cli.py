@@ -1,3 +1,5 @@
+"""Validation CLI tests using temporary SQLite and mocked Qdrant checks."""
+
 from __future__ import annotations
 
 import sqlite3
