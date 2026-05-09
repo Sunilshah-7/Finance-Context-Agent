@@ -1,6 +1,7 @@
 .env
 fincontext.db
 fincontext_demo.db
+backups/
 /models/
 qdrant_storage/
 __pycache__/

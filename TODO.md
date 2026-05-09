@@ -59,7 +59,7 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 - [ ] Add basic Agent API tests for health, portfolio upload validation, job creation, and job status.
 - [ ] Configure firewall/reverse proxy so only Agent API port `8090` is externally reachable.
 - [ ] Set up HTTPS for Agent API with nginx or a tested tunnel fallback.
-- [ ] Create Qdrant snapshot and SQLite backup commands in an ops note or script.
+- [x] Create Qdrant snapshot and SQLite backup commands in an ops note or script.
 - [ ] Update root README with final architecture, setup commands, demo URL placeholder, and submission instructions.
 
 ## Collaboration Tasks
