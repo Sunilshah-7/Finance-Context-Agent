@@ -15,6 +15,8 @@ the implementation without reading every commit.
 
 PR #17 added the ingestion worker foundation under `services/ingestion-worker/`.
 This is a pre-demo CLI pipeline, not a live demo feature and not a server.
+For the exact SQLite/Qdrant fields that retrieval and UI code can consume, see
+`docs/ingestion-output-contract.md`.
 
 The pipeline works in this order:
 
