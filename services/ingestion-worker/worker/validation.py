@@ -1,3 +1,11 @@
+"""Post-ingestion validation helpers for demo data readiness.
+
+These checks are meant to run after a real pre-demo ingestion pass. They verify
+that SQLite FTS rows are searchable, Qdrant has the expected point count,
+citation anchors keep the required paragraph/table format, and loaded documents
+can be summarized for manual review.
+"""
+
 from __future__ import annotations
 
 import json

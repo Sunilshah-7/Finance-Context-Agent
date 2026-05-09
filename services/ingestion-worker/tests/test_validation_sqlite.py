@@ -1,3 +1,5 @@
+"""SQLite FTS validation tests for chunk searchability after ingestion."""
+
 from __future__ import annotations
 
 import sqlite3

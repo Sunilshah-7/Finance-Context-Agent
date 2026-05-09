@@ -1,3 +1,5 @@
+"""Citation anchor validation tests for paragraph and table chunk formats."""
+
 from __future__ import annotations
 
 import sqlite3

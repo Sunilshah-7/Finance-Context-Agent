@@ -1,3 +1,5 @@
+"""Document summary validation tests for ingested filing review output."""
+
 from __future__ import annotations
 
 import sqlite3
