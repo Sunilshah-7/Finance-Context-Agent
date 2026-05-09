@@ -95,8 +95,8 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 - [x] Write `test_sec_client.py` verifying AMD resolves to CIK `0000002488`.
 - [x] Implement `worker/parsers/sec_html.py` using BeautifulSoup/lxml to extract `Item 1`, `Item 1A`, `Item 7`, `Item 7A`, and `Item 8`.
 - [x] Normalize EDGAR HTML by removing XBRL tags, table-of-contents noise, headers, and repeated whitespace.
-- [ ] Add parser fixture for a saved AMD 10-K HTML file.
-- [ ] Write parser test verifying AMD `Item 1A` extracts at least 1000 words.
+- [x] Add SEC-like AMD 10-K parser fixture that exercises realistic `Item 1A` structure without committing a full filing.
+- [x] Write parser test verifying AMD `Item 1A` extracts at least 1000 words.
 - [x] Implement `worker/chunking.py` with paragraph-aware 600-1000 token chunks, 100-token overlap, max 1200 tokens, and min 200 tokens.
 - [x] Ensure tables become standalone chunks and are not split.
 - [x] Generate stable `citation_anchor`, `chunk_index`, `token_count`, `text_hash`, and `is_table` fields.
@@ -108,6 +108,11 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 - [x] Implement `worker/vector_store.py` to upsert chunk vectors and payload metadata into Qdrant.
 - [x] Add duplicate skip logic using `text_hash`.
 - [x] Implement `ingest.py` CLI with arguments for tickers, filing types, years, DB path, Qdrant URL, and Gateway URL.
+- [x] Add SQLite FTS validation helper for checking searchable chunk rows.
+- [x] Add Qdrant point-count validation helper for comparing indexed vectors with SQLite chunks.
+- [x] Add citation anchor inspection helper for paragraph/table anchor format checks.
+- [x] Add ingested document summary helper for ticker, filing type, filed date, parsed sections, and chunk counts.
+- [x] Add AMD one-filing smoke runbook for post-Gateway/Qdrant validation.
 - [ ] Run single-ticker ingestion for AMD 10-K one-year test.
 - [ ] Run full demo ingestion for AMD, NVDA, MSFT, JPM, and TSLA with 10-K and latest 10-Q filings.
 - [ ] Verify SQLite `chunks` count matches `chunks_fts` count.
