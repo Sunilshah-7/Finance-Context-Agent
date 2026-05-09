@@ -21,6 +21,9 @@ logger = structlog.get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Kishan-owned gateway bootstrap.
+    # Sunil's infra work needs to provide the env vars and running upstream services;
+    # no code change should be needed here if those inputs are wired correctly.
     app.state.http = httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=10.0))
     app.state.metrics = RollingMetricsStore(capacity=1000)
     yield
@@ -32,6 +35,7 @@ app.add_middleware(RequestContextMiddleware)
 
 
 def _error_response(request_id: str, code: str, message: str, retryable: bool, status_code: int) -> JSONResponse:
+    # Shared error envelope for all gateway routes so Agent API callers can rely on one shape.
     return JSONResponse(
         status_code=status_code,
         content={
@@ -46,6 +50,8 @@ def _error_response(request_id: str, code: str, message: str, retryable: bool, s
 
 
 def _usage_metrics(payload: dict[str, Any]) -> tuple[int | None, int | None]:
+    # Pulls token usage out of OpenAI-style responses when the upstream exposes it.
+    # Sunil/Kishan may need to adjust this if the Agent API benchmark contract changes.
     usage = payload.get("usage") or {}
     return usage.get("prompt_tokens"), usage.get("completion_tokens")
 
@@ -57,6 +63,9 @@ async def _proxy_json(
     endpoint: str,
     metric_model: str,
 ) -> JSONResponse:
+    # Core JSON proxy for embeddings, rerank, and non-streaming chat completions.
+    # Agent API code owned by Sunil/Kishan should call the gateway instead of hitting
+    # vLLM or TEI directly; that side only needs to send compatible payloads.
     try:
         response = await request.app.state.http.post(route_url, json=payload, headers={"x-request-id": request.state.request_id})
     except httpx.HTTPError as exc:
@@ -94,6 +103,9 @@ async def _stream_proxy(
     endpoint: str,
     metric_model: str,
 ) -> StreamingResponse:
+    # Streaming path for chat completions.
+    # Kishan-owned chat UI and Agent API SSE endpoints will plug into this as-is, but
+    # may need small payload tweaks once real vLLM streaming responses are exercised.
     async def iterator() -> AsyncIterator[bytes]:
         first_chunk_ms: float | None = None
         output_tokens = 0
@@ -137,6 +149,8 @@ async def _stream_proxy(
 
 @app.get("/health")
 async def health(request: Request) -> dict[str, Any]:
+    # Infra handoff point: Sunil's AMD VM and docker-compose work should make these
+    # health checks go green without changing gateway code.
     checks: list[HealthCheckResult] = []
     services = {
         "vllm_72b": CHAT_MODEL_ROUTES["fincontext-reasoner"].upstream_base_url,
@@ -164,11 +178,16 @@ async def health(request: Request) -> dict[str, Any]:
 
 @app.get("/metrics")
 async def metrics(request: Request) -> dict[str, Any]:
+    # Benchmark handoff point for Kishan's demo tab and Sunil's benchmark API endpoint.
+    # They mostly need to consume this output; schema changes here would affect both.
     return request.app.state.metrics.summary().model_dump()
 
 
 @app.post("/v1/chat/completions")
 async def chat_completions(request: Request):
+    # Main LLM proxy entrypoint.
+    # Agent API planner/diff/memo nodes will connect here and may need to agree on
+    # exact request bodies, but the routing ownership stays in the gateway.
     payload = await request.json()
     model_name = payload.get("model")
     if not model_name:
@@ -188,6 +207,9 @@ async def chat_completions(request: Request):
 
 @app.post("/v1/embeddings")
 async def embeddings(request: Request):
+    # Abhiyan's ingestion worker and Kishan/Sunil retrieval code will both call this
+    # route. They mainly need to send the agreed embedding payload; code changes here
+    # should only be needed if TEI compatibility differs from the planned contract.
     payload = await request.json()
     payload.setdefault("model", embedding_route().model_name)
     return await _proxy_json(request, embedding_route().url, payload, "/v1/embeddings", embedding_route().model_name)
@@ -195,5 +217,7 @@ async def embeddings(request: Request):
 
 @app.post("/v1/rerank")
 async def rerank(request: Request):
+    # Hybrid retrieval handoff point for the filing_retrieval node.
+    # Kishan/Sunil retrieval code will consume this; likely only input wiring is needed.
     payload = await request.json()
     return await _proxy_json(request, rerank_route().url, payload, "/v1/rerank", rerank_route().model_name)

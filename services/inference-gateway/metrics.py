@@ -6,6 +6,7 @@ from models import MetricsResponse, MetricsSummary, RequestMetric
 
 
 def _avg(values: list[float | int | None]) -> float | None:
+    # Small helper for nullable metric fields so empty samples do not crash summaries.
     present = [value for value in values if value is not None]
     if not present:
         return None
@@ -18,9 +19,13 @@ class RollingMetricsStore:
         self._metrics: deque[RequestMetric] = deque(maxlen=capacity)
 
     def record(self, metric: RequestMetric) -> None:
+        # Kishan-owned benchmark cache backing GET /metrics.
+        # Sunil's benchmark API endpoint and Kishan's Gradio benchmark tab consume it.
         self._metrics.append(metric)
 
     def summary(self) -> MetricsResponse:
+        # Aggregates the recent request window into a UI/API-friendly shape.
+        # If benchmark labels or fields change, this is the likely modification point.
         by_model: dict[str, list[RequestMetric]] = {}
         for metric in self._metrics:
             by_model.setdefault(metric.model, []).append(metric)

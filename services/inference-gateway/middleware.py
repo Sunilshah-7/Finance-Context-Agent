@@ -13,6 +13,9 @@ logger = structlog.get_logger(__name__)
 
 class RequestContextMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        # Injects a request ID and per-request timer so downstream logs and metrics can
+        # be correlated across gateway, Agent API, and UI debugging.
+        # Other teammates mostly just need to pass the header through when useful.
         request_id = request.headers.get("x-request-id", str(uuid.uuid4()))
         request.state.request_id = request_id
         request.state.started_at = time.perf_counter()
