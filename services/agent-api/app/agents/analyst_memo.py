@@ -1,3 +1,22 @@
+"""
+Analyst Memo Node
+
+Final node in the 4-node LangGraph pipeline. Generates a citation-grounded
+analyst memo by:
+
+1. Computing risk scores per holding (portfolio weight + disclosure severity)
+2. Calling Qwen2.5-72B to draft a structured memo (executive summary, exposure,
+   changes, watchlist, limitations, disclaimer)
+3. Validating all citations in the generated text against retrieved chunks
+4. Removing sentences with unverified or unmapped citations
+5. Returning a fallback memo if generation fails or citation pass-rate is low
+
+Output state fields set:
+- memo: AnalystMemo with executive_summary, affected holdings, changes, scores
+- risk_scores: list of RiskScore objects with drivers and citations
+- citation_pass_rate: ratio of verified citations to total citations in memo
+"""
+
 from __future__ import annotations
 
 import re
