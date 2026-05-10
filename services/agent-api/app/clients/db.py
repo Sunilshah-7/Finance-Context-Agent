@@ -1,3 +1,10 @@
+"""SQLite-backed persistence helpers for portfolios, filings, and jobs.
+
+This client opens the configured SQLite database and provides read/write
+helpers for portfolio holdings, chunk and document lookup, full-text search,
+portfolio creation, and analysis job tracking.
+"""
+
 from __future__ import annotations
 
 import json

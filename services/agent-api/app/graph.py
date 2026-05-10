@@ -1,3 +1,10 @@
+"""Orchestrate the four-step analysis workflow for portfolio and filing review.
+
+This module validates input state, runs the portfolio context planner, filing
+retrieval, disclosure change detection, and analyst memo steps in sequence, and
+provides both a LangGraph-compiled graph and a direct async fallback runner.
+"""
+
 from __future__ import annotations
 
 from fincontext_schemas import AnalysisState

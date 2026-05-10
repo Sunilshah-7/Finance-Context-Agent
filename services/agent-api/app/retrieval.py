@@ -1,3 +1,10 @@
+"""Hybrid retrieval pipeline for SEC filing evidence chunks.
+
+This module turns a retrieval plan into citation-ready evidence by combining
+SQLite BM25 search, Qdrant vector search, reciprocal rank fusion, reranking,
+and section-diversity filtering before returning the top filing chunks.
+"""
+
 from __future__ import annotations
 
 import asyncio

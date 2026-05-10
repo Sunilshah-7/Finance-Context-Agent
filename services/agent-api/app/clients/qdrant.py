@@ -1,9 +1,16 @@
+"""Qdrant-backed vector search helpers for filing evidence chunks.
+
+This client checks Qdrant health, runs filtered similarity search against the
+configured collection, and converts returned points into `ChunkRow` objects for
+the retrieval pipeline.
+"""
+
 from __future__ import annotations
 
 import asyncio
 import os
 from typing import Any
-
+from qdrant_client import AsyncQdrantClient
 from fincontext_schemas import ChunkRow
 
 
@@ -18,7 +25,7 @@ class QdrantSearchClient:
 
     async def health(self) -> dict[str, Any]:
         try:
-            from qdrant_client import AsyncQdrantClient
+            
 
             client = AsyncQdrantClient(url=self.url)
             collections = await client.get_collections()

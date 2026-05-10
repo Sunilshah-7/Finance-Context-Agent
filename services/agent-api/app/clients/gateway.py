@@ -1,3 +1,10 @@
+"""Async client for the inference gateway service.
+
+This client centralizes calls to the gateway's health check, JSON and text
+chat completions, embeddings, and reranking endpoints so the agent code can
+talk to model services through one HTTP abstraction.
+"""
+
 from __future__ import annotations
 
 import json
