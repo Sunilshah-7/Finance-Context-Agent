@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import subprocess
+import sys
 from pathlib import Path
 
 from worker.handoff_export import (
@@ -137,6 +139,35 @@ def test_write_handoff_export_writes_json_file(tmp_path):
     write_handoff_export(payload, str(output_path))
 
     assert json.loads(output_path.read_text(encoding="utf-8")) == payload
+
+
+def test_export_handoff_cli_writes_filtered_json(tmp_path):
+    conn = create_sample_db(tmp_path)
+    conn.close()
+    output_path = tmp_path / "handoff.json"
+    cli_path = Path(__file__).resolve().parents[1] / "export_handoff.py"
+
+    subprocess.run(
+        [
+            sys.executable,
+            str(cli_path),
+            "--db-path",
+            str(tmp_path / "fincontext.db"),
+            "--output",
+            str(output_path),
+            "--tickers",
+            "AMD",
+            "--sections",
+            "Item 7",
+            "--limit",
+            "5",
+        ],
+        check=True,
+    )
+
+    payload = json.loads(output_path.read_text(encoding="utf-8"))
+    assert payload["counts"] == {"documents": 1, "chunks": 1}
+    assert payload["chunks"][0]["citation_anchor"] == "AMD 10-K Item 7 paragraph 1"
 
 
 def test_parse_csv_filter_normalizes_empty_values():
