@@ -10,14 +10,14 @@ from typing import Any
 
 import httpx
 from qdrant_client import AsyncQdrantClient
-from qdrant_client.models import FieldCondition, Filter, MatchValue
+from qdrant_client.models import FieldCondition, Filter, MatchAny, Range
 
 try:
-    from fincontext_schemas import EvidenceChunk
+    from fincontext_schemas import EvidenceChunk, RetrievalPlan
 except ModuleNotFoundError:  # local Python may not have the editable package installed
     schema_src = Path(__file__).resolve().parents[3] / "packages" / "schemas" / "python"
     sys.path.insert(0, str(schema_src))
-    from state import EvidenceChunk  # type: ignore[no-redef]
+    from state import EvidenceChunk, RetrievalPlan  # type: ignore[no-redef]
 
 
 logger = logging.getLogger(__name__)
@@ -26,7 +26,6 @@ DEFAULT_QDRANT_COLLECTION = "fincontext_chunks"
 DEFAULT_SQLITE_PATH = "./fincontext.db"
 DEFAULT_GATEWAY_URL = "http://localhost:8080"
 EMBEDDING_MODEL_NAME = "fincontext-embedding"
-_gateway_clients: dict[str, httpx.AsyncClient] = {}
 
 
 def _resolve_sqlite_path(sqlite_path: str | None) -> str:
@@ -45,26 +44,16 @@ def _resolve_qdrant_collection() -> str:
     return os.getenv("QDRANT_COLLECTION", DEFAULT_QDRANT_COLLECTION)
 
 
-def _escape_fts5_query(query: str) -> str:
-    """Convert free-form user text into a safe FTS5 MATCH expression."""
-    tokens: list[str] = []
-    current: list[str] = []
+def _escape_fts5_phrase(value: str) -> str:
+    token = value.replace('"', '""').strip()
+    return f'"{token}"'
 
-    for char in query:
-        if char.isalnum() or char in {"_", "-"}:
-            current.append(char)
-            continue
-        if current:
-            tokens.append("".join(current))
-            current = []
 
-    if current:
-        tokens.append("".join(current))
-
-    if not tokens:
+def _build_match_expression(keywords: list[str]) -> str:
+    cleaned = [keyword.strip() for keyword in keywords if keyword and keyword.strip()]
+    if not cleaned:
         return '""'
-
-    return " ".join(f'"{token.replace(chr(34), chr(34) * 2)}"' for token in tokens)
+    return " OR ".join(_escape_fts5_phrase(keyword) for keyword in cleaned)
 
 
 def _row_to_evidence_chunk(row: sqlite3.Row, *, score: float) -> EvidenceChunk:
@@ -101,7 +90,18 @@ def _payload_to_evidence_chunk(payload: dict[str, Any], *, score: float) -> Evid
     )
 
 
-def _build_bm25_sql(section: str | None, ticker: str | None) -> tuple[str, list[Any]]:
+def _in_clause(values: list[str]) -> str:
+    return ",".join("?" for _ in values)
+
+
+def _build_bm25_sql(
+    *,
+    tickers: list[str] | None,
+    sections: list[str] | None,
+    filing_types: list[str] | None,
+    date_range_start: str | None,
+    date_range_end: str | None,
+) -> tuple[str, list[Any]]:
     sql = """
         SELECT
             c.id AS chunk_id,
@@ -122,13 +122,25 @@ def _build_bm25_sql(section: str | None, ticker: str | None) -> tuple[str, list[
     """
     params: list[Any] = []
 
-    if ticker is not None:
-        sql += " AND c.ticker = ?"
-        params.append(ticker)
+    if tickers:
+        sql += f" AND c.ticker IN ({_in_clause(tickers)})"
+        params.extend(tickers)
 
-    if section is not None:
-        sql += " AND c.section = ?"
-        params.append(section)
+    if sections:
+        sql += f" AND c.section IN ({_in_clause(sections)})"
+        params.extend(sections)
+
+    if filing_types:
+        sql += f" AND c.filing_type IN ({_in_clause(filing_types)})"
+        params.extend(filing_types)
+
+    if date_range_start is not None:
+        sql += " AND c.filed_at >= ?"
+        params.append(date_range_start)
+
+    if date_range_end is not None:
+        sql += " AND c.filed_at <= ?"
+        params.append(date_range_end)
 
     sql += " ORDER BY bm25_score ASC LIMIT ?"
     return sql, params
@@ -136,19 +148,28 @@ def _build_bm25_sql(section: str | None, ticker: str | None) -> tuple[str, list[
 
 def _run_bm25_query(
     *,
-    query: str,
-    ticker: str | None,
-    section: str | None,
+    keywords: list[str],
+    tickers: list[str] | None,
+    sections: list[str] | None,
+    filing_types: list[str] | None,
+    date_range_start: str | None,
+    date_range_end: str | None,
     k: int,
     sqlite_path: str,
 ) -> list[EvidenceChunk]:
-    match_query = _escape_fts5_query(query)
-    sql, extra_params = _build_bm25_sql(section=section, ticker=ticker)
+    match_expression = _build_match_expression(keywords)
+    sql, extra_params = _build_bm25_sql(
+        tickers=tickers,
+        sections=sections,
+        filing_types=filing_types,
+        date_range_start=date_range_start,
+        date_range_end=date_range_end,
+    )
 
     conn = sqlite3.connect(sqlite_path)
     conn.row_factory = sqlite3.Row
     try:
-        rows = conn.execute(sql, [match_query, *extra_params, k]).fetchall()
+        rows = conn.execute(sql, [match_expression, *extra_params, k]).fetchall()
     finally:
         conn.close()
 
@@ -159,40 +180,38 @@ def _run_bm25_query(
 
 
 async def bm25_search(
-    query: str,
-    ticker: str | None = None,
-    section: str | None = None,
-    k: int = 20,
+    keywords: list[str],
+    tickers: list[str] | None = None,
+    sections: list[str] | None = None,
+    filing_types: list[str] | None = None,
+    date_range_start: str | None = None,
+    date_range_end: str | None = None,
+    k: int = 30,
     sqlite_path: str | None = None,
 ) -> list[EvidenceChunk]:
-    """Run SQLite FTS5 BM25 retrieval and normalize rows into EvidenceChunk objects."""
+    """Run SQLite FTS5 BM25 retrieval using keyword phrases and relational metadata filters."""
     resolved_sqlite_path = _resolve_sqlite_path(sqlite_path)
     return await asyncio.to_thread(
         _run_bm25_query,
-        query=query,
-        ticker=ticker,
-        section=section,
+        keywords=keywords,
+        tickers=tickers,
+        sections=sections,
+        filing_types=filing_types,
+        date_range_start=date_range_start,
+        date_range_end=date_range_end,
         k=k,
         sqlite_path=resolved_sqlite_path,
     )
 
 
-def _get_gateway_client(gateway_url: str) -> httpx.AsyncClient:
-    normalized_gateway_url = gateway_url.rstrip("/")
-    client = _gateway_clients.get(normalized_gateway_url)
-    if client is None:
-        client = httpx.AsyncClient(base_url=normalized_gateway_url, timeout=30.0)
-        _gateway_clients[normalized_gateway_url] = client
-    return client
-
-
 async def _embed_query(query: str, gateway_url: str) -> list[float]:
-    client = _get_gateway_client(gateway_url)
-    response = await client.post(
-        "/v1/embeddings",
-        json={"model": EMBEDDING_MODEL_NAME, "input": [query]},
-    )
-    response.raise_for_status()
+    # TODO: replace with gateway client when services/agent-api/app/clients/gateway.py is available
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.post(
+            f"{gateway_url.rstrip('/')}/v1/embeddings",
+            json={"model": EMBEDDING_MODEL_NAME, "input": [query]},
+        )
+        response.raise_for_status()
 
     payload = response.json()
     data = payload.get("data") or []
@@ -206,28 +225,77 @@ async def _embed_query(query: str, gateway_url: str) -> list[float]:
     return [float(value) for value in embedding]
 
 
+def _build_should_filter(key: str, values: list[str] | None) -> Filter | None:
+    if not values:
+        return None
+
+    return Filter(
+        should=[
+            FieldCondition(key=key, match=MatchAny(any=values))
+        ]
+    )
+
+
+def _build_qdrant_filter(
+    *,
+    tickers: list[str] | None,
+    sections: list[str] | None,
+    filing_types: list[str] | None,
+    date_range_start: str | None,
+    date_range_end: str | None,
+) -> Filter | None:
+    must_conditions: list[Any] = []
+
+    ticker_filter = _build_should_filter("ticker", tickers)
+    if ticker_filter is not None:
+        must_conditions.append(ticker_filter)
+
+    section_filter = _build_should_filter("section", sections)
+    if section_filter is not None:
+        must_conditions.append(section_filter)
+
+    if filing_types:
+        must_conditions.append(
+            FieldCondition(key="filing_type", match=MatchAny(any=filing_types))
+        )
+
+    if date_range_start is not None or date_range_end is not None:
+        must_conditions.append(
+            FieldCondition(
+                key="filed_at",
+                range=Range(gte=date_range_start, lte=date_range_end),
+            )
+        )
+
+    if not must_conditions:
+        return None
+    return Filter(must=must_conditions)
+
+
 async def vector_search(
     query: str,
-    ticker: str | None = None,
-    section: str | None = None,
-    k: int = 20,
+    tickers: list[str] | None = None,
+    sections: list[str] | None = None,
+    filing_types: list[str] | None = None,
+    date_range_start: str | None = None,
+    date_range_end: str | None = None,
+    k: int = 30,
     qdrant_url: str | None = None,
     gateway_url: str | None = None,
 ) -> list[EvidenceChunk]:
-    """Embed the query through the gateway, search Qdrant, and return EvidenceChunk hits."""
+    """Embed the query through the gateway, search Qdrant, and apply plan metadata filters."""
     resolved_qdrant_url = _resolve_qdrant_url(qdrant_url)
     resolved_gateway_url = _resolve_gateway_url(gateway_url)
     collection_name = _resolve_qdrant_collection()
 
     query_vector = await _embed_query(query, resolved_gateway_url)
-
-    must_conditions: list[FieldCondition] = []
-    if ticker is not None:
-        must_conditions.append(FieldCondition(key="ticker", match=MatchValue(value=ticker)))
-    if section is not None:
-        must_conditions.append(FieldCondition(key="section", match=MatchValue(value=section)))
-
-    query_filter = Filter(must=must_conditions) if must_conditions else None
+    query_filter = _build_qdrant_filter(
+        tickers=tickers,
+        sections=sections,
+        filing_types=filing_types,
+        date_range_start=date_range_start,
+        date_range_end=date_range_end,
+    )
 
     client = AsyncQdrantClient(url=resolved_qdrant_url)
     try:
@@ -248,15 +316,29 @@ async def vector_search(
     return chunks
 
 
-async def hybrid_retrieve(
-    query: str,
-    ticker: str | None = None,
-    section: str | None = None,
-    k: int = 10,
+async def execute_retrieval_plan(
+    plan: RetrievalPlan,
+    k: int = 30,
 ) -> list[EvidenceChunk]:
-    """Run BM25 and vector retrieval in parallel, then apply a temporary score-based merge."""
-    bm25_task = bm25_search(query=query, ticker=ticker, section=section, k=k * 2)
-    vector_task = vector_search(query=query, ticker=ticker, section=section, k=k * 2)
+    """Execute both retrieval halves for a RetrievalPlan and return a temporary merged candidate set."""
+    bm25_task = bm25_search(
+        keywords=plan.bm25_keywords,
+        tickers=plan.target_tickers,
+        sections=plan.sections,
+        filing_types=plan.filing_types,
+        date_range_start=plan.date_range_start,
+        date_range_end=plan.date_range_end,
+        k=k,
+    )
+    vector_task = vector_search(
+        query=plan.query,
+        tickers=plan.target_tickers,
+        sections=plan.sections,
+        filing_types=plan.filing_types,
+        date_range_start=plan.date_range_start,
+        date_range_end=plan.date_range_end,
+        k=k,
+    )
     bm25_result, vector_result = await asyncio.gather(
         bm25_task,
         vector_task,
@@ -267,12 +349,12 @@ async def hybrid_retrieve(
     vector_chunks: list[EvidenceChunk] = []
 
     if isinstance(bm25_result, Exception):
-        logger.warning("bm25_search failed during hybrid retrieval", exc_info=bm25_result)
+        logger.warning("bm25_search failed during retrieval plan execution", exc_info=bm25_result)
     else:
         bm25_chunks = bm25_result
 
     if isinstance(vector_result, Exception):
-        logger.warning("vector_search failed during hybrid retrieval", exc_info=vector_result)
+        logger.warning("vector_search failed during retrieval plan execution", exc_info=vector_result)
     else:
         vector_chunks = vector_result
 
@@ -288,3 +370,22 @@ async def hybrid_retrieve(
         key=lambda chunk: chunk.rerank_score,
         reverse=True,
     )[:k]
+
+
+async def hybrid_retrieve(
+    query: str,
+    ticker: str | None = None,
+    section: str | None = None,
+    k: int = 10,
+) -> list[EvidenceChunk]:
+    """Backward-compatible wrapper that builds a minimal RetrievalPlan and delegates to execute_retrieval_plan."""
+    plan = RetrievalPlan(
+        query=query,
+        target_tickers=[ticker] if ticker else [],
+        filing_types=["10-K", "10-Q"],
+        sections=[section] if section else [],
+        date_range_start="1900-01-01",
+        date_range_end="9999-12-31",
+        bm25_keywords=[query],
+    )
+    return await execute_retrieval_plan(plan, k=k)
