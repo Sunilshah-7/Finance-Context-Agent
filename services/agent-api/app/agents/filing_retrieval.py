@@ -1,3 +1,11 @@
+"""Retrieve evidence chunks for the current analysis plan.
+
+This node checks that a retrieval plan exists, runs the hybrid retrieval
+pipeline for that plan, and writes the resulting evidence chunks to
+`AnalysisState.retrieved_chunks`. If retrieval cannot run or fails, it records
+an error in state and marks the analysis as partial.
+"""
+
 from __future__ import annotations
 
 from fincontext_schemas import AnalysisState

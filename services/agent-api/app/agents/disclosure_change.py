@@ -1,3 +1,13 @@
+"""Compare retrieved SEC filing chunks and classify disclosure language changes.
+
+This node groups retrieved chunks by ticker, section, and filing type, compares
+the earliest and latest filings for each group, and uses the inference gateway
+with a heuristic fallback to classify whether the language represents a new,
+removed, intensified, softened, metric, or accounting-related disclosure change.
+The resulting non-boilerplate changes are written back to `AnalysisState` as
+`disclosure_changes`.
+"""
+
 from __future__ import annotations
 
 import asyncio
