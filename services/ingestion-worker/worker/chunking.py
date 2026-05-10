@@ -196,6 +196,8 @@ def _chunk_text(
                 chunks.append(emitted)
             overlap = counter.tail(emitted, overlap_tokens)
             current_parts = [overlap, unit] if overlap else [unit]
+            if counter.count("\n\n".join(current_parts)) > max_tokens:
+                current_parts = [unit]
             current_tokens = counter.count("\n\n".join(current_parts))
         else:
             current_parts.append(unit)
