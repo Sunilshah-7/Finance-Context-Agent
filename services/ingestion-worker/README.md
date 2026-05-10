@@ -66,10 +66,36 @@ python ingest.py \
 # Single ticker test
 python ingest.py --tickers AMD --filing-types 10-K --years 1
 
+# Export citation-ready samples for retrieval/UI handoff
+python export_handoff.py \
+  --db-path ../../fincontext.db \
+  --tickers AMD \
+  --sections "Item 1A,Item 7" \
+  --limit 25 \
+  --output ../../handoff-kishan-amd.json
+
 # Tests (mocked/offline; no real EDGAR, Gateway, or Qdrant required)
 pytest tests/test_parser.py -x
 pytest tests/test_chunking.py -x
 ```
+
+## Handoff Export For Retrieval And UI
+
+After ingestion writes SQLite rows, `export_handoff.py` can produce a compact
+JSON file for retrieval, reranking, memo, and citation-card work. It does not
+call EDGAR, Gateway, Qdrant, or any model service.
+
+The export includes:
+
+- document metadata: ticker, CIK, filing type, filed date, fiscal period,
+  accession number, source URL, parsed sections, and chunk count;
+- chunk metadata: `chunk_id`, matching `qdrant_point_id`, `citation_anchor`,
+  source URL, section, item label, token count, text hash, and table flag;
+- `text_preview` for quick UI/retrieval inspection;
+- optional full chunk text with `--include-full-text`.
+
+Use it when Kishan needs sample citation-ready chunks before wiring retrieval,
+reranking, or UI citation cards.
 
 ## EDGAR Rate Limiting
 
