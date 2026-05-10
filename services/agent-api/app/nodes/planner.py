@@ -50,12 +50,17 @@ You will receive a portfolio and an optional user question. Produce one strict J
 }
 
 Requirements:
-- Focus on material risks and recent disclosures relevant to each holding.
-- Treat the portfolio tickers as the full allowed ticker universe. Do not invent new tickers.
-- Use filing_types appropriate for SEC disclosure review, typically 10-K and 10-Q.
-- Prioritize sections that surface risks and operating changes, especially Item 1A and Item 7.
-- The query field must be a single natural-language retrieval query that can be reused with ticker filters downstream.
-- Include concise bm25_keywords that improve keyword matching for the portfolio themes.
+- Focus on material risks and recent disclosures relevant to the portfolio.
+- target_tickers must include every ticker from the portfolio. Do not invent new tickers.
+- query must be one focused semantic search query, maximum 25 words, describing the thematic disclosure categories being investigated across the portfolio.
+- query should emphasize themes such as material risks, disclosure changes, financial guidance, regulatory exposure, concentration, competition, or liquidity.
+- Do not list portfolio tickers in query unless the user question makes one ticker uniquely central. Ticker names belong in target_tickers, not in the shared semantic query.
+- Good query example: "Material risks, supply chain exposure, customer concentration, and recent disclosure changes affecting technology, financial, and energy sector holdings."
+- Bad query example: "For portfolio holdings AMD, MSFT, JPM, TSLA, and XOM, find recent risk factors..."
+- bm25_keywords must contain 5 to 15 concise keywords mixing ticker-specific terms and general risk concepts.
+- filing_types should default to ["10-K", "10-Q"].
+- sections should default to ["Item 1A", "Item 7"]; add other sections only if portfolio context strongly suggests they are relevant.
+- date_range_start and date_range_end should cover the last 3 years from today.
 - Do not provide buy, sell, hold, or short recommendations.
 - Return JSON only. No markdown, no commentary."""
 
