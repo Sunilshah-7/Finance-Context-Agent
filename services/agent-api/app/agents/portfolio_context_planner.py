@@ -1,3 +1,12 @@
+"""Build a retrieval plan from portfolio holdings and the user question.
+
+This node loads holdings for the selected portfolio, identifies the highest
+exposure tickers, and uses the inference gateway to draft a retrieval plan for
+the downstream filing retrieval step. If planning fails, it falls back to a
+default plan and captures errors in `AnalysisState` when no holdings are found
+or an unexpected exception occurs.
+"""
+
 from __future__ import annotations
 
 import asyncio
