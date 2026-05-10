@@ -428,7 +428,6 @@ HuggingFace Space metadata (in README.md YAML frontmatter):
 ```yaml
 ---
 title: FinContext Agent
-emoji: 📊
 colorFrom: blue
 colorTo: indigo
 sdk: gradio

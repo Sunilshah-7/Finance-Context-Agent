@@ -8,8 +8,11 @@ the implementation without reading every commit.
 - PR #17, `feat/ingestion-worker-foundation`, is merged into `dev`.
 - PR #18, `infra/demo-data-snapshots`, is merged into `dev`.
 - PR #20, Kishan's Gateway foundation, is merged into `dev`.
+- PR #21, `docs/codex-work-explanation`, is merged into `dev`.
+- PR #22, `feat/ingestion-validation-tools`, is merged into `dev`.
 - PR #19, `feat/agent-api`, is still open and explicitly marked "DONOT MERGE THIS PR: Still in review".
-- `feat/ingestion-validation-tools` and `feat/ingestion-validation-cli` are pushed follow-up branches but are not merged into `dev` yet.
+- PR #23, `eval/retrieval-fixtures-foundation`, is open for review.
+- PR #24, `feat/ingestion-validation-cli`, is open for review.
 
 ## What PR #17 Added
 
@@ -70,10 +73,9 @@ The runbook is `docs/demo-data-ops.md`. Generated backup files live under
 `backups/`, which is gitignored. SQLite DBs, Qdrant storage, model caches, and
 snapshots should not be committed.
 
-## Pending Follow-Up Branches
+## Validation Follow-Up Work
 
-`feat/ingestion-validation-tools` adds helpers to verify ingestion output after
-real services exist:
+PR #22 added helpers to verify ingestion output after real services exist:
 
 - SQLite `chunks` rows are searchable through `chunks_fts`;
 - Qdrant point count matches SQLite chunk count;
@@ -81,24 +83,20 @@ real services exist:
 - ingested documents can be summarized by ticker, filing type, filed date,
   parsed sections, and chunk count.
 
-`feat/ingestion-validation-cli` adds one CLI wrapper around those helpers so the
-AMD one-filing smoke check is a command instead of a Python snippet.
+PR #24 adds one CLI wrapper around those helpers so the AMD one-filing smoke
+check is a command instead of a Python snippet.
 
-Merge order should be:
+Merge status:
 
-1. `feat/ingestion-validation-tools` into `dev`;
-2. then rebase and merge `feat/ingestion-validation-cli` into `dev`.
-
-Do not merge the CLI branch first because it depends on helper code from the
-validation-tools branch.
+- validation helpers are merged through PR #22;
+- validation CLI is open through PR #24 and should merge after review.
 
 ## What Is Safe Versus Not Safe
 
 Safe to review/merge after tests pass:
 
 - documentation/comment-only cleanup;
-- ingestion validation helpers after rebasing onto current `dev`;
-- validation CLI after validation helpers merge;
+- validation CLI after review;
 - infra backup/snapshot tooling already merged in PR #18.
 
 Not safe without coordination:
