@@ -2,14 +2,23 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import httpx
-import pytest
 
 from worker.sec_client import EDGARClient
 
 
-@pytest.mark.asyncio
-async def test_get_cik_resolves_amd_from_company_tickers(tmp_path):
+def test_get_cik_resolves_amd_from_company_tickers(tmp_path):
+    async def run_test() -> None:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            edgar = EDGARClient(
+                "FinContextAgent/0.1 test@example.com",
+                cache_dir=tmp_path,
+                http_client=client,
+            )
+            assert await edgar.get_cik("amd") == "0000002488"
+
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.headers["user-agent"] == "FinContextAgent/0.1 test@example.com"
         return httpx.Response(
@@ -23,13 +32,7 @@ async def test_get_cik_resolves_amd_from_company_tickers(tmp_path):
             },
         )
 
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-        edgar = EDGARClient(
-            "FinContextAgent/0.1 test@example.com",
-            cache_dir=tmp_path,
-            http_client=client,
-        )
-        assert await edgar.get_cik("amd") == "0000002488"
+    asyncio.run(run_test())
 
 
 def test_build_filing_url_uses_accession_without_dashes():

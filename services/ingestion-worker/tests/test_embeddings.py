@@ -2,14 +2,26 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import httpx
-import pytest
 
 from worker.embeddings import EmbeddingClient
 
 
-@pytest.mark.asyncio
-async def test_embedding_client_parses_openai_style_response():
+def test_embedding_client_parses_openai_style_response():
+    async def run_test() -> None:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            embedding_client = EmbeddingClient(
+                "http://gateway.local",
+                http_client=client,
+            )
+            vectors = await embedding_client.embed_texts(["alpha", "beta"])
+
+        assert len(vectors) == 2
+        assert len(vectors[0]) == 1024
+        assert vectors[1][0] == 0.2
+
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/v1/embeddings"
         payload = request.read()
@@ -24,13 +36,4 @@ async def test_embedding_client_parses_openai_style_response():
             },
         )
 
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-        embedding_client = EmbeddingClient(
-            "http://gateway.local",
-            http_client=client,
-        )
-        vectors = await embedding_client.embed_texts(["alpha", "beta"])
-
-    assert len(vectors) == 2
-    assert len(vectors[0]) == 1024
-    assert vectors[1][0] == 0.2
+    asyncio.run(run_test())
