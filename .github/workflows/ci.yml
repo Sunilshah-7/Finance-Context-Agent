@@ -106,6 +106,7 @@ jobs:
 
       - name: Enforce no new emoji in changed text files
         env:
+          GITHUB_BASE_REF_NAME: ${{ github.base_ref }}
           GITHUB_EVENT_BEFORE: ${{ github.event.before }}
         run: |
           python - <<'PY'
@@ -134,10 +135,15 @@ jobs:
           }
 
           event_name = os.environ.get("GITHUB_EVENT_NAME", "")
+          base_ref = os.environ.get("GITHUB_BASE_REF_NAME", "")
           before_sha = os.environ.get("GITHUB_EVENT_BEFORE", "")
 
-          if event_name == "pull_request":
-              diff_args = ["git", "diff", "--name-only", "HEAD^1..HEAD"]
+          if event_name == "pull_request" and base_ref:
+              subprocess.run(
+                  ["git", "fetch", "origin", f"{base_ref}:refs/remotes/origin/{base_ref}"],
+                  check=True,
+              )
+              diff_args = ["git", "diff", "--name-only", f"origin/{base_ref}..HEAD"]
           elif before_sha and set(before_sha) != {"0"}:
               diff_args = ["git", "diff", "--name-only", f"{before_sha}..HEAD"]
           else:
