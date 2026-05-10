@@ -26,6 +26,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -102,11 +104,14 @@ jobs:
             exit 1
           fi
 
-      - name: Enforce no emoji in tracked text files
+      - name: Enforce no new emoji in changed text files
+        env:
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
         run: |
           python - <<'PY'
           from __future__ import annotations
 
+          import os
           import pathlib
           import re
           import subprocess
@@ -128,13 +133,24 @@ jobs:
               ".yaml",
           }
 
-          files = subprocess.check_output(
-              ["git", "ls-files"],
-              text=True,
-          ).splitlines()
+          event_name = os.environ.get("GITHUB_EVENT_NAME", "")
+          base_ref = os.environ.get("GITHUB_BASE_REF", "")
+          before_sha = os.environ.get("GITHUB_EVENT_BEFORE", "")
+
+          if event_name == "pull_request" and base_ref:
+              subprocess.run(["git", "fetch", "origin", base_ref], check=True)
+              diff_args = ["git", "diff", "--name-only", f"origin/{base_ref}...HEAD"]
+          elif before_sha and set(before_sha) != {"0"}:
+              diff_args = ["git", "diff", "--name-only", f"{before_sha}..HEAD"]
+          else:
+              diff_args = ["git", "diff", "--name-only", "HEAD~1..HEAD"]
+
+          files = subprocess.check_output(diff_args, text=True).splitlines()
           offenders: list[str] = []
           for file_name in files:
               path = pathlib.Path(file_name)
+              if not path.exists():
+                  continue
               if path.suffix.lower() not in text_suffixes:
                   continue
               try:

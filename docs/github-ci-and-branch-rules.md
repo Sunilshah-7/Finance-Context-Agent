@@ -40,7 +40,7 @@ This job blocks common accidental commits:
 - `.pytest_cache`;
 - Qdrant storage;
 - model cache directories;
-- emoji in tracked text files.
+- emoji added in changed tracked text files.
 
 ## What CI Does Not Check
 
