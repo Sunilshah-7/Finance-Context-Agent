@@ -1,3 +1,10 @@
+"""Tests for the agent nodes that transform retrieval results into analysis output.
+
+These tests cover the disclosure change heuristic path and the analyst memo
+fallback path to ensure the node logic produces changes, a memo, and citation
+metadata even when the gateway response is not available.
+"""
+
 from __future__ import annotations
 
 from fincontext_schemas import AnalysisState, EvidenceChunk

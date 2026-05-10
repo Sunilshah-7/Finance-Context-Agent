@@ -1,3 +1,10 @@
+"""Integration test for the analysis graph fallback execution path.
+
+This test verifies that running the graph on an empty or missing portfolio still
+returns a partial analysis state and produces a memo through the direct graph
+runner.
+"""
+
 from __future__ import annotations
 
 from fincontext_schemas import AnalysisState

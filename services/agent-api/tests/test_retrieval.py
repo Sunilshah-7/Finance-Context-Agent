@@ -1,3 +1,10 @@
+"""Tests for retrieval post-processing behavior.
+
+This module verifies that section diversity filtering caps the number of chunks
+returned from the same ticker and section before the final retrieval result is
+emitted.
+"""
+
 from __future__ import annotations
 
 from app.retrieval import apply_section_diversity
