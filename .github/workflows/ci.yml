@@ -84,6 +84,34 @@ jobs:
             services/inference-gateway \
             infra
 
+  frontend-checks:
+    name: Demo UI Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/demo-ui/package-lock.json
+
+      - name: Install demo UI dependencies
+        working-directory: apps/demo-ui
+        run: npm ci
+
+      - name: Run demo UI tests
+        working-directory: apps/demo-ui
+        run: npm run test
+
+      - name: Build demo UI
+        working-directory: apps/demo-ui
+        run: npm run build
+
   repository-policy:
     name: Repository Policy
     runs-on: ubuntu-latest
@@ -134,6 +162,13 @@ jobs:
               ".txt",
               ".yml",
               ".yaml",
+              ".js",
+              ".jsx",
+              ".ts",
+              ".tsx",
+              ".css",
+              ".html",
+              ".json",
           }
 
           event_name = os.environ.get("GITHUB_EVENT_NAME", "")
