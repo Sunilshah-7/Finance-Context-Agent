@@ -6,7 +6,14 @@
  * Agent API data and clearly labeled sample fallbacks.
  */
 import { useEffect, useMemo, useState } from "react";
-import { SAMPLE_DRIFT, SAMPLE_EVIDENCE, SAMPLE_PORTFOLIO } from "./data/sampleData.js";
+import {
+  SAMPLE_BENCHMARK,
+  SAMPLE_DRIFT,
+  SAMPLE_EVIDENCE,
+  SAMPLE_MEMO,
+  SAMPLE_PORTFOLIO,
+  SAMPLE_RISK,
+} from "./data/sampleData.js";
 import { AgentApiClient, ApiError } from "./lib/apiClient.js";
 import { getRuntimeConfig } from "./lib/config.js";
 
@@ -452,6 +459,240 @@ function EvidenceCard({ item }) {
   );
 }
 
+function RiskScoresTab({ client, backendOnline, portfolioId }) {
+  const [scores, setScores] = useState(SAMPLE_RISK);
+  const [status, setStatus] = useState(
+    backendOnline
+      ? "Sample risk scores are visible. Load live findings when Agent API data is ready."
+      : "Agent API is offline. Showing sample research risk scores.",
+  );
+
+  async function loadFindings() {
+    try {
+      setStatus("Loading findings from Agent API...");
+      const result = await client.getFindings(portfolioId);
+      const nextScores = normalizeRiskScores(result);
+      setScores(nextScores.length ? nextScores : SAMPLE_RISK);
+      setStatus(nextScores.length ? "Live risk scores loaded." : "No live scores returned; showing sample scores.");
+    } catch (error) {
+      setStatus(formatError(error));
+    }
+  }
+
+  return (
+    <section className="grid grid-risk">
+      <div className="panel">
+        <div className="panel-head">
+          <div>
+            <div className="eyebrow">Research risk scoring</div>
+            <h2>Holding-level risk movement</h2>
+          </div>
+          <Chip tone={backendOnline ? "ok" : "warn"}>
+            {backendOnline ? "Live capable" : "Sample data"}
+          </Chip>
+        </div>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Ticker</th>
+                <th>Score</th>
+                <th>Delta</th>
+                <th>Confidence</th>
+                <th>Top drivers</th>
+                <th>Portfolio impact</th>
+              </tr>
+            </thead>
+            <tbody>
+              {scores.map((score) => (
+                <tr key={score.ticker}>
+                  <td className="ticker">{score.ticker}</td>
+                  <td>
+                    <ScoreMeter value={score.score} />
+                  </td>
+                  <td className={score.delta >= 0 ? "delta-up" : "delta-down"}>
+                    {score.delta >= 0 ? "+" : ""}
+                    {score.delta}
+                  </td>
+                  <td>{Math.round(score.confidence * 100)} pct</td>
+                  <td>{score.drivers.join(", ")}</td>
+                  <td>{score.impact}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <aside className="panel">
+        <div className="panel-head">
+          <div>
+            <div className="eyebrow">Findings loader</div>
+            <h2>Agent API</h2>
+          </div>
+        </div>
+        <div className="panel-body form-stack">
+          <button className="primary-button" onClick={loadFindings} type="button">
+            Load findings
+          </button>
+          <div className="callout">{status}</div>
+        </div>
+      </aside>
+    </section>
+  );
+}
+
+function AnalystMemoTab({ client, backendOnline, portfolioId }) {
+  const [memo, setMemo] = useState(SAMPLE_MEMO);
+  const [status, setStatus] = useState(
+    backendOnline
+      ? "Sample memo is visible. Load live findings when Agent API data is ready."
+      : "Agent API is offline. Showing a labeled sample memo structure.",
+  );
+
+  async function loadMemo() {
+    try {
+      setStatus("Loading analyst memo from Agent API...");
+      const result = await client.getFindings(portfolioId);
+      const nextMemo = normalizeMemo(result);
+      setMemo(nextMemo || SAMPLE_MEMO);
+      setStatus(nextMemo ? "Live memo loaded." : "No live memo returned; showing sample memo.");
+    } catch (error) {
+      setStatus(formatError(error));
+    }
+  }
+
+  return (
+    <section className="grid grid-memo">
+      <article className="panel memo-paper">
+        <div className="panel-head">
+          <div>
+            <div className="eyebrow">{memo.sourceLabel}</div>
+            <h2>Analyst memo</h2>
+          </div>
+          <Chip tone={backendOnline ? "ok" : "warn"}>
+            {backendOnline ? "Live capable" : "Sample memo"}
+          </Chip>
+        </div>
+        <div className="memo-body">
+          <section>
+            <h3>Executive Summary</h3>
+            <p>{memo.executiveSummary}</p>
+          </section>
+          <section>
+            <h3>Affected Holdings</h3>
+            <div className="pill-row">
+              {memo.affectedHoldings.map((holding) => (
+                <span className="ticker-pill" key={holding}>
+                  {holding}
+                </span>
+              ))}
+            </div>
+          </section>
+          <section>
+            <h3>Watchlist Questions</h3>
+            <ol>
+              {memo.watchlistQuestions.map((question) => (
+                <li key={question}>{question}</li>
+              ))}
+            </ol>
+          </section>
+          <section className="disclaimer-box">
+            <h3>Disclaimer</h3>
+            <p>{memo.disclaimer}</p>
+          </section>
+        </div>
+      </article>
+      <aside className="panel">
+        <div className="panel-head">
+          <div>
+            <div className="eyebrow">Memo loader</div>
+            <h2>Findings API</h2>
+          </div>
+        </div>
+        <div className="panel-body form-stack">
+          <button className="primary-button" onClick={loadMemo} type="button">
+            Load memo
+          </button>
+          <div className="callout">{status}</div>
+        </div>
+      </aside>
+    </section>
+  );
+}
+
+function BenchmarkTab({ client, backendOnline }) {
+  const [benchmark, setBenchmark] = useState(SAMPLE_BENCHMARK);
+  const [status, setStatus] = useState(
+    backendOnline
+      ? "Benchmark placeholders are visible. Load live metrics when Gateway metrics are available through Agent API."
+      : "Agent API is offline. Benchmark values are intentionally unavailable.",
+  );
+
+  async function loadBenchmark() {
+    try {
+      setStatus("Loading benchmark metrics from Agent API...");
+      const result = await client.getBenchmarkMetrics();
+      const nextBenchmark = normalizeBenchmark(result);
+      setBenchmark(nextBenchmark || SAMPLE_BENCHMARK);
+      setStatus(nextBenchmark ? "Live benchmark metrics loaded." : "No live metrics returned; showing unavailable placeholders.");
+    } catch (error) {
+      setStatus(formatError(error));
+    }
+  }
+
+  return (
+    <section className="grid grid-benchmark">
+      <div className="panel">
+        <div className="panel-head">
+          <div>
+            <div className="eyebrow">{benchmark.sourceLabel}</div>
+            <h2>AMD benchmark panel</h2>
+          </div>
+          <Chip tone={benchmark.sourceLabel.toLowerCase().includes("sample") ? "warn" : "ok"}>
+            {benchmark.sourceLabel}
+          </Chip>
+        </div>
+        <div className="metric-grid">
+          {benchmark.metrics.map((metric) => (
+            <div className="metric-card" key={metric.label}>
+              <div className="eyebrow">{metric.label}</div>
+              <strong>{metric.value}</strong>
+              <span>{metric.note}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <aside className="panel">
+        <div className="panel-head">
+          <div>
+            <div className="eyebrow">Metrics loader</div>
+            <h2>Agent API</h2>
+          </div>
+        </div>
+        <div className="panel-body form-stack">
+          <button className="primary-button" onClick={loadBenchmark} type="button">
+            Load metrics
+          </button>
+          <div className="callout">{status}</div>
+          <div className="mini-kv">
+            <span>Truthfulness rule</span>
+            <strong>No live number is displayed unless backend returns it.</strong>
+          </div>
+        </div>
+      </aside>
+    </section>
+  );
+}
+
+function ScoreMeter({ value }) {
+  return (
+    <span className="score-meter">
+      <span style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
+      <strong>{value}</strong>
+    </span>
+  );
+}
+
 function CitationChip({ children }) {
   return <span className="citation-chip">{children}</span>;
 }
@@ -588,7 +829,24 @@ export default function App() {
         {activeTab === "evidence" && (
           <EvidenceExplorerTab client={client} backendOnline={backendOnline} />
         )}
-        {!["portfolio", "analysis", "drift", "evidence"].includes(activeTab) && (
+        {activeTab === "risk" && (
+          <RiskScoresTab
+            client={client}
+            backendOnline={backendOnline}
+            portfolioId={SAMPLE_PORTFOLIO.id}
+          />
+        )}
+        {activeTab === "memo" && (
+          <AnalystMemoTab
+            client={client}
+            backendOnline={backendOnline}
+            portfolioId={SAMPLE_PORTFOLIO.id}
+          />
+        )}
+        {activeTab === "benchmark" && (
+          <BenchmarkTab client={client} backendOnline={backendOnline} />
+        )}
+        {!["portfolio", "analysis", "drift", "evidence", "risk", "memo", "benchmark"].includes(activeTab) && (
           <ShellTabPlaceholder activeTab={activeTab} />
         )}
       </main>
@@ -666,4 +924,74 @@ function severityFromScore(value) {
     return "medium";
   }
   return "low";
+}
+
+function normalizeRiskScores(payload) {
+  const records = payload?.risk_scores || payload?.riskScores || payload?.scores || [];
+  return records.map((item) => ({
+    ticker: item.ticker,
+    score: Number(item.score ?? item.overall_score ?? 0),
+    delta: Number(item.delta ?? item.score_delta ?? 0),
+    confidence: Number(item.confidence ?? 0),
+    drivers: item.top_drivers || item.drivers || [],
+    impact: item.portfolio_impact || item.impact || "Impact not provided by Agent API.",
+    citations: item.citations || [],
+  }));
+}
+
+function normalizeMemo(payload) {
+  const memo = payload?.memo || payload?.analyst_memo || null;
+  if (!memo) {
+    return null;
+  }
+  return {
+    sourceLabel: "Live Agent API memo",
+    executiveSummary:
+      memo.executive_summary || memo.executiveSummary || "Executive summary unavailable.",
+    affectedHoldings: memo.affected_holdings || memo.affectedHoldings || [],
+    watchlistQuestions: memo.watchlist_questions || memo.watchlistQuestions || [],
+    disclaimer:
+      memo.disclaimer ||
+      "This output is research assistance only and does not constitute investment advice.",
+  };
+}
+
+function normalizeBenchmark(payload) {
+  const metrics = payload?.metrics || payload;
+  if (!metrics || Object.keys(metrics).length === 0) {
+    return null;
+  }
+
+  return {
+    sourceLabel: "Live Agent API metrics",
+    status: metrics.status || "Live metrics returned by Agent API",
+    metrics: [
+      {
+        label: "72B tokens/sec",
+        value: valueOrUnavailable(metrics.tokens_per_second ?? metrics.tokensPerSecond),
+        note: "Reported by backend metrics endpoint",
+      },
+      {
+        label: "Time to first token",
+        value: valueOrUnavailable(metrics.time_to_first_token_ms ?? metrics.timeToFirstTokenMs, " ms"),
+        note: "Reported by backend metrics endpoint",
+      },
+      {
+        label: "GPU memory utilization",
+        value: valueOrUnavailable(metrics.gpu_memory_utilization ?? metrics.gpuMemoryUtilization),
+        note: "Reported by backend metrics endpoint",
+      },
+      {
+        label: "Embedding latency",
+        value: valueOrUnavailable(metrics.embedding_latency_ms ?? metrics.embeddingLatencyMs, " ms"),
+        note: "Reported by backend metrics endpoint",
+      },
+    ],
+  };
+}
+
+function valueOrUnavailable(value, suffix = "") {
+  return value === undefined || value === null || value === ""
+    ? "Unavailable"
+    : `${value}${suffix}`;
 }

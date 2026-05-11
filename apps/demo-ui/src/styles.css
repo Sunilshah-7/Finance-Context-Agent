@@ -328,7 +328,10 @@ h2 {
 }
 
 .grid-portfolio,
-.grid-analysis {
+.grid-analysis,
+.grid-risk,
+.grid-memo,
+.grid-benchmark {
   grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
   align-items: start;
 }
@@ -588,6 +591,112 @@ textarea:focus {
   text-decoration: underline;
 }
 
+.score-meter {
+  position: relative;
+  display: grid;
+  align-items: center;
+  width: 120px;
+  height: 28px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--bg-sunk);
+}
+
+.score-meter span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(90deg, var(--amber-soft), var(--red-soft));
+}
+
+.score-meter strong {
+  position: relative;
+  z-index: 1;
+  padding-left: 10px;
+  font-family: var(--mono);
+}
+
+.delta-up {
+  color: var(--red);
+  font-family: var(--mono);
+  font-weight: 800;
+}
+
+.delta-down {
+  color: var(--green);
+  font-family: var(--mono);
+  font-weight: 800;
+}
+
+.memo-paper {
+  background: #fffdf7;
+}
+
+.memo-body {
+  display: grid;
+  gap: 24px;
+  padding: 26px;
+  color: var(--ink-2);
+  font-size: 15px;
+}
+
+.memo-body h3 {
+  margin: 0 0 8px;
+  color: var(--ink);
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.memo-body ol {
+  margin: 0;
+  padding-left: 22px;
+}
+
+.pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ticker-pill {
+  padding: 4px 9px;
+  border: 1px solid var(--line-strong);
+  background: var(--bg-elev);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-weight: 800;
+}
+
+.disclaimer-box {
+  padding: 14px;
+  border: 1px solid var(--line);
+  background: var(--bg-sunk);
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--line);
+}
+
+.metric-card {
+  display: grid;
+  gap: 8px;
+  min-height: 160px;
+  padding: 16px;
+  background: var(--bg-elev);
+}
+
+.metric-card strong {
+  font-family: var(--mono);
+  font-size: 26px;
+}
+
+.metric-card span {
+  color: var(--ink-3);
+}
+
 .empty-state {
   display: grid;
   gap: 8px;
@@ -689,13 +798,17 @@ textarea:focus {
 
   .grid-portfolio,
   .grid-analysis,
+  .grid-risk,
+  .grid-memo,
+  .grid-benchmark,
   .grid-drift,
   .grid-evidence {
     grid-template-columns: 1fr;
   }
 
   .comparison-grid,
-  .evidence-grid {
+  .evidence-grid,
+  .metric-grid {
     grid-template-columns: 1fr;
   }
 }
