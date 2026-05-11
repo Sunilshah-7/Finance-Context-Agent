@@ -109,6 +109,14 @@ def format_api_result(result: ApiResult, success_title: str) -> str:
     return render_notice("Agent API request failed", result.message, "warn")
 
 
+def render_json_block(payload: dict[str, Any] | list[Any] | None) -> str:
+    if payload is None:
+        return "<pre class='fc-json'>No response payload.</pre>"
+    import json
+
+    return f"<pre class='fc-json'>{escape_html(json.dumps(payload, indent=2, sort_keys=True))}</pre>"
+
+
 def build_app() -> gr.Blocks:
     """Create the Gradio Blocks app without launching it."""
 
@@ -163,16 +171,91 @@ def build_portfolio_tab(seed_df: pd.DataFrame) -> None:
     gr.HTML(
         """
         <div class="fc-panel">
-          <div class="fc-panel-title">Seed portfolio preview</div>
-          <p>This view loads from the committed seed CSV even when the Agent API is unavailable.</p>
+          <div class="fc-panel-title">Portfolio input</div>
+          <p>Upload a CSV to create a portfolio in Agent API, or inspect the committed seed portfolio while the backend is offline.</p>
         </div>
         """
     )
-    gr.Dataframe(seed_df, label="Seed holdings", interactive=False, wrap=True)
+    with gr.Row():
+        with gr.Column(scale=2):
+            gr.Dataframe(seed_df, label="Seed holdings", interactive=False, wrap=True)
+        with gr.Column(scale=1):
+            portfolio_name = gr.Textbox(value="Demo Portfolio", label="Portfolio name")
+            upload_file = gr.File(label="Portfolio CSV", file_types=[".csv"], type="filepath")
+            upload_button = gr.Button("Upload Portfolio", variant="primary")
+            upload_status = gr.HTML(render_notice("Waiting for upload", "Choose a CSV and call the Agent API.", "muted"))
+            upload_payload = gr.HTML(render_json_block(None))
+
+    upload_button.click(
+        upload_portfolio_action,
+        inputs=[upload_file, portfolio_name],
+        outputs=[upload_status, upload_payload],
+    )
 
 
 def build_analysis_tab() -> None:
-    gr.HTML(render_notice("Analysis wiring pending", "This shell will call POST /api/analyze and poll GET /api/jobs/{job_id}.", "muted"))
+    gr.HTML(
+        """
+        <div class="fc-panel">
+          <div class="fc-panel-title">Analysis run</div>
+          <p>Start a portfolio analysis job, then poll the documented job endpoint for stage and progress.</p>
+        </div>
+        """
+    )
+    with gr.Row():
+        with gr.Column(scale=2):
+            portfolio_id = gr.Textbox(label="Portfolio ID", placeholder="p_abc123")
+            question = gr.Textbox(
+                value=DEFAULT_QUESTION,
+                label="Analyst question",
+                lines=3,
+            )
+            start_button = gr.Button("Start Analysis", variant="primary")
+        with gr.Column(scale=1):
+            job_id = gr.Textbox(label="Job ID", placeholder="job_xyz789")
+            refresh_button = gr.Button("Refresh Job Status")
+
+    with gr.Row():
+        analysis_status = gr.HTML(render_notice("No job started", "Start an analysis or enter a job ID to check status.", "muted"))
+        analysis_payload = gr.HTML(render_json_block(None))
+
+    start_button.click(
+        start_analysis_action,
+        inputs=[portfolio_id, question],
+        outputs=[analysis_status, analysis_payload, job_id],
+    )
+    refresh_button.click(
+        refresh_job_action,
+        inputs=[job_id],
+        outputs=[analysis_status, analysis_payload],
+    )
+
+
+def upload_portfolio_action(file_path: str | None, portfolio_name: str) -> tuple[str, str]:
+    if not file_path:
+        return render_notice("Missing CSV", "Choose a portfolio CSV before uploading.", "warn"), render_json_block(None)
+    result = client().upload_portfolio(file_path, portfolio_name or "Demo Portfolio")
+    return format_api_result(result, "Portfolio uploaded"), render_json_block(result.data)
+
+
+def start_analysis_action(portfolio_id: str, question: str) -> tuple[str, str, str]:
+    if not portfolio_id.strip():
+        return (
+            render_notice("Missing portfolio ID", "Upload or enter a portfolio ID before starting analysis.", "warn"),
+            render_json_block(None),
+            "",
+        )
+    result = client().start_analysis(portfolio_id, question)
+    data = result.data if isinstance(result.data, dict) else {}
+    next_job_id = str(data.get("job_id", "")) if result.ok else ""
+    return format_api_result(result, "Analysis queued"), render_json_block(result.data), next_job_id
+
+
+def refresh_job_action(job_id: str) -> tuple[str, str]:
+    if not job_id.strip():
+        return render_notice("Missing job ID", "Enter a job ID to refresh status.", "warn"), render_json_block(None)
+    result = client().get_job(job_id)
+    return format_api_result(result, "Job status loaded"), render_json_block(result.data)
 
 
 def build_drift_tab() -> None:
@@ -413,6 +496,18 @@ body,
 
 table {
   font-size: 13px !important;
+}
+
+.fc-json {
+  margin: 0;
+  padding: 12px;
+  max-height: 360px;
+  overflow: auto;
+  border: 1px solid var(--fc-line);
+  border-radius: 6px;
+  background: #111317;
+  color: #e8eaf0;
+  font: 12px "IBM Plex Mono", monospace;
 }
 """
 
