@@ -121,8 +121,8 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 - [ ] Create Qdrant snapshot after successful full ingestion.
 - [ ] Create `fincontext_demo.db` backup after successful full ingestion.
 - [ ] Manually inspect 20 random citation anchors and source URLs for correctness.
-- [ ] Build `packages/evals/fixtures/labeled_queries.json` with at least 20 query-to-relevant-citation labels.
-- [ ] Build `packages/evals/fixtures/known_changes.json` with at least 10 known disclosure changes.
+- [x] Build `packages/evals/fixtures/labeled_queries.json` with at least 20 query-to-relevant-citation labels.
+- [x] Build `packages/evals/fixtures/known_changes.json` with at least 10 known disclosure changes.
 
 ## Collaboration Tasks
 
