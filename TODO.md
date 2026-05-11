@@ -51,6 +51,8 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 - [x] Create `packages/schemas/python/api.py` for FastAPI request/response models from `docs/api-contracts.md`.
 - [x] Add `packages/schemas` packaging files so services can install it with `pip install -e ../../packages/schemas`.
 - [x] Create `services/agent-api/main.py` with FastAPI app and `GET /health`.
+- [x] Verify `services/agent-api` local Python 3.12 test environment can install `requirements.txt` and import `fincontext_schemas`.
+- [x] Add `services/agent-api/tests/__init__.py` so tests can import shared fixtures such as `tests.test_nodes.sample_chunk`.
 - [ ] Implement Agent API bearer-token authentication using `AGENT_API_KEY`.
 - [x] Implement `POST /api/portfolio/upload` to parse CSV, validate required columns, resolve basic portfolio totals, and write portfolio/holdings rows.
 - [x] Implement `POST /api/analyze` job creation with initial async background-task stub.
@@ -74,6 +76,11 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 ## Integration Tasks
 
 - [ ] Apply `infra/schema.sql` to create `fincontext.db` on the AMD VM.
+- [x] Run local Agent API test suite with `pytest tests -x` after installing service requirements.
+- [x] Start Agent API locally on port `8090` and verify `GET /health` returns `ok=true` for the service.
+- [ ] Start local or VM Inference Gateway on port `8080` so Agent API health reports gateway reachable.
+- [ ] Start local or VM Qdrant on port `6333` so Agent API health reports Qdrant reachable.
+- [ ] Re-run `GET /health` and verify Agent API, Inference Gateway, and Qdrant are all healthy.
 - [ ] Start full AMD VM stack and publish service health checklist.
 - [ ] Restore or verify Qdrant and SQLite demo snapshots on the AMD VM.
 - [ ] Run end-to-end smoke test: upload portfolio → create job → graph starts → job completes.
