@@ -103,6 +103,10 @@ def dataframe_from_records(records: list[dict[str, Any]], columns: list[str]) ->
     return pd.DataFrame(records).reindex(columns=columns)
 
 
+def empty_dataframe(columns: list[str]) -> pd.DataFrame:
+    return pd.DataFrame(columns=columns)
+
+
 def format_api_result(result: ApiResult, success_title: str) -> str:
     if result.ok:
         return render_notice(success_title, "Agent API returned a successful response.", "ok")
@@ -259,23 +263,309 @@ def refresh_job_action(job_id: str) -> tuple[str, str]:
 
 
 def build_drift_tab() -> None:
-    gr.HTML(render_notice("Disclosure drift wiring pending", "This shell will render citation-backed changes from GET /api/diff/{ticker}.", "muted"))
+    gr.HTML(
+        """
+        <div class="fc-panel">
+          <div class="fc-panel-title">Disclosure drift</div>
+          <p>Load side-by-side language changes for a ticker and filing section. The hero view is old evidence versus new evidence with citation anchors.</p>
+        </div>
+        """
+    )
+    with gr.Row():
+        ticker = gr.Dropdown(["AMD", "NVDA", "MSFT", "JPM", "TSLA"], value="AMD", label="Ticker")
+        section = gr.Dropdown(["Item 1", "Item 1A", "Item 7", "Item 7A", "Item 8"], value="Item 1A", label="Section")
+        filing_type = gr.Dropdown(["10-K", "10-Q"], value="10-K", label="Filing type")
+        year_a = gr.Textbox(value="", label="Prior year")
+        year_b = gr.Textbox(value="", label="Current year")
+    load_button = gr.Button("Load Disclosure Drift", variant="primary")
+    status = gr.HTML(render_notice("No diff loaded", "Choose a ticker and section to query the Agent API.", "muted"))
+    changes_table = gr.Dataframe(
+        empty_dataframe(["change_type", "materiality", "confidence", "summary", "old_citation_anchor", "new_citation_anchor"]),
+        label="Disclosure changes",
+        interactive=False,
+        wrap=True,
+    )
+    evidence_html = gr.HTML(render_notice("Evidence preview", "Select a change after loading data to inspect old and new passages.", "muted"))
+    load_button.click(
+        load_drift_action,
+        inputs=[ticker, section, year_a, year_b, filing_type],
+        outputs=[status, changes_table, evidence_html],
+    )
 
 
 def build_evidence_tab() -> None:
-    gr.HTML(render_notice("Evidence explorer wiring pending", "This shell will show filing documents and citation-ready chunks when the backend is available.", "muted"))
+    gr.HTML(
+        """
+        <div class="fc-panel">
+          <div class="fc-panel-title">Evidence explorer</div>
+          <p>Inspect filing records that can support citations. This tab never calls storage directly; it only uses the Agent API document endpoint.</p>
+        </div>
+        """
+    )
+    with gr.Row():
+        ticker = gr.Dropdown(["AMD", "NVDA", "MSFT", "JPM", "TSLA"], value="AMD", label="Ticker")
+        load_button = gr.Button("Load Documents", variant="primary")
+    status = gr.HTML(render_notice("No documents loaded", "Load a ticker after ingestion has produced indexed filing data.", "muted"))
+    documents = gr.Dataframe(
+        empty_dataframe(["document_id", "filing_type", "filed_at", "sections_parsed", "chunks_indexed", "source_url"]),
+        label="Documents",
+        interactive=False,
+        wrap=True,
+    )
+    load_button.click(load_documents_action, inputs=[ticker], outputs=[status, documents])
 
 
 def build_risk_tab() -> None:
-    gr.HTML(render_notice("Risk score wiring pending", "This shell will render research risk scores from GET /api/findings/{portfolio_id}.", "muted"))
+    gr.HTML(
+        """
+        <div class="fc-panel">
+          <div class="fc-panel-title">Risk scores</div>
+          <p>Research risk scores summarize citation-backed disclosure changes. This is not investment advice and does not contain recommendations.</p>
+        </div>
+        """
+    )
+    with gr.Row():
+        portfolio_id = gr.Textbox(label="Portfolio ID", placeholder="p_abc123")
+        job_id = gr.Textbox(label="Job ID optional", placeholder="job_xyz789")
+        load_button = gr.Button("Load Risk Scores", variant="primary")
+    status = gr.HTML(render_notice("No risk scores loaded", "Load findings after an analysis job completes.", "muted"))
+    scores = gr.Dataframe(
+        empty_dataframe(["ticker", "overall_score", "score_delta", "confidence", "drivers", "portfolio_impact"]),
+        label="Risk scores",
+        interactive=False,
+        wrap=True,
+    )
+    load_button.click(load_risk_scores_action, inputs=[portfolio_id, job_id], outputs=[status, scores])
 
 
 def build_memo_tab() -> None:
-    gr.HTML(render_notice("Memo wiring pending", "This shell will render the analyst memo and evidence table after an analysis completes.", "muted"))
+    gr.HTML(
+        """
+        <div class="fc-panel">
+          <div class="fc-panel-title">Analyst memo</div>
+          <p>Render the final memo, evidence table, limitations, citation quality, and the required research disclaimer.</p>
+        </div>
+        """
+    )
+    with gr.Row():
+        portfolio_id = gr.Textbox(label="Portfolio ID", placeholder="p_abc123")
+        job_id = gr.Textbox(label="Job ID optional", placeholder="job_xyz789")
+        load_button = gr.Button("Load Memo", variant="primary")
+    status = gr.HTML(render_notice("No memo loaded", "Load findings after an analysis job completes.", "muted"))
+    memo = gr.Markdown("No memo loaded.")
+    evidence = gr.Dataframe(
+        empty_dataframe(["citation_id", "citation_anchor", "source_url"]),
+        label="Evidence table",
+        interactive=False,
+        wrap=True,
+    )
+    load_button.click(load_memo_action, inputs=[portfolio_id, job_id], outputs=[status, memo, evidence])
 
 
 def build_benchmark_tab() -> None:
-    gr.HTML(render_notice("Benchmark wiring pending", "This shell will display measured AMD VM metrics only when the backend reports them.", "muted"))
+    gr.HTML(
+        """
+        <div class="fc-panel">
+          <div class="fc-panel-title">AMD benchmark</div>
+          <p>Displays measured backend metrics only when the Agent API reports them. Empty values mean the AMD VM metrics path is not live yet.</p>
+        </div>
+        """
+    )
+    load_button = gr.Button("Load Benchmark Metrics", variant="primary")
+    status = gr.HTML(render_notice("No metrics loaded", "Metrics require the AMD VM backend and Gateway reporting path.", "muted"))
+    gpu_table = gr.Dataframe(empty_dataframe(["device", "vram_gb", "vram_used_gb"]), label="GPU", interactive=False)
+    request_table = gr.Dataframe(
+        empty_dataframe(["service", "count", "avg_latency_ms", "avg_tokens_per_second", "avg_time_to_first_token_ms"]),
+        label="Recent request metrics",
+        interactive=False,
+        wrap=True,
+    )
+    scenario_table = gr.Dataframe(empty_dataframe(["scenario", "seconds"]), label="Benchmark scenarios", interactive=False)
+    load_button.click(load_benchmark_action, outputs=[status, gpu_table, request_table, scenario_table])
+
+
+def load_drift_action(
+    ticker: str,
+    section: str,
+    year_a: str,
+    year_b: str,
+    filing_type: str,
+) -> tuple[str, pd.DataFrame, str]:
+    result = client().get_diff(ticker, section, year_a.strip() or None, year_b.strip() or None, filing_type)
+    if not result.ok:
+        return (
+            format_api_result(result, "Disclosure drift loaded"),
+            empty_dataframe(["change_type", "materiality", "confidence", "summary", "old_citation_anchor", "new_citation_anchor"]),
+            render_notice("No evidence loaded", result.message, "warn"),
+        )
+    data = result.data if isinstance(result.data, dict) else {}
+    changes = data.get("changes", [])
+    table = dataframe_from_records(
+        changes if isinstance(changes, list) else [],
+        ["change_type", "materiality", "confidence", "summary", "old_citation_anchor", "new_citation_anchor"],
+    )
+    return format_api_result(result, "Disclosure drift loaded"), table, render_drift_evidence(changes)
+
+
+def render_drift_evidence(changes: Any) -> str:
+    if not isinstance(changes, list) or not changes:
+        return render_notice("No disclosure changes", "The API returned no changes for this filter.", "muted")
+    cards = []
+    for change in changes[:3]:
+        if not isinstance(change, dict):
+            continue
+        old_cite = change.get("old_citation_anchor") or "No prior citation"
+        new_cite = change.get("new_citation_anchor") or "No current citation"
+        cards.append(
+            f"""
+            <div class="fc-evidence-card">
+              <div class="fc-panel-title">{escape_html(change.get("change_type", "change"))}</div>
+              <p>{escape_html(change.get("summary", ""))}</p>
+              <div><span class="fc-chip">Prior</span> <span class="fc-citation">{escape_html(old_cite)}</span></div>
+              <blockquote>{escape_html(change.get("old_text") or "No prior passage returned.")}</blockquote>
+              <div><span class="fc-chip">Current</span> <span class="fc-citation">{escape_html(new_cite)}</span></div>
+              <blockquote>{escape_html(change.get("new_text") or "No current passage returned.")}</blockquote>
+            </div>
+            """
+        )
+    return "\n".join(cards)
+
+
+def load_documents_action(ticker: str) -> tuple[str, pd.DataFrame]:
+    result = client().get_documents(ticker)
+    if not result.ok:
+        return format_api_result(result, "Documents loaded"), empty_dataframe(
+            ["document_id", "filing_type", "filed_at", "sections_parsed", "chunks_indexed", "source_url"]
+        )
+    data = result.data if isinstance(result.data, dict) else {}
+    docs = data.get("documents", [])
+    table = dataframe_from_records(
+        docs if isinstance(docs, list) else [],
+        ["document_id", "filing_type", "filed_at", "sections_parsed", "chunks_indexed", "source_url"],
+    )
+    return format_api_result(result, "Documents loaded"), table
+
+
+def load_risk_scores_action(portfolio_id: str, job_id: str) -> tuple[str, pd.DataFrame]:
+    if not portfolio_id.strip():
+        return render_notice("Missing portfolio ID", "Enter a portfolio ID before loading findings.", "warn"), empty_dataframe(
+            ["ticker", "overall_score", "score_delta", "confidence", "drivers", "portfolio_impact"]
+        )
+    result = client().get_findings(portfolio_id, job_id or None)
+    if not result.ok:
+        return format_api_result(result, "Risk scores loaded"), empty_dataframe(
+            ["ticker", "overall_score", "score_delta", "confidence", "drivers", "portfolio_impact"]
+        )
+    data = result.data if isinstance(result.data, dict) else {}
+    scores = data.get("risk_scores", [])
+    normalized = [flatten_risk_score(item) for item in scores] if isinstance(scores, list) else []
+    return format_api_result(result, "Risk scores loaded"), dataframe_from_records(
+        normalized,
+        ["ticker", "overall_score", "score_delta", "confidence", "drivers", "portfolio_impact"],
+    )
+
+
+def flatten_risk_score(item: Any) -> dict[str, Any]:
+    if not isinstance(item, dict):
+        return {}
+    drivers = item.get("drivers", [])
+    impact = item.get("portfolio_impact", {})
+    return {
+        "ticker": item.get("ticker"),
+        "overall_score": item.get("overall_score"),
+        "score_delta": item.get("score_delta"),
+        "confidence": item.get("confidence"),
+        "drivers": "; ".join(driver.get("summary", "") for driver in drivers if isinstance(driver, dict)),
+        "portfolio_impact": impact.get("exposure_level") if isinstance(impact, dict) else impact,
+    }
+
+
+def load_memo_action(portfolio_id: str, job_id: str) -> tuple[str, str, pd.DataFrame]:
+    if not portfolio_id.strip():
+        return (
+            render_notice("Missing portfolio ID", "Enter a portfolio ID before loading the memo.", "warn"),
+            "No memo loaded.",
+            empty_dataframe(["citation_id", "citation_anchor", "source_url"]),
+        )
+    result = client().get_findings(portfolio_id, job_id or None)
+    if not result.ok:
+        return (
+            format_api_result(result, "Memo loaded"),
+            "No memo loaded because the Agent API request failed.",
+            empty_dataframe(["citation_id", "citation_anchor", "source_url"]),
+        )
+    data = result.data if isinstance(result.data, dict) else {}
+    memo = data.get("memo", {}) if isinstance(data.get("memo"), dict) else {}
+    evidence_rows = memo.get("evidence_table", [])
+    return (
+        format_api_result(result, "Memo loaded"),
+        format_memo_markdown(memo),
+        dataframe_from_records(
+            evidence_rows if isinstance(evidence_rows, list) else [],
+            ["citation_id", "citation_anchor", "source_url"],
+        ),
+    )
+
+
+def format_memo_markdown(memo: dict[str, Any]) -> str:
+    if not memo:
+        return "No memo returned by the Agent API."
+    parts = [
+        "## Executive Summary",
+        str(memo.get("executive_summary", "No executive summary returned.")),
+        "## Watchlist Questions",
+    ]
+    questions = memo.get("watchlist_questions", [])
+    if isinstance(questions, list) and questions:
+        parts.extend(f"- {question}" for question in questions)
+    else:
+        parts.append("- No watchlist questions returned.")
+    parts.extend(
+        [
+            "## Limitations",
+            str(memo.get("limitations", "No limitations returned.")),
+            "## Disclaimer",
+            str(memo.get("disclaimer") or DISCLAIMER),
+        ]
+    )
+    return "\n\n".join(parts)
+
+
+def load_benchmark_action() -> tuple[str, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    result = client().get_benchmark_metrics()
+    if not result.ok:
+        return (
+            format_api_result(result, "Benchmark metrics loaded"),
+            empty_dataframe(["device", "vram_gb", "vram_used_gb"]),
+            empty_dataframe(["service", "count", "avg_latency_ms", "avg_tokens_per_second", "avg_time_to_first_token_ms"]),
+            empty_dataframe(["scenario", "seconds"]),
+        )
+    data = result.data if isinstance(result.data, dict) else {}
+    gpu = data.get("gpu_info", {})
+    recent = data.get("recent_requests", {})
+    scenarios = data.get("benchmark_scenarios", {})
+    return (
+        format_api_result(result, "Benchmark metrics loaded"),
+        dataframe_from_records([gpu] if isinstance(gpu, dict) else [], ["device", "vram_gb", "vram_used_gb"]),
+        dataframe_from_records(flatten_recent_requests(recent), ["service", "count", "avg_latency_ms", "avg_tokens_per_second", "avg_time_to_first_token_ms"]),
+        dataframe_from_records(flatten_scenarios(scenarios), ["scenario", "seconds"]),
+    )
+
+
+def flatten_recent_requests(recent: Any) -> list[dict[str, Any]]:
+    if not isinstance(recent, dict):
+        return []
+    rows = []
+    for service, metrics in recent.items():
+        if isinstance(metrics, dict):
+            rows.append({"service": service, **metrics})
+    return rows
+
+
+def flatten_scenarios(scenarios: Any) -> list[dict[str, Any]]:
+    if not isinstance(scenarios, dict):
+        return []
+    return [{"scenario": name, "seconds": value} for name, value in scenarios.items()]
 
 
 CUSTOM_CSS = """
@@ -508,6 +798,27 @@ table {
   background: #111317;
   color: #e8eaf0;
   font: 12px "IBM Plex Mono", monospace;
+}
+
+.fc-evidence-card {
+  margin-bottom: 12px;
+  padding: 14px;
+  border: 1px solid var(--fc-line);
+  border-left: 4px solid var(--fc-primary);
+  border-radius: 8px;
+  background: var(--fc-panel);
+}
+
+.fc-evidence-card p {
+  color: var(--fc-ink);
+}
+
+.fc-evidence-card blockquote {
+  margin: 8px 0 12px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--fc-line-strong);
+  background: var(--fc-sunk);
+  color: var(--fc-muted);
 }
 """
 
