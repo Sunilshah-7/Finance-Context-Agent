@@ -6,7 +6,7 @@
  * Agent API data and clearly labeled sample fallbacks.
  */
 import { useEffect, useMemo, useState } from "react";
-import { SAMPLE_PORTFOLIO } from "./data/sampleData.js";
+import { SAMPLE_DRIFT, SAMPLE_EVIDENCE, SAMPLE_PORTFOLIO } from "./data/sampleData.js";
 import { AgentApiClient, ApiError } from "./lib/apiClient.js";
 import { getRuntimeConfig } from "./lib/config.js";
 
@@ -258,6 +258,208 @@ function AnalysisTab({ client, backendOnline, defaultPortfolioId }) {
   );
 }
 
+function DriftTab({ client, backendOnline }) {
+  const [ticker, setTicker] = useState("AMD");
+  const [section, setSection] = useState("Item 1A");
+  const [changes, setChanges] = useState(SAMPLE_DRIFT);
+  const [status, setStatus] = useState(
+    backendOnline
+      ? "Sample drift is visible. Load live diff when Agent API data is ready."
+      : "Agent API is offline. Showing clearly labeled sample disclosure changes.",
+  );
+
+  async function loadLiveDiff() {
+    try {
+      setStatus("Loading live disclosure diff from Agent API...");
+      const result = await client.getDiff(ticker, { section });
+      const nextChanges = normalizeChanges(result);
+      setChanges(nextChanges.length ? nextChanges : SAMPLE_DRIFT);
+      setStatus(nextChanges.length ? "Live diff loaded." : "No live diff returned; showing sample data.");
+    } catch (error) {
+      setStatus(formatError(error));
+    }
+  }
+
+  const visibleChanges = changes.filter((change) => {
+    return (!ticker || change.ticker === ticker) && (!section || change.section === section);
+  });
+
+  return (
+    <section className="grid grid-drift">
+      <aside className="panel">
+        <div className="panel-head">
+          <div>
+            <div className="eyebrow">Diff controls</div>
+            <h2>Disclosure drift</h2>
+          </div>
+          <Chip tone={backendOnline ? "ok" : "warn"}>
+            {backendOnline ? "Can load live" : "Sample data"}
+          </Chip>
+        </div>
+        <div className="panel-body form-stack">
+          <label>
+            Ticker
+            <select value={ticker} onChange={(event) => setTicker(event.target.value)}>
+              {["AMD", "NVDA", "MSFT", "JPM", "TSLA"].map((item) => (
+                <option key={item}>{item}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Filing section
+            <select value={section} onChange={(event) => setSection(event.target.value)}>
+              {["Item 1", "Item 1A", "Item 7", "Item 7A", "Item 8"].map((item) => (
+                <option key={item}>{item}</option>
+              ))}
+            </select>
+          </label>
+          <button className="primary-button" onClick={loadLiveDiff} type="button">
+            Load diff
+          </button>
+          <div className="callout">{status}</div>
+        </div>
+      </aside>
+
+      <div className="drift-stack">
+        {visibleChanges.length ? (
+          visibleChanges.map((change) => <DriftCard change={change} key={change.id} />)
+        ) : (
+          <div className="panel empty-state">
+            <strong>No sample change for this filter.</strong>
+            <span>Try AMD Item 1A or AMD Item 7, or load live Agent API data.</span>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function DriftCard({ change }) {
+  return (
+    <article className="panel drift-card">
+      <div className="panel-head">
+        <div>
+          <div className="eyebrow">
+            {change.ticker} / {change.section} / {humanizeChangeType(change.changeType)}
+          </div>
+          <h2>{change.topic}</h2>
+        </div>
+        <div className="badge-row">
+          <SeverityBadge severity={change.severity} />
+          <Chip>{Math.round(change.confidence * 100)} pct confidence</Chip>
+        </div>
+      </div>
+      <div className="drift-body">
+        <p className="summary">{change.summary}</p>
+        <div className="comparison-grid">
+          <EvidenceQuote label="Prior filing" citation={change.oldCitation} text={change.oldText} />
+          <EvidenceQuote label="Current filing" citation={change.newCitation} text={change.newText} />
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function EvidenceExplorerTab({ client, backendOnline }) {
+  const [ticker, setTicker] = useState("AMD");
+  const [documents, setDocuments] = useState(SAMPLE_EVIDENCE);
+  const [status, setStatus] = useState(
+    backendOnline
+      ? "Sample evidence is visible. Load live documents when Agent API data is ready."
+      : "Agent API is offline. Showing sample citation-ready chunks.",
+  );
+
+  async function loadDocuments() {
+    try {
+      setStatus("Loading indexed documents from Agent API...");
+      const result = await client.getDocuments(ticker);
+      const nextDocuments = normalizeEvidence(result);
+      setDocuments(nextDocuments.length ? nextDocuments : SAMPLE_EVIDENCE);
+      setStatus(nextDocuments.length ? "Live documents loaded." : "No live documents returned; showing sample evidence.");
+    } catch (error) {
+      setStatus(formatError(error));
+    }
+  }
+
+  const visibleDocuments = documents.filter((item) => !ticker || item.ticker === ticker);
+
+  return (
+    <section className="grid grid-evidence">
+      <aside className="panel">
+        <div className="panel-head">
+          <div>
+            <div className="eyebrow">Evidence controls</div>
+            <h2>Indexed chunks</h2>
+          </div>
+        </div>
+        <div className="panel-body form-stack">
+          <label>
+            Ticker
+            <select value={ticker} onChange={(event) => setTicker(event.target.value)}>
+              {["AMD", "NVDA", "MSFT", "JPM", "TSLA"].map((item) => (
+                <option key={item}>{item}</option>
+              ))}
+            </select>
+          </label>
+          <button className="primary-button" onClick={loadDocuments} type="button">
+            Load documents
+          </button>
+          <div className="callout">{status}</div>
+        </div>
+      </aside>
+
+      <div className="evidence-grid">
+        {visibleDocuments.length ? (
+          visibleDocuments.map((item) => <EvidenceCard item={item} key={item.chunkId} />)
+        ) : (
+          <div className="panel empty-state">
+            <strong>No evidence chunks for this filter.</strong>
+            <span>Load live Agent API data or choose a ticker with sample evidence.</span>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function EvidenceQuote({ label, citation, text }) {
+  return (
+    <div className="quote-box">
+      <div className="eyebrow">{label}</div>
+      <CitationChip>{citation}</CitationChip>
+      <p>{text}</p>
+    </div>
+  );
+}
+
+function EvidenceCard({ item }) {
+  return (
+    <article className="panel evidence-card">
+      <div className="evidence-card-head">
+        <div>
+          <div className="eyebrow">
+            {item.ticker} / {item.filingType} / {item.section}
+          </div>
+          <CitationChip>{item.citationAnchor}</CitationChip>
+        </div>
+        <span className="date-pill">{item.filedAt}</span>
+      </div>
+      <p>{item.preview}</p>
+      <a href={item.sourceUrl} rel="noreferrer" target="_blank">
+        Open SEC source
+      </a>
+    </article>
+  );
+}
+
+function CitationChip({ children }) {
+  return <span className="citation-chip">{children}</span>;
+}
+
+function SeverityBadge({ severity }) {
+  return <span className={`severity-badge ${severity}`}>{severity}</span>;
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState("portfolio");
   const [backend, setBackend] = useState({
@@ -382,7 +584,11 @@ export default function App() {
             defaultPortfolioId={SAMPLE_PORTFOLIO.id}
           />
         )}
-        {!["portfolio", "analysis"].includes(activeTab) && (
+        {activeTab === "drift" && <DriftTab client={client} backendOnline={backendOnline} />}
+        {activeTab === "evidence" && (
+          <EvidenceExplorerTab client={client} backendOnline={backendOnline} />
+        )}
+        {!["portfolio", "analysis", "drift", "evidence"].includes(activeTab) && (
           <ShellTabPlaceholder activeTab={activeTab} />
         )}
       </main>
@@ -407,4 +613,57 @@ function formatPercent(value) {
 
 function formatError(error) {
   return error instanceof Error ? error.message : "Unexpected Agent API error.";
+}
+
+function humanizeChangeType(value) {
+  return String(value || "")
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function normalizeChanges(payload) {
+  const records = payload?.changes || payload?.disclosure_changes || payload?.items || [];
+  return records.map((item, index) => ({
+    id: item.id || item.change_id || `live-change-${index}`,
+    ticker: item.ticker || payload?.ticker || "UNKNOWN",
+    section: item.section || "Item 1A",
+    topic: item.topic || item.summary || "Disclosure change",
+    changeType: item.change_type || item.changeType || "new_risk",
+    severity: severityFromScore(item.severity),
+    confidence: Number(item.confidence ?? 0),
+    oldCitation:
+      item.old_citation?.citation_anchor || item.old_citation_anchor || item.oldCitation || "Prior citation unavailable",
+    newCitation:
+      item.new_citation?.citation_anchor || item.new_citation_anchor || item.newCitation || "Current citation unavailable",
+    oldText: item.old_text || item.oldText || "Prior filing text unavailable in API response.",
+    newText: item.new_text || item.newText || "Current filing text unavailable in API response.",
+    summary: item.summary || "Live disclosure change returned by Agent API.",
+  }));
+}
+
+function normalizeEvidence(payload) {
+  const records = payload?.documents || payload?.chunks || payload?.items || [];
+  return records.map((item, index) => ({
+    chunkId: item.chunk_id || item.document_id || `live-evidence-${index}`,
+    ticker: item.ticker || payload?.ticker || "UNKNOWN",
+    filingType: item.filing_type || item.filingType || "10-K",
+    filedAt: item.filed_at || item.filedAt || "Unknown date",
+    section: item.section || "Item 1A",
+    citationAnchor: item.citation_anchor || item.citationAnchor || "Citation unavailable",
+    sourceUrl: item.source_url || item.sourceUrl || "https://www.sec.gov/",
+    preview: item.text || item.preview || item.summary || "No text preview returned by Agent API.",
+  }));
+}
+
+function severityFromScore(value) {
+  if (typeof value === "string") {
+    return value.toLowerCase();
+  }
+  if (value >= 0.75) {
+    return "high";
+  }
+  if (value >= 0.45) {
+    return "medium";
+  }
+  return "low";
 }

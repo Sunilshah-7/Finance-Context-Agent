@@ -383,6 +383,7 @@ label {
 }
 
 input,
+select,
 textarea {
   width: 100%;
   border: 1px solid var(--line-strong);
@@ -397,6 +398,7 @@ textarea {
 }
 
 input:focus,
+select:focus,
 textarea:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px var(--primary-soft);
@@ -456,6 +458,134 @@ textarea:focus {
   font-family: var(--mono);
   font-size: 11px;
   white-space: pre-wrap;
+}
+
+.grid-drift,
+.grid-evidence {
+  grid-template-columns: 320px minmax(0, 1fr);
+  align-items: start;
+}
+
+.drift-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.drift-body {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+}
+
+.summary {
+  color: var(--ink-2);
+  font-size: 14px;
+}
+
+.comparison-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.quote-box {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-height: 190px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  background: var(--bg-sunk);
+}
+
+.quote-box p,
+.evidence-card p {
+  color: var(--ink-2);
+}
+
+.citation-chip {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  padding: 3px 7px;
+  border: 1px solid var(--line-strong);
+  background: var(--bg-elev);
+  color: var(--primary-ink);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.severity-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.severity-badge.high {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.severity-badge.medium {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+.severity-badge.low {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.evidence-card {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+}
+
+.evidence-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.date-pill {
+  height: fit-content;
+  padding: 3px 7px;
+  background: var(--bg-sunk);
+  color: var(--ink-3);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.evidence-card a {
+  width: fit-content;
+  color: var(--primary);
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.evidence-card a:hover {
+  text-decoration: underline;
 }
 
 .empty-state {
@@ -558,7 +688,14 @@ textarea:focus {
   }
 
   .grid-portfolio,
-  .grid-analysis {
+  .grid-analysis,
+  .grid-drift,
+  .grid-evidence {
+    grid-template-columns: 1fr;
+  }
+
+  .comparison-grid,
+  .evidence-grid {
     grid-template-columns: 1fr;
   }
 }
