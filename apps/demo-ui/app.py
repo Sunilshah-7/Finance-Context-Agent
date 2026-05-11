@@ -617,6 +617,7 @@ body,
 .fc-brand-name {
   font-weight: 700;
   letter-spacing: -0.01em;
+  color: var(--fc-ink) !important;
 }
 
 .fc-brand-sub,
@@ -700,10 +701,11 @@ body,
   margin-bottom: 4px;
   font-size: 26px;
   letter-spacing: -0.03em;
+  color: var(--fc-ink) !important;
 }
 
 .fc-hero-row p {
-  color: var(--fc-muted);
+  color: var(--fc-muted) !important;
   max-width: 820px;
 }
 
@@ -740,6 +742,12 @@ body,
   border-radius: 8px;
   background: var(--fc-panel);
   padding: 14px;
+  color: var(--fc-ink) !important;
+}
+
+.fc-panel p {
+  color: var(--fc-muted) !important;
+  margin: 0;
 }
 
 .fc-panel-title {
@@ -780,10 +788,39 @@ body,
 
 .fc-tabs button {
   font-weight: 650 !important;
+  color: var(--fc-muted) !important;
+}
+
+.fc-tabs button[aria-selected="true"],
+.fc-tabs button.selected {
+  color: var(--fc-ink) !important;
+  border-color: var(--fc-ink) !important;
 }
 
 table {
   font-size: 13px !important;
+}
+
+.gradio-container label,
+.gradio-container .label-wrap span,
+.gradio-container .wrap label {
+  color: var(--fc-ink) !important;
+}
+
+.gradio-container input,
+.gradio-container textarea {
+  color: var(--fc-ink) !important;
+  background: var(--fc-panel) !important;
+}
+
+.gradio-container button:not([role="tab"]) {
+  color: var(--fc-ink) !important;
+  background: var(--fc-panel) !important;
+  border: 1px solid var(--fc-line-strong) !important;
+}
+
+.gradio-container button:not([role="tab"]):hover {
+  background: var(--fc-sunk) !important;
 }
 
 .fc-json {
