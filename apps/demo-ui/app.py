@@ -132,8 +132,6 @@ def build_app() -> gr.Blocks:
         theme=gr.themes.Base(
             primary_hue="slate",
             neutral_hue="slate",
-            font=["IBM Plex Sans", "Inter", "Arial", "sans-serif"],
-            font_mono=["IBM Plex Mono", "Menlo", "monospace"],
         ),
         css=CUSTOM_CSS,
     ) as demo:
