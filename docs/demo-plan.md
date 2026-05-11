@@ -42,7 +42,7 @@ Pre-ingest all 5 tickers before demo day. The demo never shows live ingestion.
 
 "I'm uploading a sample portfolio with five holdings across semiconductors, software, financials, energy, and consumer discretionary."
 
-- Drag and drop `demo/seed_portfolio.csv` into the Gradio Portfolio Upload tab
+- Drag and drop `demo/seed_portfolio.csv` into the React Portfolio tab
 - Show the holdings table that appears: ticker, shares, market value, weight, sector
 - Point out AMD is the largest semiconductor holding at 25.4% weight
 
@@ -126,13 +126,13 @@ Show:
 
 ### Step 9: Architecture Slide (30 seconds — verbal only)
 
-"Three layers. HuggingFace Spaces for the public UI — that's this Gradio interface. AMD Developer Cloud for everything GPU — the 72B reasoner, the 14B planner, the BGE embedding and reranker, and the Qdrant vector store. And SEC EDGAR as the data source — all public filings, no data license required."
+"Three layers. HuggingFace Spaces for the public UI — that's this React interface. AMD Developer Cloud for everything GPU — the 72B reasoner, the 14B planner, the BGE embedding and reranker, and the Qdrant vector store. And SEC EDGAR as the data source — all public filings, no data license required."
 
 "The models are pulled from HuggingFace Hub — Qwen, BGE — and served with vLLM over the ROCm backend."
 
 ---
 
-## Demo Screens (Gradio Tabs)
+## Demo Screens (React Tabs)
 
 ### Tab 1: Portfolio Upload
 - CSV file input widget

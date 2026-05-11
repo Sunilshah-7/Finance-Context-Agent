@@ -1,12 +1,12 @@
 # Deployment: HuggingFace Spaces + AMD Developer Cloud
 
-This document describes the current deployment architecture: a HuggingFace Spaces Gradio UI connected to the Agent API running on AMD Developer Cloud.
+This document describes the current deployment architecture: a HuggingFace Static Space React UI connected to the Agent API running on AMD Developer Cloud.
 
 ## Summary
 
 | Component | Where it runs | Technology |
 |-----------|--------------|------------|
-| Demo UI | HuggingFace Spaces | Gradio |
+| Demo UI | HuggingFace Spaces | Vite React static app |
 | Agent API | AMD Developer Cloud VM | FastAPI + LangGraph |
 | Inference Gateway | AMD Developer Cloud VM | FastAPI proxy |
 | vLLM (72B + 14B) | AMD Developer Cloud VM | Docker |
@@ -121,11 +121,11 @@ curl http://localhost:8090/health
 
 ### 9. Expose Agent API Externally
 
-The Gradio app on HuggingFace Spaces needs to reach the Agent API. Options:
+The React app on HuggingFace Spaces needs to reach the Agent API. Options:
 
 **Option A: AMD VM public IP with firewall rule (preferred)**
 - Open port 8090 in the AMD cloud firewall/security group
-- Set `AMD_VM_PUBLIC_IP` in the Gradio app's HuggingFace Space secrets
+- Set `AGENT_API_URL` in the React app's HuggingFace Space variables
 - Use HTTPS via an nginx reverse proxy with a self-signed cert (or Let's Encrypt if you have a domain)
 
 ```nginx
@@ -151,7 +151,7 @@ server {
 **Option B: ngrok fallback**
 ```bash
 ngrok http 8090
-# ngrok prints a public HTTPS URL — use this as AGENT_API_URL in Gradio
+# ngrok prints a public HTTPS URL — use this as AGENT_API_URL in React
 ```
 
 ---
@@ -164,8 +164,8 @@ ngrok http 8090
 pip install huggingface_hub
 huggingface-cli login  # enter your HF token
 
-# Create a new Gradio Space
-huggingface-cli repo create fincontext-agent --type space --space-sdk gradio
+# Create a new Static Space
+huggingface-cli repo create fincontext-agent --type space --space-sdk static
 ```
 
 ### 2. Set Space Secrets
@@ -173,12 +173,11 @@ huggingface-cli repo create fincontext-agent --type space --space-sdk gradio
 In HuggingFace Space settings → Secrets, add:
 ```
 AGENT_API_URL = https://your-amd-vm-ip:8090   (or tunnel URL)
-AGENT_API_KEY = your-strong-api-key
 ```
 
-These are available as environment variables in the Gradio app at runtime.
+Static browser apps cannot keep secrets. Do not put `AGENT_API_KEY` in the React frontend; the Agent API must expose demo-safe public endpoints with CORS and rate limiting.
 
-### 3. Deploy the Gradio App
+### 3. Deploy the React Static App
 
 The Space repository needs the files from `apps/demo-ui/` at its root.
 
@@ -197,7 +196,7 @@ cd apps/demo-ui
 git init
 git remote add origin https://huggingface.co/spaces/{HF_USERNAME}/fincontext-agent
 git add .
-git commit -m "Initial Gradio app"
+git commit -m "Initial React app"
 git push origin main
 ```
 
@@ -210,9 +209,9 @@ The Space's `README.md` is shown on the Space page. It must explain the AMD hard
 title: FinContext Agent
 colorFrom: blue
 colorTo: indigo
-sdk: gradio
-sdk_version: 4.x
-app_file: app.py
+sdk: static
+app_build_command: npm run build
+app_file: dist/index.html
 pinned: false
 ---
 
@@ -244,7 +243,7 @@ fragmentation. NVIDIA H100 (80 GB) cannot hold a 72B FP16 model without multi-GP
 ## Architecture
 
 ```
-Gradio (HuggingFace Spaces)
+React Static Space (HuggingFace Spaces)
     ↓ HTTPS
 AMD Developer Cloud VM
   ├── FastAPI Agent API (LangGraph)
@@ -260,7 +259,7 @@ AMD Developer Cloud VM
 
 After pushing, wait ~2 minutes for the Space to build. Then:
 1. Open the Space URL (shown in HuggingFace after deployment)
-2. Confirm the Gradio UI loads
+2. Confirm the React UI loads
 3. Upload the seed portfolio CSV (`demo/seed_portfolio.csv`)
 4. Click "Analyze" and verify the job starts (requires AMD VM to be running and reachable)
 
@@ -284,7 +283,7 @@ uvicorn logs or journalctl -u fincontext-agent-api -f
 curl http://localhost:6333/collections/fincontext_chunks
 ```
 
-The AMD benchmark panel in the Gradio UI shows real-time tokens/sec, GPU memory utilization, and per-request latency collected by the Inference Gateway.
+The AMD benchmark panel in the React UI shows real-time tokens/sec, GPU memory utilization, and per-request latency collected by the Inference Gateway.
 
 ---
 

@@ -167,7 +167,7 @@ apps/demo-ui/
 Purpose:
 
 ```text
-Gradio app deployed on HuggingFace Spaces for judges.
+React app deployed on HuggingFace Spaces for judges.
 ```
 
 The UI should call the Agent API. It should not call model services directly.
@@ -513,7 +513,7 @@ The biggest unfinished items are:
 - Agent API is not merged and ready.
 - Retrieval pipeline is not implemented in Agent API.
 - LangGraph nodes are not implemented.
-- Gradio UI is not wired end to end.
+- React UI is not wired end to end.
 - Demo video and final submission are not done.
 
 ## 16. The Critical Path From Here
@@ -528,7 +528,7 @@ The next practical order is:
 6. Fill eval fixtures with real chunk IDs and citation anchors.
 7. Implement retrieval pipeline.
 8. Implement LangGraph nodes.
-9. Wire Agent API to Gradio UI.
+9. Wire Agent API to React UI.
 10. Rehearse and record demo.
 
 ## 17. What To Say If Asked "What Did You Do?"
@@ -579,7 +579,7 @@ Say this:
 
 ```text
 Not yet. We have important foundations merged, but the AMD VM, real ingestion
-run, retrieval pipeline, Agent API graph, and Gradio UI still need integration.
+run, retrieval pipeline, Agent API graph, and React UI still need integration.
 We should not live-ingest during the judge demo. We should pre-ingest, validate,
 snapshot, and then demo from stable data.
 ```

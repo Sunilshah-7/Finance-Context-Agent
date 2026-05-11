@@ -25,7 +25,7 @@ The AMD hardware angle: AMD MI300X has 192 GB of HBM3 VRAM. A 70B-parameter mode
 | What NOT to build | Why |
 |---|---|
 | A separate edge/API platform | Adds cross-service wiring and auth for no MVP benefit |
-| A JavaScript frontend | Gradio on HuggingFace Spaces is 10x faster to ship |
+| A separate edge/API platform | Adds cross-service wiring and auth for no MVP benefit |
 | 9 LangGraph agents | Requires 50+ hours of implementation, we have 9 days |
 | Live demo ingestion | Never show a progress bar to judges, pre-load all data |
 | PDF parsing for MVP | EDGAR HTML is parseable and reliable; PDF is a trap |
@@ -33,7 +33,7 @@ The AMD hardware angle: AMD MI300X has 192 GB of HBM3 VRAM. A 70B-parameter mode
 | Buy/sell/hold recommendations | Legal non-goal, compliance requirement |
 | Broker integrations | Out of scope for hackathon |
 
-The frontend is `apps/demo-ui/` (Gradio). Do not add a separate web app unless the MVP is already complete.
+The frontend is `apps/demo-ui/`. The original hackathon plan used Gradio for speed; after the deadline pressure changed, the project moved to a Vite React console deployed as a HuggingFace Static Space for a more polished demo. Do not add a second frontend app unless the team explicitly agrees.
 
 ---
 
@@ -95,16 +95,16 @@ FastAPI is used for both the Agent API and the Inference Gateway. It provides:
 - Automatic OpenAPI documentation (useful for debugging during hackathon)
 - Pydantic integration for request/response validation
 - Async support for concurrent model calls
-- SSE (Server-Sent Events) for streaming memo generation to the Gradio UI
+- SSE (Server-Sent Events) for streaming memo generation to the React UI
 
-### Demo UI: Gradio on HuggingFace Spaces
+### Demo UI: React on HuggingFace Static Spaces
 
-Gradio is HuggingFace's UI framework. A Gradio app deployed to HuggingFace Spaces:
+The public demo UI is a Vite React app in `apps/demo-ui/` deployed to HuggingFace Static Spaces:
 - Satisfies the hackathon's HuggingFace integration requirement
-- Is publicly accessible for judges without any auth setup
-- Deploys with a single `git push`
-- Takes 2 hours to build, not 2 days like a custom JavaScript frontend
-- Supports SSE streaming for live memo generation
+- Is publicly accessible for judges without a separate frontend server
+- Uses a polished analyst-console layout that is difficult to achieve in React
+- Calls only the Agent API; it never calls SQLite, Qdrant, Gateway, vLLM, TEI, or EDGAR directly
+- Does not embed `AGENT_API_KEY` because static browser apps cannot keep secrets
 
 ---
 
@@ -418,7 +418,7 @@ When multiple agents (Claude Code and Codex) are working in parallel, use this d
 **Codex works on:**
 - `services/ingestion-worker/` — SEC EDGAR client, HTML parser, chunking, embedding pipeline
 - `services/inference-gateway/` — FastAPI proxy service
-- `apps/demo-ui/` — Gradio interface
+- `apps/demo-ui/` — Vite React interface for HuggingFace Static Spaces
 - `infra/` — Docker Compose configuration, SQLite schema
 
 Both agents should coordinate on `packages/schemas/python/state.py` — this is the shared contract. Any change to `AnalysisState` must be discussed before implementation, as it affects both service teams.
@@ -445,7 +445,7 @@ The hackathon requires meaningful HuggingFace integration. We satisfy this throu
 
 - [ ] Models pulled from HuggingFace Hub: `Qwen/Qwen2.5-72B-Instruct`, `Qwen/Qwen2.5-14B-Instruct`, `BAAI/bge-large-en-v1.5`, `BAAI/bge-reranker-large`
 - [ ] `HF_TOKEN` environment variable used for authenticated model downloads
-- [ ] Demo UI deployed as a public HuggingFace Space
+- [ ] Demo UI deployed as a public HuggingFace Static Space
 - [ ] Space README explains what AMD hardware is being used and links to the AMD Developer Cloud
 - [ ] Build-in-Public posts tagged `#AMDDevHackathon` and `#HuggingFace` on X/LinkedIn
 

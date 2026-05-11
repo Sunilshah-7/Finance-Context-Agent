@@ -12,7 +12,7 @@ All planning docs are in `docs/`. No application code exists yet — the build p
 
 ## Critical Architecture Decision
 
-All compute, storage, retrieval, and API services run on one AMD Developer Cloud VM. The public demo UI is a Gradio app in `apps/demo-ui/` deployed to HuggingFace Spaces. Do not add a separate edge/API layer or a JavaScript frontend; the project is intentionally optimized for the 9-day hackathon timeline.
+All compute, storage, retrieval, and API services run on one AMD Developer Cloud VM. The public demo UI is a Vite React app in `apps/demo-ui/` deployed to HuggingFace Static Spaces. Do not add a separate edge/API layer; the browser frontend calls only the Agent API.
 
 ## Deployment Architecture
 
@@ -28,10 +28,10 @@ AMD Developer Cloud VM  (everything runs here)
 └── SQLite              on-disk    — Metadata: portfolios, holdings, jobs, findings, chunks
 
 HuggingFace Spaces  (public demo, free tier)
-└── Gradio app  →  calls Agent API at AMD_VM_PUBLIC_IP:8090 over HTTPS
+└── React Static Space  →  calls Agent API at AMD_VM_PUBLIC_IP:8090 over HTTPS
 ```
 
-The Inference Gateway is the only external-facing model endpoint. Agent API calls Gateway. Gradio calls Agent API. No service bypasses the Gateway for model calls.
+The Inference Gateway is the only external-facing model endpoint. Agent API calls Gateway. The React UI calls Agent API. No service bypasses the Gateway for model calls.
 
 ## Repository Layout (target — no code written yet)
 
@@ -42,7 +42,7 @@ services/
       ingestion-worker/   # SEC EDGAR fetch, parse, chunk, embed → Qdrant + SQLite
       inference-gateway/  # FastAPI proxy to vLLM, embedding, reranker
 apps/
-      demo-ui/            # Gradio app — deployed to HuggingFace Spaces
+      demo-ui/            # Vite React app — deployed to HuggingFace Static Spaces
 packages/
       schemas/            # Shared Pydantic models (Python) + generated TS types
       evals/              # Retrieval recall, citation precision, latency benchmarks
@@ -97,14 +97,14 @@ pytest tests/test_graph.py -x                             # agent graph tests
 pytest tests/test_retrieval.py::test_hybrid_merge -x      # single test
 ```
 
-**Run Gradio demo locally:**
+**Run React demo locally:**
 ```bash
 cd apps/demo-ui
-pip install -r requirements.txt
-AGENT_API_URL=http://localhost:8090 python app.py          # http://localhost:7860
+npm install
+VITE_AGENT_API_URL=http://localhost:8090 npm run dev
 ```
 
-**Deploy Gradio to HuggingFace Spaces:**
+**Deploy React Static Space to HuggingFace Spaces:**
 ```bash
 huggingface-cli login
 # push only the demo-ui subdirectory as the Space root

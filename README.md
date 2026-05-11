@@ -65,7 +65,7 @@ Everything important runs on one AMD Developer Cloud VM:
 
 ```text
 HuggingFace Space
-  Gradio UI
+  React Static Space UI
     |
     v
 AMD Developer Cloud VM
@@ -117,7 +117,7 @@ services/
   agent-api/             FastAPI plus LangGraph analysis workflow
 
 apps/
-  demo-ui/               Gradio UI for HuggingFace Spaces
+  demo-ui/               Vite React UI for HuggingFace Static Spaces
 
 packages/
   schemas/               Shared Pydantic state, DB, and API contracts

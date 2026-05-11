@@ -32,7 +32,7 @@ It does not prove:
 - full AMD/NVDA/MSFT/JPM/TSLA demo corpus quality;
 - disclosure-change classification quality;
 - final memo quality;
-- Gradio UI integration;
+- React UI integration;
 - public HTTPS access from HuggingFace Spaces;
 - benchmark numbers.
 

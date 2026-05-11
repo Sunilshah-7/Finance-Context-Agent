@@ -182,7 +182,7 @@ Metrics to record for each:
 }
 ```
 
-Save results to `packages/evals/benchmark_results.json`. The Gradio benchmark panel reads from this file.
+Save results to `packages/evals/benchmark_results.json`. The React benchmark panel reads from this file.
 
 ## $100 Credit Usage Strategy
 

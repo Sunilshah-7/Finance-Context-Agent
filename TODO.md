@@ -2,9 +2,9 @@
 
 Task plan for completing FinContext Agent with three engineers: Sunil, Abhiyan, and Kishan.
 
-This plan follows `AGENTS.md` as the source of truth. Build the current architecture: one AMD Developer Cloud VM running FastAPI, LangGraph, vLLM/ROCm, TEI, Qdrant, and SQLite, with a public Gradio demo on HuggingFace Spaces.
+This plan follows `AGENTS.md` as the source of truth. Build the current architecture: one AMD Developer Cloud VM running FastAPI, LangGraph, vLLM/ROCm, TEI, Qdrant, and SQLite, with a public React Static Space demo on HuggingFace Spaces.
 
-Do not build a separate edge/API platform or JavaScript frontend. The project uses the Agent API on the AMD VM and a Gradio app in `apps/demo-ui/`.
+Do not build a separate edge/API platform. The project uses the Agent API on the AMD VM and a React app in `apps/demo-ui/`; the earlier Gradio-only constraint was superseded after the deadline when visual polish became the priority.
 
 ## Task Types
 
@@ -18,7 +18,7 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 | --- | --- |
 | Sunil | AMD VM, infrastructure, schema, Agent API skeleton, deployment, final submission |
 | Abhiyan | EDGAR ingestion, parsing, chunking, embeddings, Qdrant/SQLite indexing, retrieval quality |
-| Kishan | Inference Gateway, LangGraph nodes, Gradio UI, benchmark panel, demo polish |
+| Kishan | Inference Gateway, LangGraph nodes, React UI integration, benchmark panel, demo polish |
 
 ## Shared Rules
 
@@ -66,7 +66,7 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 
 - [ ] With Abhiyan: finalize SQLite `documents` and `chunks` columns before ingestion writes data.
 - [ ] With Abhiyan: verify `citation_anchor` format exactly matches `{TICKER} {FILING_TYPE} {SECTION_LABEL} paragraph {N}` or table equivalent.
-- [ ] With Kishan: finalize Agent API response schemas for Gradio tabs before UI wiring.
+- [ ] With Kishan: finalize Agent API response schemas for React tabs before UI wiring.
 - [ ] With Kishan: agree on job stages and progress values: `planning`, `retrieving`, `analyzing`, `writing`, `complete`.
 - [ ] With Abhiyan and Kishan: review `AnalysisState` before any agent node implementation starts.
 - [ ] With Abhiyan and Kishan: define demo seed portfolio and confirm all tickers are pre-ingested.
@@ -77,7 +77,7 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 - [ ] Start full AMD VM stack and publish service health checklist.
 - [ ] Restore or verify Qdrant and SQLite demo snapshots on the AMD VM.
 - [ ] Run end-to-end smoke test: upload portfolio → create job → graph starts → job completes.
-- [ ] Verify HuggingFace Space can reach Agent API over HTTPS with bearer auth.
+- [ ] Verify HuggingFace Space can reach Agent API over HTTPS with public demo-safe CORS/rate limits.
 - [ ] Run final security check: no secrets committed, only required port exposed, disclaimer always present.
 - [ ] Prepare final lablab.ai submission: project description, architecture, AMD GPU story, HuggingFace integration, GitHub repo, demo video, and Space URL.
 
@@ -175,23 +175,19 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 - [ ] Add `POST /api/chat` SSE endpoint for citation-backed Q&A.
 - [ ] Add `GET /api/documents/{ticker}` endpoint for filing explorer.
 - [ ] Add `GET /api/benchmark/metrics` endpoint combining Gateway metrics and GPU info.
-- [ ] Create `apps/demo-ui/requirements.txt` with `gradio`, `httpx`, and required plotting/data packages.
-- [ ] Create `apps/demo-ui/api_client.py` for authenticated calls to Agent API.
-- [ ] Build Gradio Portfolio Upload tab.
-- [ ] Build Gradio Analysis tab with job polling every 2 seconds.
-- [ ] Build Gradio Filing Explorer tab listing ingested documents by ticker.
-- [ ] Build Gradio Disclosure Diff tab with ticker/section/year controls and change cards.
-- [ ] Build Gradio Risk Scores tab with score table and color coding.
-- [ ] Build Gradio Analyst Memo tab with markdown rendering and citation cards.
-- [ ] Build Gradio Chat tab with SSE streaming.
-- [ ] Build Gradio AMD Benchmark tab with tokens/sec, latency, GPU memory, and cost proxy.
-- [ ] Add HuggingFace Space README frontmatter and AMD hardware story to `apps/demo-ui/README.md`.
-- [ ] Deploy Gradio app to HuggingFace Spaces and configure `AGENT_API_URL` and `AGENT_API_KEY` secrets.
+- [x] Create Vite React app scaffold in `apps/demo-ui/`.
+- [x] Create browser Agent API client for public demo-safe calls.
+- [x] Build React Portfolio tab with sample/offline preview and CSV upload controls.
+- [x] Build React Analysis tab with job creation and status refresh controls.
+- [x] Build React Evidence and Disclosure Drift tabs with citation cards and sample fallbacks.
+- [x] Build React Risk Scores, Analyst Memo, and AMD Benchmark tabs.
+- [x] Add HuggingFace Static Space README frontmatter to `apps/demo-ui/README.md`.
+- [ ] Deploy React app to HuggingFace Static Spaces and configure `AGENT_API_URL`.
 
 ## Collaboration Tasks
 
-- [ ] With Sunil: finalize API payloads consumed by Gradio before wiring UI components.
-- [ ] With Sunil: confirm authentication and HTTPS behavior between HuggingFace Spaces and Agent API.
+- [ ] With Sunil: finalize API payloads consumed by React before wiring live UI components.
+- [ ] With Sunil: confirm public demo-safe CORS/rate limiting and HTTPS behavior between HuggingFace Spaces and Agent API.
 - [ ] With Abhiyan: verify retrieved chunk payload has all fields needed by memo generation and citation cards.
 - [ ] With Abhiyan: choose the best AMD disclosure diff examples for the demo script.
 - [ ] With Sunil and Abhiyan: review citation verification behavior on generated memo outputs.
@@ -202,7 +198,7 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 - [ ] Run full graph smoke test: portfolio_context_planner → filing_retrieval → disclosure_change → analyst_memo.
 - [ ] Verify full analysis returns `risk_scores`, `memo`, `disclosure_changes`, and `citation_pass_rate`.
 - [ ] Verify unsupported memo citations are removed during post-processing.
-- [ ] Verify every Gradio tab works against the deployed AMD VM.
+- [ ] Verify every React tab works against the deployed AMD VM.
 - [ ] Verify Chat tab streams tokens and renders citation cards after completion.
 - [ ] Verify Benchmark tab shows real measured metrics, not placeholders.
 - [ ] Polish UI loading states, error states, and demo copy before final rehearsal.
@@ -211,7 +207,7 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 
 # Cross-Team Collaboration Tasks
 
-- [x] **Architecture lock:** Sunil, Abhiyan, and Kishan confirm no separate edge/API platform or JavaScript frontend work will be started.
+- [x] **Architecture lock:** Sunil, Abhiyan, and Kishan confirmed no separate edge/API platform. The frontend decision changed after the deadline from Gradio to React Static Space for polish.
 - [x] **Schema lock:** `AnalysisState`, API schemas, SQLite schema, and Qdrant payload schema all finalized and merged to `dev` in `packages/schemas/python/`.
 - [ ] **Data contract review:** Abhiyan and Kishan validate that ingestion outputs are sufficient for retrieval, diff classification, memo generation, and citation cards.
 - [ ] **Prompt review:** Sunil and Kishan review planner, diff classifier, and memo prompts for structured output, citation discipline, and compliance.
