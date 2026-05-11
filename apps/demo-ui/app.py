@@ -823,6 +823,12 @@ table {
   background: var(--fc-sunk) !important;
 }
 
+.gradio-container button[aria-label="Click to upload or drop files"],
+.gradio-container button[aria-label="Click to upload or drop files"] * {
+  color: var(--fc-ink) !important;
+  background: var(--fc-panel) !important;
+}
+
 .fc-json {
   margin: 0;
   padding: 12px;
