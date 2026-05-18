@@ -54,7 +54,8 @@ def test_embeddings_proxy_returns_payload():
         assert response.json()["data"][0]["embedding"] == [0.1, 0.2, 0.3]
 
 
-def test_health_reports_services():
+def test_health_reports_services(monkeypatch):
+    monkeypatch.setenv("NIM_API_KEY", "test-key")
     with TestClient(app) as client:
         client.app.state.http = httpx.AsyncClient(transport=make_transport())
         response = client.get("/health")

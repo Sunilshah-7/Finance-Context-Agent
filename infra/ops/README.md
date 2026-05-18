@@ -1,10 +1,10 @@
 # Infra Ops Utilities
 
 This directory contains small operational scripts for preparing and preserving
-demo data on the AMD VM. These scripts are not app services; they are commands
+demo data on the backend host. These scripts are not app services; they are commands
 the team runs manually during setup, validation, and backup.
 
-## AMD VM Preflight
+## Backend Preflight
 
 Run the preflight before the longer ingestion smoke test:
 
@@ -19,20 +19,13 @@ The default mode is offline. It checks:
 - SEC `User-Agent` includes a contact email;
 - required repo files exist;
 - required local commands exist;
-- `rocm-smi` availability, as a warning on laptops.
-
-On the AMD VM, make ROCm mandatory:
-
-```bash
-python3 infra/ops/vm_preflight.py --env-path .env --require-rocm
-```
+- optional GPU runtime checks are legacy-only and are not required for the NIM-hosted MVP.
 
 After Docker services and the Inference Gateway are running, use online mode:
 
 ```bash
 python3 infra/ops/vm_preflight.py \
   --env-path .env \
-  --require-rocm \
   --online
 ```
 
@@ -49,8 +42,7 @@ python3 infra/ops/vm_preflight.py --env-path .env --online --json
 
 If the preflight fails, fix those errors before running EDGAR ingestion. The
 goal is to catch missing secrets, missing scripts, missing commands, and dead
-service endpoints before we spend GPU time loading models or debugging the
-ingestion worker.
+service endpoints before debugging the ingestion worker.
 
 ## Demo Data Snapshots
 

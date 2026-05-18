@@ -2,7 +2,7 @@
 
 Use this after a successful full demo ingestion run. The goal is to preserve the exact SQLite metadata and Qdrant vector collection used for rehearsal and demo day.
 
-Run from the repository root on the AMD VM:
+Run from the repository root on the backend host:
 
 ```bash
 python3 infra/ops/demo_data_snapshots.py \

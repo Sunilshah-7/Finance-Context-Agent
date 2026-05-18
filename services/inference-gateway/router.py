@@ -10,13 +10,15 @@ from models import BackendRoute
 CHAT_MODEL_ROUTES = {
     "fincontext-reasoner": BackendRoute(
         model_name="fincontext-reasoner",
-        upstream_base_url=os.getenv("VLLM_REASONER_URL", "http://localhost:8000/v1"),
+        upstream_base_url=os.getenv("NIM_BASE_URL", "https://integrate.api.nvidia.com/v1"),
         upstream_path="/chat/completions",
+        upstream_model_name=os.getenv("NIM_REASONER_MODEL", "Qwen/Qwen2.5-72B-Instruct"),
     ),
     "fincontext-planner": BackendRoute(
         model_name="fincontext-planner",
-        upstream_base_url=os.getenv("VLLM_PLANNER_URL", "http://localhost:8001/v1"),
+        upstream_base_url=os.getenv("NIM_BASE_URL", "https://integrate.api.nvidia.com/v1"),
         upstream_path="/chat/completions",
+        upstream_model_name=os.getenv("NIM_PLANNER_MODEL", "Qwen/Qwen2.5-7B-Instruct"),
     ),
 }
 

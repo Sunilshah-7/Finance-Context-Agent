@@ -4,31 +4,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-FinContext Agent — AMD Developer Hackathon 2026 submission (Track 1: AI Agents & Agentic Workflows). A portfolio-aware financial intelligence platform that ingests SEC filings from EDGAR, detects material disclosure changes year-over-year, scores risk per portfolio holding, and produces citation-grounded analyst memos. The entire compute and storage stack runs on one AMD Developer Cloud VM; the public demo UI lives on HuggingFace Spaces.
+FinContext Agent — AMD Developer Hackathon 2026 submission (Track 1: AI Agents & Agentic Workflows). A portfolio-aware financial intelligence platform that ingests SEC filings from EDGAR, detects material disclosure changes year-over-year, scores risk per portfolio holding, and produces citation-grounded analyst memos. The app and retrieval stack run behind a public Gradio UI on HuggingFace Spaces, with LLM inference routed through NVIDIA NIM.
 
-**Hackathon constraint: 9-day build phase May 11–19, 2026. Three developers. $100 AMD Developer Cloud credit.**
+**Hackathon constraint: 9-day build phase May 11–19, 2026. Three developers.**
 
 All planning docs are in `docs/`. No application code exists yet — the build phase ends May 11.
 
 ## Critical Architecture Decision
 
-All compute, storage, retrieval, and API services run on one AMD Developer Cloud VM. The public demo UI is a Gradio app in `apps/demo-ui/` deployed to HuggingFace Spaces. Do not add a separate edge/API layer or a JavaScript frontend; the project is intentionally optimized for the 9-day hackathon timeline.
+App services, storage, retrieval, and orchestration stay compact behind one Agent API. LLM inference is provider-agnostic through the Inference Gateway and currently routes to NVIDIA NIM hosted endpoints. The public demo UI is a Gradio app in `apps/demo-ui/` deployed to HuggingFace Spaces. Do not add a separate edge/API layer or a JavaScript frontend; the project is intentionally optimized for the 9-day hackathon timeline.
 
 ## Deployment Architecture
 
 ```
-AMD Developer Cloud VM  (everything runs here)
-├── Inference Gateway   port 8080  — FastAPI proxy to all model services
+Backend host
+├── Inference Gateway   port 8080  — FastAPI proxy to NVIDIA NIM + retrieval model backends
 ├── Agent API           port 8090  — FastAPI + LangGraph, 4-node agent graph
-├── vLLM reasoner       port 8000  — Qwen2.5-72B-Instruct, FP16, ROCm
-├── vLLM planner        port 8001  — Qwen2.5-14B-Instruct, FP16, ROCm
-├── Embedding service   port 8002  — BAAI/bge-large-en-v1.5 via TEI or vLLM
-├── Reranker service    port 8003  — BAAI/bge-reranker-large via TEI
+├── NIM reasoner                    Qwen2.5-72B-Instruct compatible endpoint
+├── NIM planner                     Qwen2.5-7B-Instruct compatible endpoint
+├── Embedding backend               local retrieval embeddings
+├── Reranker backend                local reranking/scoring
 ├── Qdrant              port 6333  — Vector store, Docker, persistent volume
 └── SQLite              on-disk    — Metadata: portfolios, holdings, jobs, findings, chunks
 
 HuggingFace Spaces  (public demo, free tier)
-└── Gradio app  →  calls Agent API at AMD_VM_PUBLIC_IP:8090 over HTTPS
+└── Gradio app  →  calls Agent API over HTTPS
 ```
 
 The Inference Gateway is the only external-facing model endpoint. Agent API calls Gateway. Gradio calls Agent API. No service bypasses the Gateway for model calls.
@@ -40,14 +40,14 @@ The Inference Gateway is the only external-facing model endpoint. Agent API call
 services/
       agent-api/          # FastAPI + LangGraph 4-node agent graph
       ingestion-worker/   # SEC EDGAR fetch, parse, chunk, embed → Qdrant + SQLite
-      inference-gateway/  # FastAPI proxy to vLLM, embedding, reranker
+      inference-gateway/  # FastAPI proxy to NIM, embedding, reranker
 apps/
       demo-ui/            # Gradio app — deployed to HuggingFace Spaces
 packages/
       schemas/            # Shared Pydantic models (Python) + generated TS types
       evals/              # Retrieval recall, citation precision, latency benchmarks
 infra/
-      amd-gpu/            # Docker Compose: vLLM 72B, vLLM 14B, embedding, reranker, Qdrant
+      amd-gpu/            # Legacy Docker Compose: local model services + Qdrant
       schema.sql          # SQLite schema
 configs/
       .env.example
@@ -56,13 +56,10 @@ docs/
 
 ## Commands
 
-**Start all GPU and storage services (AMD VM only):**
+**Start storage services:**
 ```bash
-cd infra/amd-gpu
-cp ../../configs/.env.example .env   # fill HF_TOKEN, model vars
-docker compose up -d                      # starts all model services + Qdrant
-docker compose logs -f vllm-72b          # watch 72B model load (~3-5 min)
-curl http://localhost:8000/health         # verify vLLM ready
+cp configs/.env.example .env              # fill NIM_API_KEY and app secrets
+docker compose -f infra/amd-gpu/docker-compose.yml up -d qdrant
 curl http://localhost:6333/healthz        # verify Qdrant ready
 ```
 
@@ -149,7 +146,7 @@ user query
   → BM25 keyword search  (SQLite FTS5 on chunks table)
   + vector search         (Qdrant HNSW, cosine similarity)
   → reciprocal rank fusion (k=60)
-  → BGE cross-encoder reranker (AMD GPU, port 8003)
+  → reranker backend through Inference Gateway
   → section diversity filter (max 3 chunks per section per ticker)
   → top 12 citation-ready chunks returned to agent graph
 ```
@@ -170,17 +167,17 @@ Demo corpus:
 
 After ingestion completes, snapshot the Qdrant collection and SQLite DB. Both teammates must be able to load this snapshot and reproduce the demo state without re-running ingestion.
 
-## Model Allocation (protect the $100 credit)
+## Model Allocation
 
 | Task | Model | Port | Rationale |
 |------|-------|------|-----------|
-| Retrieval planning | Qwen2.5-14B | 8001 | Fast structured output, cheap per call |
-| Diff classification | Qwen2.5-14B | 8001 | Fast structured output, cheap per call |
-| Final analyst memo | Qwen2.5-72B | 8000 | Quality matters for judge-facing output |
-| Embeddings | BGE-large-en-v1.5 | 8002 | AMD GPU batch, sub-second per document |
-| Reranking | BGE-reranker-large | 8003 | AMD GPU batch, sub-second per query |
+| Retrieval planning | NIM planner | hosted | Fast structured output, cheaper per call |
+| Diff classification | NIM planner | hosted | Fast structured output, cheaper per call |
+| Final analyst memo | NIM reasoner | hosted | Quality matters for judge-facing output |
+| Embeddings | Local embedding backend | internal | Deterministic retrieval vectors |
+| Reranking | Local reranker/scorer | internal | Improves precision after RRF merge |
 
-72B is used only in the memo node. All other LLM calls use 14B. Running 72B for every agent call would exhaust the $100 credit during development.
+The reasoner model is used only in the memo node. All other LLM calls use the planner model to control latency and hosted inference cost.
 
 ## Environment Variables
 

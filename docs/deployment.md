@@ -1,40 +1,33 @@
-# Deployment: HuggingFace Spaces + AMD Developer Cloud
+# Deployment: HuggingFace Spaces + NVIDIA NIM
 
-This document describes the current deployment architecture: a HuggingFace Spaces Gradio UI connected to the Agent API running on AMD Developer Cloud.
+This document describes the current deployment architecture: a HuggingFace Spaces Gradio UI connected to the Agent API, with LLM inference routed through NVIDIA NIM by the Inference Gateway.
 
 ## Summary
 
 | Component | Where it runs | Technology |
 |-----------|--------------|------------|
 | Demo UI | HuggingFace Spaces | Gradio |
-| Agent API | AMD Developer Cloud VM | FastAPI + LangGraph |
-| Inference Gateway | AMD Developer Cloud VM | FastAPI proxy |
-| vLLM (72B + 14B) | AMD Developer Cloud VM | Docker |
-| Embedding + Reranker | AMD Developer Cloud VM | Docker (TEI) |
-| Vector store | AMD Developer Cloud VM | Docker (Qdrant) |
-| Metadata DB | AMD Developer Cloud VM | SQLite |
+| Agent API | Backend host | FastAPI + LangGraph |
+| Inference Gateway | Backend host | FastAPI proxy |
+| LLM inference | NVIDIA NIM hosted endpoints | OpenAI-compatible chat completions |
+| Embedding + Reranker | Backend host | Local retrieval services |
+| Vector store | Backend host | Docker (Qdrant) |
+| Metadata DB | Backend host | SQLite |
 
 ---
 
-## AMD Developer Cloud VM Setup
+## Backend Host Setup
 
-### 1. Provision a VM
+### 1. Provision a Host
 
-Log in to AMD Developer Cloud and provision an instance with:
-- AMD Instinct GPU (MI300X preferred, MI250 acceptable)
-- At least 64 GB system RAM
-- At least 500 GB disk (for models + Qdrant data + EDGAR HTML cache)
+Provision an instance with:
+- At least 16 GB system RAM
+- At least 100 GB disk for Qdrant data, SQLite, logs, and EDGAR HTML cache
 - Ubuntu 22.04 LTS
 
-### 2. Install ROCm
+No local GPU runtime is required for the NIM-hosted MVP.
 
-Follow AMD's official ROCm installation guide for Ubuntu 22.04. Verify:
-```bash
-rocm-smi
-# Should show GPU device with full 192 GB VRAM for MI300X
-```
-
-### 3. Install Docker
+### 2. Install Docker
 
 ```bash
 curl -fsSL https://get.docker.com | sh
@@ -43,38 +36,28 @@ newgrp docker
 docker --version  # verify
 ```
 
-### 4. Configure Environment
+### 3. Configure Environment
 
 ```bash
-# From repo root: copy env template into the compose directory
-cd infra/amd-gpu
-cp ../../configs/.env.example .env
+# From repo root
+cp configs/.env.example .env
 # Edit .env:
-# - Set HF_TOKEN to your HuggingFace access token
-# - Set VLLM_MODEL_ID to Qwen/Qwen2.5-72B-Instruct
-# - Set VLLM_14B_MODEL_ID to Qwen/Qwen2.5-14B-Instruct
+# - Set NIM_API_KEY to your NVIDIA NIM API key
+# - Set NIM_BASE_URL to the NIM OpenAI-compatible base URL
+# - Set NIM_REASONER_MODEL and NIM_PLANNER_MODEL
 # - Set SEC_USER_AGENT to FinContextAgent/0.1 your-email@example.com
 # - Set AGENT_API_KEY to a strong random string
 ```
 
-### 5. Start All Services
+### 4. Start Storage Services
 
 ```bash
-cd infra/amd-gpu
-docker compose up -d
+docker compose -f infra/amd-gpu/docker-compose.yml up -d qdrant
 
-# Monitor model load progress (72B takes 3-5 minutes to load)
-docker compose logs -f vllm-72b
-
-# Verify all services healthy
-curl http://localhost:8000/health    # vLLM 72B
-curl http://localhost:8001/health    # vLLM 14B
-curl http://localhost:8002/health    # embedding
-curl http://localhost:8003/health    # reranker
 curl http://localhost:6333/healthz   # Qdrant
 ```
 
-### 6. Initialize Database and Collection
+### 5. Initialize Database and Collection
 
 ```bash
 # From repo root
@@ -84,7 +67,7 @@ sqlite3 fincontext.db < infra/schema.sql
 python3 infra/qdrant/init_collection.py
 ```
 
-### 7. Run Pre-Ingestion
+### 6. Run Pre-Ingestion
 
 ```bash
 cd services/ingestion-worker
@@ -102,7 +85,7 @@ python ingest.py \
 sqlite3 ../../fincontext.db "SELECT ticker, count(*) FROM chunks GROUP BY ticker;"
 ```
 
-### 8. Start Inference Gateway and Agent API
+### 7. Start Inference Gateway and Agent API
 
 ```bash
 # Terminal 1: Inference Gateway
@@ -119,13 +102,13 @@ uvicorn main:app --host 0.0.0.0 --port 8090
 curl http://localhost:8090/health
 ```
 
-### 9. Expose Agent API Externally
+### 8. Expose Agent API Externally
 
 The Gradio app on HuggingFace Spaces needs to reach the Agent API. Options:
 
-**Option A: AMD VM public IP with firewall rule (preferred)**
-- Open port 8090 in the AMD cloud firewall/security group
-- Set `AMD_VM_PUBLIC_IP` in the Gradio app's HuggingFace Space secrets
+**Option A: Backend public URL with firewall rule (preferred)**
+- Open port 8090 in the cloud firewall/security group
+- Set `AGENT_API_URL` in the Gradio app's HuggingFace Space secrets
 - Use HTTPS via an nginx reverse proxy with a self-signed cert (or Let's Encrypt if you have a domain)
 
 ```nginx
@@ -203,7 +186,7 @@ git push origin main
 
 ### 4. HuggingFace Space README (required)
 
-The Space's `README.md` is shown on the Space page. It must explain the AMD hardware story for judges:
+The Space's `README.md` is shown on the Space page. It must explain the current NVIDIA NIM inference architecture:
 
 ```markdown
 ---
@@ -226,32 +209,29 @@ Analyzes SEC filings (10-K and 10-Q) for your stock portfolio using a 4-agent La
 detects material disclosure changes year-over-year, scores holding-level risk, and generates
 citation-grounded analyst memos.
 
-## AMD Hardware
+## Inference
 
-The inference backend runs on AMD Developer Cloud with AMD Instinct MI300X (192 GB HBM3 VRAM).
-
-Key AMD advantage: Qwen2.5-72B runs in FP16 on a **single** MI300X with full 65,536-token
-context window. This allows processing an entire 10-K annual report in one pass with no context
-fragmentation. NVIDIA H100 (80 GB) cannot hold a 72B FP16 model without multi-GPU setup.
+The live MVP routes LLM calls through NVIDIA NIM hosted inference endpoints using an
+OpenAI-compatible Inference Gateway. This keeps the Agent API and ingestion worker independent
+from the serving backend.
 
 ## HuggingFace Models Used
 
 - `Qwen/Qwen2.5-72B-Instruct` — analyst memo generation
-- `Qwen/Qwen2.5-14B-Instruct` — retrieval planning, disclosure classification
-- `BAAI/bge-large-en-v1.5` — document embeddings
-- `BAAI/bge-reranker-large` — evidence reranking
+- `Qwen/Qwen2.5-7B-Instruct` — retrieval planning, disclosure classification
+- Local embedding model — document embeddings
+- Local reranking/scoring — evidence reranking
 
 ## Architecture
 
 ```
 Gradio (HuggingFace Spaces)
     ↓ HTTPS
-AMD Developer Cloud VM
+Backend host
   ├── FastAPI Agent API (LangGraph)
-  ├── Inference Gateway (vLLM proxy)
-  ├── Qwen2.5-72B via vLLM/ROCm
-  ├── Qwen2.5-14B via vLLM/ROCm
-  ├── BGE embeddings + reranker via TEI
+  ├── Inference Gateway
+  ├── NVIDIA NIM hosted chat completions
+  ├── Local embeddings + reranker
   └── Qdrant vector store
 ```
 ```
@@ -262,7 +242,7 @@ After pushing, wait ~2 minutes for the Space to build. Then:
 1. Open the Space URL (shown in HuggingFace after deployment)
 2. Confirm the Gradio UI loads
 3. Upload the seed portfolio CSV (`demo/seed_portfolio.csv`)
-4. Click "Analyze" and verify the job starts (requires AMD VM to be running and reachable)
+4. Click "Analyze" and verify the job starts (requires the backend and NIM credentials to be configured)
 
 ---
 
@@ -271,11 +251,8 @@ After pushing, wait ~2 minutes for the Space to build. Then:
 For the hackathon, monitoring is minimal:
 
 ```bash
-# Check GPU memory usage
-watch -n 5 rocm-smi
-
 # Check running containers
-docker compose ps
+docker compose -f infra/amd-gpu/docker-compose.yml ps
 
 # Check Agent API logs
 uvicorn logs or journalctl -u fincontext-agent-api -f
@@ -284,33 +261,30 @@ uvicorn logs or journalctl -u fincontext-agent-api -f
 curl http://localhost:6333/collections/fincontext_chunks
 ```
 
-The AMD benchmark panel in the Gradio UI shows real-time tokens/sec, GPU memory utilization, and per-request latency collected by the Inference Gateway.
+The inference metrics panel in the Gradio UI shows tokens/sec, per-request latency, provider/model labels, and recent request counts collected by the Inference Gateway.
 
 ---
 
-## Cost Management ($100 AMD Credit)
+## Cost Management
 
-Estimated GPU costs:
-- MI300X: approximately $1.99–$3.00/hour depending on AMD Developer Cloud pricing tier
-- $100 credit = approximately 33–50 hours of GPU time
+Hosted inference costs depend on the NVIDIA NIM endpoint, model, and usage tier. Track usage through Gateway metrics and the provider dashboard.
 
 Usage breakdown:
-- Pre-ingestion (embedding 15,000 chunks): ~30 minutes of GPU time
-- Development + debugging (running the graph ~50 times): ~3–4 hours
-- Demo sessions (20 end-to-end runs): ~2 hours
-- **Total estimated: 6–8 GPU hours out of 33–50 available**
+- Pre-ingestion embeddings: local CPU/runtime cost
+- Development + debugging: NIM chat completion calls
+- Demo sessions: NIM chat completion calls plus local retrieval
 
-To protect the credit:
-- Shut down vLLM containers when not actively developing
-- Use `docker compose stop vllm-72b vllm-14b` and restart when needed
-- The 72B model takes 3-5 minutes to reload — plan for this in your workflow
-- Do NOT leave the AMD VM running overnight with vLLM active unless intentionally benchmarking
+To protect the budget:
+- Use the planner model for intermediate calls.
+- Use the reasoner model only for final memo generation.
+- Cache or snapshot demo results for rehearsal.
+- Do not run repeated end-to-end analyses when a focused mocked test is enough.
 
 ---
 
 ## Sharing Pre-Ingested Data Between Teammates
 
-After running ingestion on the AMD VM, create a shareable snapshot:
+After running ingestion on the backend host, create a shareable snapshot:
 
 ```bash
 # Qdrant snapshot

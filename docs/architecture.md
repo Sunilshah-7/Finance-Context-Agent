@@ -1,8 +1,8 @@
 # Architecture
 
-## Decision: Single-VM Architecture
+## Decision: Provider-Agnostic Inference Architecture
 
-The MVP runs compute, storage, retrieval, and orchestration on one AMD Developer Cloud VM. This keeps the system simple enough for a 9-day hackathon build: localhost service calls, one database file, one vector store, one GPU host, and one public Gradio interface on HuggingFace Spaces.
+The MVP keeps app orchestration, retrieval, metadata, and the public demo small and hackathon-friendly, while LLM inference is routed through NVIDIA NIM hosted endpoints. The key boundary is the Inference Gateway: application code never depends directly on a specific serving vendor.
 
 The frontend is a Gradio app on HuggingFace Spaces. It satisfies the hackathon's HuggingFace integration requirement, deploys with a `git push`, and is publicly accessible to judges.
 
@@ -15,9 +15,9 @@ User (browser / Gradio UI)
   ▼
 HuggingFace Spaces — Gradio app (apps/demo-ui/)
   │
-  │  HTTPS  →  AMD_VM_PUBLIC_IP:8090
+  │  HTTPS  →  Agent API
   ▼
-AMD Developer Cloud VM
+Backend host
   ├── Agent API (port 8090) ─────────────────────────────────────┐
   │     FastAPI + LangGraph                                       │
   │     4-node agent graph                                        │
@@ -27,15 +27,15 @@ AMD Developer Cloud VM
   │                                                               │
   ├── Inference Gateway (port 8080) ←────────────────────────────┘
   │     FastAPI proxy
-  │     Routes completions → vLLM 72B or vLLM 14B
-  │     Routes embeddings → BGE embedding service
-  │     Routes rerank → BGE reranker service
+  │     Routes completions → NVIDIA NIM hosted inference
+  │     Routes embeddings → local embedding service
+  │     Routes rerank → reranker service or local scoring
   │     Logs latency, token counts, error rates
   │
-  ├── vLLM reasoner (port 8000)     Qwen2.5-72B-Instruct, FP16, ROCm
-  ├── vLLM planner (port 8001)      Qwen2.5-14B-Instruct, FP16, ROCm
-  ├── Embedding service (port 8002) BAAI/bge-large-en-v1.5, TEI or vLLM
-  ├── Reranker service (port 8003)  BAAI/bge-reranker-large, TEI
+  ├── NVIDIA NIM reasoner           Qwen2.5-72B-Instruct compatible endpoint
+  ├── NVIDIA NIM planner            Qwen2.5-7B-Instruct compatible endpoint
+  ├── Embedding service             Local retrieval embeddings
+  ├── Reranker service              Reranking retrieval candidates
   ├── Qdrant (port 6333)            Docker, persistent volume, HNSW index
   └── SQLite (on-disk)              Metadata: portfolios, holdings, jobs, findings, chunks
 ```
@@ -67,17 +67,17 @@ For MVP, it only processes HTML filings from EDGAR. PDF parsing is not implement
 
 ### Inference Gateway (`services/inference-gateway/`)
 
-A lightweight FastAPI proxy that sits between the Agent API and the model-serving processes. Its job is to:
+A lightweight FastAPI proxy that sits between the Agent API and model providers. Its job is to:
 - Route requests to the correct model based on the `model` field in the request
 - Add request IDs and log latency, token counts, and errors
 - Normalize responses into a consistent OpenAI-compatible format
 - Expose `/health` and `/metrics` endpoints
 
-This service makes the Agent API independent of which specific model is loaded. Swapping models during development only requires updating the Gateway's routing config.
+This service makes the Agent API independent of which specific model or provider is used. Swapping between NVIDIA NIM and another OpenAI-compatible backend only requires updating the Gateway's routing config.
 
 ### Demo UI (`apps/demo-ui/`)
 
-A Gradio app that provides the judge-facing interface. It communicates with the Agent API over HTTPS using the AMD VM's public IP. It is deployed to HuggingFace Spaces.
+A Gradio app that provides the judge-facing interface. It communicates with the Agent API over HTTPS. It is deployed to HuggingFace Spaces.
 
 Key Gradio tabs:
 1. Portfolio Upload — CSV upload, holdings display
@@ -85,7 +85,7 @@ Key Gradio tabs:
 3. Disclosure Diff — side-by-side filing comparison with change labels
 4. Risk Scores — per-holding score table with drivers
 5. Analyst Memo — streaming memo display with citation cards
-6. AMD Benchmark — tokens/sec, latency, GPU memory utilization panel
+6. Inference Metrics — tokens/sec, latency, request volume, and provider health
 
 ## Data Flow: Full Request Lifecycle
 
@@ -112,23 +112,23 @@ User clicks "Analyze Latest Filings"
     Node 1: portfolio_context_planner
       - Loads holdings from SQLite
       - Computes weights and sector exposure
-      - Generates retrieval_plan (structured Qwen2.5-14B output)
+      - Generates retrieval_plan (structured planner-model output)
 
     Node 2: filing_retrieval
       - BM25 search on SQLite FTS5 chunks_fts table
       - Vector search on Qdrant with ticker/filing_type/date filters
-      - RRF merge → BGE reranker → diversity filter
+      - RRF merge → reranker → diversity filter
       - Writes retrieved_chunks to AnalysisState
 
     Node 3: disclosure_change
       - Groups chunks by ticker + section + filing date
       - Pairs same-section chunks from different years
-      - Classifies changes with Qwen2.5-14B
+      - Classifies changes with the planner model
       - Writes disclosure_changes to AnalysisState
 
     Node 4: analyst_memo
       - Computes risk scores per holding
-      - Generates structured memo with Qwen2.5-72B
+      - Generates structured memo with the reasoner model
       - Citation post-processing: removes unsupported claims
       - Writes memo, risk_scores, citation_pass_rate to AnalysisState
 
@@ -187,21 +187,22 @@ Both teammates should restore from the same snapshot before demo day to ensure i
 ## Security Notes (minimal, hackathon scope)
 
 - The Agent API should require a simple bearer token (`AGENT_API_KEY` env var) so the HuggingFace Spaces UI can authenticate without exposing the VM directly
-- The AMD VM's firewall should expose only port 8090 (Agent API) externally; ports 8000, 8001, 8002, 8003, 8080, and 6333 should be internal-only
+- The backend firewall should expose only the Agent API externally; Gateway, Qdrant, SQLite, and local retrieval services should be internal-only
 - The `SEC_USER_AGENT` header must identify the application and include a contact email — EDGAR will block requests that omit it or use a generic user agent
 
-## Why This Beats the NVIDIA Story
+## Why The Gateway Matters
 
-AMD MI300X has 192 GB of HBM3 VRAM. Qwen2.5-72B in FP16 requires approximately 144 GB of VRAM. A single MI300X runs it without tensor parallelism. NVIDIA H100 SXM has 80 GB — it cannot hold a 72B FP16 model and would require a multi-GPU setup with tensor-parallel configuration.
+The original plan tied the demo to a specific local GPU stack. The current design treats inference as a replaceable provider behind one OpenAI-compatible Gateway contract.
 
 Our demo shows:
-- Full 10-K text (average 200–350 pages, ~150,000 tokens) processed in a single context window pass
-- `--max-model-len 65536` in vLLM, using the full long-context capability
-- No chunked multi-pass inference, no context fragmentation, no multi-GPU orchestration overhead
+- Agent workflow is unchanged when inference moves to NVIDIA NIM
+- Model requests, latency metrics, errors, and retries are centralized
+- Retrieval and citation grounding stay local and auditable
+- The system can later move to local GPU serving without changing Agent API code
 
-For the benchmark panel, record and display:
+For the inference metrics panel, record and display:
 - Tokens per second (input + output)
 - Time to first token (ms)
-- GPU memory utilization (%)
+- Provider/model used for each request
 - Number of concurrent analysis requests handled
-- Cost proxy: GPU-minutes per full portfolio analysis
+- Cost proxy: hosted inference calls per full portfolio analysis

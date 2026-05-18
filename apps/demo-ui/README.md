@@ -14,7 +14,7 @@ Provides a 7-tab Gradio interface that communicates with the Agent API over HTTP
 | Risk Scores | Per-holding score table with color coding and top drivers |
 | Analyst Memo | Formatted memo with clickable citation cards linking to SEC filings |
 | Chat | SSE streaming citation-backed Q&A |
-| AMD Benchmark | Tokens/sec, GPU memory utilization, latency metrics from the AMD VM |
+| Inference Metrics | Tokens/sec, latency, request volume, and provider health from the Gateway |
 
 ## Stack
 
@@ -34,7 +34,7 @@ apps/demo-ui/
     risk.py           # Tab 4: risk score panel
     memo.py           # Tab 5: analyst memo with citation cards
     chat.py           # Tab 6: streaming chat
-    benchmark.py      # Tab 7: AMD GPU benchmark panel
+    benchmark.py      # Tab 7: inference metrics panel
   api_client.py       # httpx async client for Agent API calls
   requirements.txt
   README.md           # HuggingFace Space description (shown on Space page)
@@ -55,7 +55,7 @@ python app.py
 ## Deploying to HuggingFace Spaces
 
 Set these secrets in your Space settings before deploying:
-- `AGENT_API_URL` — the public HTTPS URL of the AMD VM Agent API
+- `AGENT_API_URL` — the public HTTPS URL of the Agent API
 - `AGENT_API_KEY` — the API key for the Agent API
 
 ```bash

@@ -14,7 +14,7 @@ Master context file for all AI coding agents (Claude Code, Codex, and any other 
 
 3. **Produces citation-grounded portfolio impact memos** — not generic summaries, but analyst-style reports that say "your AMD holding has elevated supply-chain risk because Item 1A paragraph 42 of the 2025 10-K introduced new language around third-party manufacturing dependency that was absent in prior filings."
 
-The AMD hardware angle: AMD MI300X has 192 GB of HBM3 VRAM. A 70B-parameter model in FP16 needs ~140 GB. A single MI300X can run it without multi-GPU orchestration. NVIDIA H100 (80 GB) cannot. Our demo shows a 70B model processing an entire annual report in one context window on a single GPU — that's the infrastructure story we're telling AMD judges.
+The current inference angle: the agent workflow is insulated from the serving backend. LLM calls go through the Inference Gateway, which routes to NVIDIA NIM hosted endpoints for planner and reasoner models while retrieval, citation verification, Qdrant, and SQLite remain unchanged.
 
 ---
 
@@ -39,31 +39,31 @@ The frontend is `apps/demo-ui/` (Gradio). Do not add a separate web app unless t
 
 ## Technology Stack and Rationale
 
-### Compute: AMD Developer Cloud
+### Compute: Backend Host
 
-One VM with AMD Instinct GPU (ideally MI300X or MI250). All services run on this machine. No separate compute node needed.
+One backend host runs the Agent API, Inference Gateway, Qdrant, SQLite, and local retrieval services. No separate edge/API platform is needed.
 
-Why: The $100 credit gives ~50 hours of GPU time. Everything on one machine eliminates cross-cloud networking latency, secrets management complexity, and inter-service authentication overhead. Localhost calls are sub-millisecond.
+Why: keeping app services and retrieval together eliminates unnecessary cross-service wiring, secrets sprawl, and avoidable network hops. LLM inference is the only hosted provider dependency.
 
-### LLM Serving: vLLM with ROCm backend
+### LLM Serving: NVIDIA NIM
 
-vLLM provides an OpenAI-compatible API (`/v1/chat/completions`, `/v1/embeddings`) and is the standard choice for serving open-source LLMs on AMD GPUs via ROCm. It handles continuous batching, KV cache management, and speculative decoding automatically.
+NVIDIA NIM provides hosted OpenAI-compatible chat completion endpoints. The Inference Gateway maps logical model names to provider-specific NIM model IDs and adds request IDs, metrics, retries, and normalized errors.
 
-Run two instances:
-- Port 8000: `Qwen/Qwen2.5-72B-Instruct` — used only for final memo generation
-- Port 8001: `Qwen/Qwen2.5-14B-Instruct` — used for retrieval planning, diff classification, and any intermediate LLM calls
+Use two logical model routes:
+- `fincontext-reasoner`: `Qwen/Qwen2.5-72B-Instruct` compatible NIM endpoint — used only for final memo generation
+- `fincontext-planner`: `Qwen/Qwen2.5-7B-Instruct` compatible NIM endpoint — used for retrieval planning, diff classification, and intermediate LLM calls
 
-Why Qwen2.5 over Llama 3: Qwen2.5 has strong instruction-following on structured output tasks. The 72B variant benchmarks competitively with GPT-4o on coding and reasoning. The 14B variant is fast enough for sub-second intermediate calls.
+Why this split: the reasoner model is reserved for judge-facing memo quality, while the smaller planner route keeps intermediate calls cheaper and faster.
 
-### Embeddings and Reranking: HuggingFace TEI (Text Embeddings Inference)
+### Embeddings and Reranking
 
-TEI is HuggingFace's optimized embedding and reranking server. It serves BAAI/bge-large-en-v1.5 (1024-dimensional embeddings) and BAAI/bge-reranker-large with hardware-aware batching on AMD ROCm.
+Embeddings and reranking stay behind the Inference Gateway. The current MVP uses local retrieval embeddings and reranking/scoring so ingestion and retrieval remain reproducible without coupling Agent API code to a provider SDK.
 
 Why BGE over other embedding models: BGE-large-en-v1.5 consistently ranks at the top of the MTEB retrieval benchmark for its size class. The BGE reranker (cross-encoder) significantly improves precision over bi-encoder-only retrieval on domain-specific text.
 
 ### Vector Store: Qdrant
 
-Qdrant runs in Docker on the AMD VM. It provides:
+Qdrant runs in Docker on the backend host. It provides:
 - HNSW approximate nearest-neighbor search
 - Rich payload filtering (exact match, range, geo) without a separate SQL query
 - Named collections with configurable distance metrics
@@ -368,14 +368,14 @@ All LLM, embedding, and reranker calls from the Agent API go through the Inferen
 
 | Endpoint | Routes to | Port |
 |----------|-----------|------|
-| POST /v1/chat/completions (model=fincontext-planner) | vLLM 14B | 8001 |
-| POST /v1/chat/completions (model=fincontext-reasoner) | vLLM 72B | 8000 |
-| POST /v1/embeddings | TEI embedding service | 8002 |
-| POST /v1/rerank | TEI reranker service | 8003 |
+| POST /v1/chat/completions (model=fincontext-planner) | NVIDIA NIM planner | hosted |
+| POST /v1/chat/completions (model=fincontext-reasoner) | NVIDIA NIM reasoner | hosted |
+| POST /v1/embeddings | local embedding backend | internal |
+| POST /v1/rerank | local reranker/scorer | internal |
 | GET /health | all services | — |
 | GET /metrics | Prometheus metrics | — |
 
-The gateway adds request IDs, logs latency, and normalizes error responses. Agent API code never calls vLLM or TEI directly — always through the gateway.
+The gateway adds request IDs, logs latency, and normalizes error responses. Agent API code never calls NVIDIA NIM, embedding backends, or reranker backends directly — always through the gateway.
 
 ---
 
@@ -425,7 +425,7 @@ Both agents should coordinate on `packages/schemas/python/state.py` — this is 
 
 ---
 
-## AMD Hardware Demo Script
+## Demo Script
 
 This is what we show to judges (in order):
 
@@ -434,8 +434,8 @@ This is what we show to judges (in order):
 3. **Show the disclosure diff for AMD** — side-by-side comparison of Item 1A risk factor language across 2022–2025 10-Ks, with classified changes highlighted
 4. **Ask a question:** "What changed in supply-chain or customer concentration risk for my semiconductor holdings?"
 5. **Show the analyst memo** — citation-grounded, with inline `[citation_anchor]` references linking to the exact filing paragraph
-6. **Show the AMD GPU benchmark panel** — tokens/sec, time-to-first-token, concurrent requests, GPU memory utilization
-7. **Explain the hardware angle:** "This 72B parameter model runs in FP16 on a single AMD MI300X because it has 192 GB of VRAM. On NVIDIA H100 (80 GB), this same model requires multi-GPU orchestration with tensor parallelism. We use the full long-context window — 65,536 tokens — to analyze an entire 10-K in a single pass."
+6. **Show the Inference Metrics panel** — tokens/sec, time-to-first-token, provider/model labels, and concurrent requests
+7. **Explain the inference angle:** "The workflow calls one Gateway contract. Today that Gateway routes LLM calls to NVIDIA NIM hosted endpoints, while retrieval, citations, and storage stay local and auditable."
 
 ---
 
@@ -443,10 +443,10 @@ This is what we show to judges (in order):
 
 The hackathon requires meaningful HuggingFace integration. We satisfy this through:
 
-- [ ] Models pulled from HuggingFace Hub: `Qwen/Qwen2.5-72B-Instruct`, `Qwen/Qwen2.5-14B-Instruct`, `BAAI/bge-large-en-v1.5`, `BAAI/bge-reranker-large`
-- [ ] `HF_TOKEN` environment variable used for authenticated model downloads
+- [ ] NIM-hosted planner and reasoner models configured through the Inference Gateway
+- [ ] `NIM_API_KEY` environment variable used for hosted inference access
 - [ ] Demo UI deployed as a public HuggingFace Space
-- [ ] Space README explains what AMD hardware is being used and links to the AMD Developer Cloud
+- [ ] Space README explains the NVIDIA NIM inference architecture and Gateway abstraction
 - [ ] Build-in-Public posts tagged `#AMDDevHackathon` and `#HuggingFace` on X/LinkedIn
 
 ---
@@ -455,9 +455,9 @@ The hackathon requires meaningful HuggingFace integration. We satisfy this throu
 
 The hackathon has a dedicated prize pool for teams that post 3+ technical build-in-public posts on X or LinkedIn tagged `#AMDDevHackathon`. Post about:
 
-1. Getting vLLM running on ROCm — what flags worked, what didn't
+1. Swapping the inference backend to NVIDIA NIM without changing the agent graph
 2. Hybrid BM25 + vector retrieval quality comparison on financial text
-3. The AMD MI300X 192 GB VRAM advantage for 70B model inference — real benchmark numbers
+3. Hosted 72B inference with NVIDIA NIM plus citation-grounded retrieval
 
 These posts also make your submission visible to judges before they open it.
 
@@ -515,7 +515,7 @@ feat(agent-api): implement portfolio_context_planner node with Qwen2.5-14B
 feat(ingestion): add EDGAR HTML section extractor with BeautifulSoup
 fix(retrieval): correct RRF merge to handle duplicate chunk IDs
 docs(agent-design): add citation post-processing implementation detail
-infra: add Qdrant and TEI services to Docker Compose
+infra: add Qdrant and Gateway services to Docker Compose
 test(agent-api): add unit tests for all 4 LangGraph nodes
 ```
 
@@ -576,14 +576,14 @@ __pycache__/
 ## Environment Variables Reference
 
 ```bash
-# AMD VM
-AMD_VM_PUBLIC_IP=            # public IP of the AMD Developer Cloud VM
-
-# Model services (all localhost from AMD VM perspective)
-VLLM_REASONER_URL=http://localhost:8000/v1   # Qwen2.5-72B
-VLLM_PLANNER_URL=http://localhost:8001/v1    # Qwen2.5-14B
-EMBEDDING_URL=http://localhost:8002          # BGE embedding
-RERANKER_URL=http://localhost:8003           # BGE reranker
+# Backend and model services
+AGENT_API_PUBLIC_URL=        # public HTTPS URL for the Agent API
+NIM_API_KEY=                 # NVIDIA NIM API key
+NIM_BASE_URL=https://integrate.api.nvidia.com/v1
+NIM_REASONER_MODEL=Qwen/Qwen2.5-72B-Instruct
+NIM_PLANNER_MODEL=Qwen/Qwen2.5-7B-Instruct
+EMBEDDING_URL=http://localhost:8002          # local embedding backend
+RERANKER_URL=http://localhost:8003           # local reranker backend
 INFERENCE_GATEWAY_URL=http://localhost:8080  # unified gateway
 AGENT_API_URL=http://localhost:8090          # LangGraph agent service
 
@@ -591,10 +591,6 @@ AGENT_API_URL=http://localhost:8090          # LangGraph agent service
 QDRANT_URL=http://localhost:6333
 QDRANT_COLLECTION=fincontext_chunks
 SQLITE_DB_PATH=./fincontext.db
-
-# HuggingFace
-HF_TOKEN=                    # for authenticated model downloads from HF Hub
-HF_HOME=/models/huggingface  # model cache directory on AMD VM
 
 # SEC EDGAR (required, no key needed)
 SEC_USER_AGENT=FinContextAgent/0.1 your-email@example.com

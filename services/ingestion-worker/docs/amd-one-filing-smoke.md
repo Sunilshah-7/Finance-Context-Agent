@@ -1,6 +1,6 @@
 # AMD One-Filing Ingestion Smoke Runbook
 
-Use this runbook after PR #17 is merged and the Inference Gateway, Qdrant, and SQLite are available on the AMD VM or a local equivalent. This is a pre-demo validation path only. Do not run live ingestion during the judge demo.
+Use this runbook after PR #17 is merged and the Inference Gateway, Qdrant, and SQLite are available on the backend host or a local equivalent. This is a pre-demo validation path only. Do not run live ingestion during the judge demo.
 
 ## Prerequisites
 
@@ -52,7 +52,7 @@ python3 services/ingestion-worker/validate_ingestion.py \
 - At least 20 sampled citation anchors match the exact paragraph/table format.
 - Document summary lists AMD `10-K`, filed date, parsed sections, and nonzero chunk count.
 
-## Deferred Until VM Services Are Ready
+## Deferred Until Runtime Services Are Ready
 
 - Real EDGAR network run.
 - Real Gateway embedding request.

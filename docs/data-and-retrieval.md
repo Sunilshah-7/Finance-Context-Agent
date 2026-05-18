@@ -234,7 +234,7 @@ Primary: `BAAI/bge-large-en-v1.5`
 
 Fallback: `intfloat/e5-large-v2`
 - Same dimensions (1024)
-- Use if BGE-large has loading issues on ROCm
+- Use if BGE-large has loading or runtime issues in the configured embedding backend
 
 **Important:** BGE-large requires prepending `"Represent this sentence: "` to query text but NOT to document text. e5-large requires `"query: "` prefix for queries and `"passage: "` prefix for documents. Choose one model and stick with it for the entire ingestion run.
 

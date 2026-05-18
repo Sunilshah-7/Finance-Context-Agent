@@ -14,7 +14,7 @@ Yes, the foundation exists.
 - Shared row/payload schemas: `packages/schemas/python/db.py`
 - Physical SQLite schema and FTS triggers: `infra/schema.sql`
 
-What is not done yet: a real AMD VM ingestion run against live Gateway/Qdrant.
+What is not done yet: a real NIM-backed ingestion run against live Gateway/Qdrant.
 The code is unit-tested, but demo data still has to be loaded and validated on
 the runtime environment.
 

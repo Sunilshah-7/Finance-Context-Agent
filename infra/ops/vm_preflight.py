@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Check whether the AMD VM is ready for ingestion smoke testing.
+"""Check whether the backend is ready for ingestion smoke testing.
 
 This CLI catches the simple setup mistakes that waste the most time on the
-shared AMD VM: missing `.env` values, missing local commands, missing repo
+shared backend: missing `.env` values, missing local commands, missing repo
 scripts, and optionally unhealthy Qdrant/Gateway endpoints. It does not start
 containers or mutate data; it only reports readiness.
 """
@@ -26,20 +26,21 @@ DEFAULT_GATEWAY_URL = "http://localhost:8080"
 DEFAULT_QDRANT_URL = "http://localhost:6333"
 
 REQUIRED_ENV_VARS = (
-    "HF_TOKEN",
+    "NIM_API_KEY",
+    "NIM_BASE_URL",
     "SEC_USER_AGENT",
     "INFERENCE_GATEWAY_URL",
     "QDRANT_URL",
     "QDRANT_COLLECTION",
     "SQLITE_DB_PATH",
 )
-SENSITIVE_ENV_VARS = {"HF_TOKEN", "AGENT_API_KEY"}
+SENSITIVE_ENV_VARS = {"NIM_API_KEY", "AGENT_API_KEY"}
 PLACEHOLDER_MARKERS = (
     "<",
     ">",
     "your-email@example.com",
-    "your-huggingface-token",
-    "your_huggingface_token",
+    "your-nim-api-key",
+    "your_nim_api_key",
 )
 REQUIRED_PATHS = (
     "infra/schema.sql",
@@ -50,7 +51,6 @@ REQUIRED_PATHS = (
     "services/inference-gateway/requirements.txt",
 )
 REQUIRED_COMMANDS = ("docker", "python3", "sqlite3", "curl")
-ROCM_COMMAND = "rocm-smi"
 
 
 @dataclass(frozen=True)
@@ -192,8 +192,8 @@ def check_required_paths(repo_root: Path) -> list[CheckResult]:
     return results
 
 
-def check_required_commands(require_rocm: bool = False) -> list[CheckResult]:
-    results = [
+def check_required_commands() -> list[CheckResult]:
+    return [
         CheckResult(
             name=f"command:{command}",
             ok=shutil.which(command) is not None,
@@ -202,20 +202,6 @@ def check_required_commands(require_rocm: bool = False) -> list[CheckResult]:
         )
         for command in REQUIRED_COMMANDS
     ]
-    rocm_found = shutil.which(ROCM_COMMAND) is not None
-    results.append(
-        CheckResult(
-            name=f"command:{ROCM_COMMAND}",
-            ok=rocm_found,
-            level="error" if require_rocm else "warning",
-            message=(
-                "found"
-                if rocm_found
-                else f"{ROCM_COMMAND} not found; expected on the AMD VM"
-            ),
-        )
-    )
-    return results
 
 
 def request_json(url: str, timeout: float = 5.0) -> dict[str, Any]:
@@ -276,14 +262,13 @@ def collect_checks(
     repo_root: Path,
     env_path: Path,
     online: bool,
-    require_rocm: bool,
     gateway_url: str,
     qdrant_url: str,
 ) -> list[CheckResult]:
     results: list[CheckResult] = []
     results.extend(check_env_file(env_path))
     results.extend(check_required_paths(repo_root))
-    results.extend(check_required_commands(require_rocm=require_rocm))
+    results.extend(check_required_commands())
     if online:
         results.append(check_qdrant_health(qdrant_url))
         results.append(check_gateway_health(gateway_url))
@@ -306,7 +291,7 @@ def format_result(result: CheckResult) -> str:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Preflight-check the AMD VM before ingestion smoke testing."
+        description="Preflight-check the backend before ingestion smoke testing."
     )
     parser.add_argument(
         "--repo-root",
@@ -322,11 +307,6 @@ def parse_args() -> argparse.Namespace:
         "--online",
         action="store_true",
         help="Also check live Qdrant and Inference Gateway health endpoints.",
-    )
-    parser.add_argument(
-        "--require-rocm",
-        action="store_true",
-        help="Treat missing rocm-smi as an error instead of a warning.",
     )
     parser.add_argument(
         "--gateway-url",
@@ -357,7 +337,6 @@ def main() -> int:
         repo_root=repo_root,
         env_path=env_path,
         online=args.online,
-        require_rocm=args.require_rocm,
         gateway_url=args.gateway_url,
         qdrant_url=args.qdrant_url,
     )

@@ -1,6 +1,6 @@
-# AMD VM Ingestion Smoke Playbook
+# Backend Ingestion Smoke Playbook
 
-This playbook is the Day 1/Day 2 checklist for proving that the AMD VM can
+This playbook is the Day 1/Day 2 checklist for proving that the backend can
 support real ingestion data. It does not change application code. It explains
 the exact order to bring up storage/model services, run one AMD filing through
 the ingestion worker, validate the output, and send Kishan the data he needs for
@@ -12,8 +12,8 @@ Use this before full demo ingestion. Do not live-ingest during the judge demo.
 
 By the end of this smoke test, the team should know whether:
 
-- the AMD VM can see the GPU;
-- Docker services for vLLM, TEI, and Qdrant are up;
+- NVIDIA NIM credentials and Gateway routing are configured;
+- Docker services for Qdrant are up;
 - the Inference Gateway can reach embeddings and reranker backends;
 - SQLite schema was applied successfully;
 - Qdrant collection `fincontext_chunks` exists;
@@ -56,7 +56,7 @@ section.
 
 ## 1. Create The Real `.env`
 
-From the repository root on the AMD VM:
+From the repository root on the backend host:
 
 ```bash
 cp configs/.env.example .env
@@ -65,12 +65,10 @@ cp configs/.env.example .env
 Edit `.env` and set real values:
 
 ```bash
-AMD_VM_PUBLIC_IP=<vm-public-ip>
-HF_TOKEN=<real-huggingface-token>
+NIM_API_KEY=<real-nim-api-key>
+NIM_BASE_URL=https://integrate.api.nvidia.com/v1
 AGENT_API_KEY=<strong-random-string>
 SEC_USER_AGENT=FinContextAgent/0.1 <real-email-address>
-MODEL_CACHE_DIR=/models
-HF_HOME=/models/huggingface
 SQLITE_DB_PATH=./fincontext.db
 QDRANT_COLLECTION=fincontext_chunks
 ```
@@ -80,7 +78,7 @@ Do not commit `.env`.
 Quick sanity check:
 
 ```bash
-test -n "$HF_TOKEN"
+test -n "$NIM_API_KEY"
 test -n "$SEC_USER_AGENT"
 ```
 
@@ -92,35 +90,23 @@ source .env
 set +a
 ```
 
-## 2. Verify AMD GPU Visibility
+## 2. Verify NIM Access
 
-Run:
-
-```bash
-rocm-smi
-```
+Run a small chat-completions request through the Gateway or provider test
+script before starting ingestion.
 
 Pass condition:
 
-- at least one AMD GPU is listed;
-- memory and utilization fields are visible;
-- command exits successfully.
-
-Fail condition:
-
-- command not found;
-- no GPU listed;
-- permission errors accessing `/dev/kfd` or `/dev/dri`.
-
-If this fails, stop. Do not start model containers until ROCm/GPU visibility is
-fixed.
+- credentials are present;
+- the planner/reasoner route returns a valid response;
+- provider errors are logged with a request ID.
 
 ## 3. Start Docker Services
 
 From repository root:
 
 ```bash
-docker compose --env-file .env -f infra/amd-gpu/docker-compose.yml up -d
+docker compose --env-file .env -f infra/amd-gpu/docker-compose.yml up -d qdrant
 ```
 
 Check containers:
@@ -132,29 +118,20 @@ docker compose --env-file .env -f infra/amd-gpu/docker-compose.yml ps
 Expected services:
 
 ```text
-vllm-72b
-vllm-14b
-tei-embedding
-tei-reranker
 qdrant
 ```
 
-The 72B service can take several minutes to load. Watch logs if needed:
+Watch logs if needed:
 
 ```bash
-docker logs -f fincontext-vllm-72b
-docker logs -f fincontext-vllm-14b
-docker logs -f fincontext-tei-embedding
-docker logs -f fincontext-tei-reranker
 docker logs -f fincontext-qdrant
 ```
 
 Pass condition:
 
 - Qdrant is healthy;
-- TEI embedding and reranker services are healthy;
-- vLLM 14B is healthy;
-- vLLM 72B is healthy or still loading with normal model-load logs.
+- Gateway can reach NIM for chat completions;
+- embedding and reranker routes are healthy or clearly reported as degraded.
 
 ## 4. Start The Inference Gateway
 
@@ -445,8 +422,7 @@ Do not commit anything under `backups/`.
 
 Stop and coordinate if any of these happen:
 
-- `rocm-smi` cannot see the GPU;
-- model containers repeatedly restart;
+- NIM credentials are missing or rejected;
 - Gateway `/health` cannot see embeddings;
 - ingestion writes SQLite chunks but Qdrant point count is zero;
 - citation anchors do not match the required format;

@@ -40,11 +40,11 @@ This output is research assistance only and does not constitute investment advic
 
 The system never gives buy, sell, hold, or short recommendations.
 
-## Why AMD Hardware Matters
+## Inference Architecture
 
-The original architecture was designed around one AMD Developer Cloud VM.
+The original architecture was designed around local GPU inference. The live MVP now uses a provider-agnostic inference layer backed by NVIDIA NIM hosted inference endpoints.
 
-The key hardware story was that an AMD MI300X has 192 GB of HBM3 VRAM. A 70B parameter model in FP16 needs roughly 140 GB of GPU memory, so Qwen2.5-72B could run on one MI300X without multi-GPU tensor parallelism.
+The important architectural story is the abstraction boundary: Agent API and ingestion code call the Inference Gateway, and the Gateway routes model requests to NVIDIA NIM-compatible OpenAI endpoints. This lets the app keep the same LangGraph, retrieval, citation, Qdrant, and SQLite design while changing the inference provider.
 
 The original planned model split was:
 
@@ -53,11 +53,11 @@ The original planned model split was:
 - BAAI/bge-large-en-v1.5 for embeddings.
 - BAAI/bge-reranker-large for reranking retrieval candidates.
 
-All models come from Hugging Face.
+The original model IDs came from Hugging Face. The current live stack uses NIM-hosted chat models plus local embeddings for retrieval.
 
 ## System Architecture
 
-Due to AMD Developer Cloud credit limitations during the hackathon period, the live MVP uses a provider-agnostic inference architecture built around NVIDIA NIM hosted inference endpoints.
+Due to hosted-inference availability during the hackathon period, the live MVP uses a provider-agnostic inference architecture built around NVIDIA NIM endpoints.
 
 The architecture itself remains unchanged.
 
@@ -73,11 +73,11 @@ This preserves:
 - FastAPI services
 - Inference Gateway abstraction
 
-The project is still fully compatible with future AMD GPU deployment.
+The project is still compatible with future local GPU deployment because the Inference Gateway preserves a provider-neutral contract.
 
 ## Current Model Stack
 
-The currnt hosted inference split is:
+The current hosted inference split is:
 
 - Qwen2.5-7B-Instruct for planning and intermediate reasoning
 - Qwen2.5-72B-Instruct for final analyst memo generation
@@ -93,7 +93,7 @@ The system uses:
 
 ## System Architecture
 
-Everything important runs on one AMD Developer Cloud VM:
+The demo UI runs on HuggingFace Spaces. The app services run on the backend host, while LLM inference is served by NVIDIA NIM hosted endpoints:
 
 ```text
 HuggingFace Space
@@ -119,7 +119,7 @@ Inference Gateway, port 8080
 ```
 
 Important rule: Agent API code and ingestion code call the Inference Gateway.
-They do not call vLLM or TEI directly.
+They do not call NVIDIA NIM, local embedding code, or retrieval services directly.
 
 ## Current Build State
 
@@ -139,7 +139,7 @@ Open or pending:
 - Agent API PR #19 is marked "DONOT MERGE THIS PR: Still in review".
 - Validation CLI PR #24 is open for review.
 - Eval fixture scaffolding PR #23 is open for review.
-- Real AMD VM ingestion has not run yet.
+- Real NIM-backed ingestion has not run yet.
 - Demo corpus has not been loaded into Qdrant/SQLite yet.
 
 ## Repository Map
@@ -147,7 +147,7 @@ Open or pending:
 ```text
 services/
   ingestion-worker/      EDGAR fetch, SEC HTML parse, chunk, embed, write data
-  inference-gateway/     FastAPI proxy to vLLM, embeddings, and reranker
+  inference-gateway/     FastAPI proxy to NIM chat models, embeddings, and reranker
   agent-api/             FastAPI plus LangGraph analysis workflow
 
 apps/
@@ -227,7 +227,7 @@ python3 -m pytest services/inference-gateway/tests -x
 python3 -m pytest infra/tests -x
 ```
 
-Some future tests will require the AMD VM, Qdrant, Gateway, or live model
+Some future tests will require Qdrant, Gateway, or live model
 services. The current foundation tests mostly use mocked HTTP and temporary
 SQLite files.
 
@@ -262,5 +262,6 @@ eval(evals): add retrieval fixture scaffolding
 | `docs/data-and-retrieval.md`         | Retrieval architecture and Qdrant/BM25 design |
 | `docs/agent-design.md`               | LangGraph node specs                          |
 | `docs/api-contracts.md`              | Agent API request and response contracts      |
+| `docs/nvidia-nim-plan.md`            | NIM routing, Gateway contract, and metrics    |
 | `docs/demo-data-ops.md`              | SQLite backup and Qdrant snapshot commands    |
 | `docs/demo-plan.md`                  | Judge-facing demo flow                        |

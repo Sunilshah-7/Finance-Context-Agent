@@ -25,13 +25,13 @@ class ErrorResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class GpuInfo(BaseModel):
-    device: str
-    vram_gb: float
-    vram_used_gb: float
+class ProviderInfo(BaseModel):
+    provider: str
+    base_url: str | None = None
+    status: str
 
 
-class VllmMetrics(BaseModel):
+class ModelMetrics(BaseModel):
     count: int
     avg_input_tokens: float
     avg_output_tokens: float
@@ -53,8 +53,8 @@ class RerankerMetrics(BaseModel):
 
 
 class RecentRequests(BaseModel):
-    vllm_72b: VllmMetrics
-    vllm_14b: VllmMetrics
+    fincontext_reasoner: ModelMetrics = Field(alias="fincontext-reasoner")
+    fincontext_planner: ModelMetrics = Field(alias="fincontext-planner")
     embedding: EmbeddingMetrics
     reranker: RerankerMetrics
 
@@ -273,6 +273,6 @@ class ChatRequest(BaseModel):
 
 
 class BenchmarkMetricsResponse(BaseModel):
-    gpu_info: GpuInfo
+    provider_info: ProviderInfo
     recent_requests: RecentRequests
     benchmark_scenarios: BenchmarkScenarios

@@ -2,9 +2,9 @@
 
 Task plan for completing FinContext Agent with three engineers: Sunil, Abhiyan, and Kishan.
 
-This plan follows `AGENTS.md` as the source of truth. Build the current architecture: one AMD Developer Cloud VM running FastAPI, LangGraph, vLLM/ROCm, TEI, Qdrant, and SQLite, with a public Gradio demo on HuggingFace Spaces.
+This plan follows `AGENTS.md` as the source of truth. Build the current architecture: FastAPI, LangGraph, Qdrant, and SQLite behind a public Gradio demo on HuggingFace Spaces, with LLM inference routed through NVIDIA NIM by the Inference Gateway.
 
-Do not build a separate edge/API platform or JavaScript frontend. The project uses the Agent API on the AMD VM and a Gradio app in `apps/demo-ui/`.
+Do not build a separate edge/API platform or JavaScript frontend. The project uses the Agent API backend and a Gradio app in `apps/demo-ui/`.
 
 ## Task Types
 
@@ -16,7 +16,7 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 
 | Engineer | Primary Ownership |
 | --- | --- |
-| Sunil | AMD VM, infrastructure, schema, Agent API skeleton, deployment, final submission |
+| Sunil | Backend infrastructure, schema, Agent API skeleton, deployment, final submission |
 | Abhiyan | EDGAR ingestion, parsing, chunking, embeddings, Qdrant/SQLite indexing, retrieval quality |
 | Kishan | Inference Gateway, LangGraph nodes, Gradio UI, benchmark panel, demo polish |
 
@@ -26,7 +26,7 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 - [ ] Do not commit `.env`, `fincontext.db`, Qdrant storage, model cache, or secrets.
 - [ ] Use Python 3.12 and Pydantic models from `packages/schemas/python/`.
 - [ ] Every service-to-service model call must go through the Inference Gateway on port `8080`.
-- [ ] Use Qwen2.5-14B for planner/diff calls and Qwen2.5-72B only for final memo generation.
+- [ ] Use the NIM planner model for planner/diff calls and the NIM reasoner model only for final memo generation.
 - [ ] Every factual memo claim must have a valid citation mapped to a retrieved chunk.
 - [ ] Never generate buy/sell/hold/short recommendations.
 - [ ] Pre-ingest demo data before the live demo; do not demo live EDGAR ingestion.
@@ -38,14 +38,14 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 ## Atomic Tasks
 
 - [x] Create or verify `.gitignore` includes `.env`, `fincontext.db`, `fincontext_demo.db`, `/models/`, `qdrant_storage/`, `__pycache__/`, `.venv/`, and `*.pyc`.
-- [x] Create `configs/.env.example` for the current architecture with `AMD_VM_PUBLIC_IP`, `AGENT_API_KEY`, `VLLM_REASONER_URL`, `VLLM_PLANNER_URL`, `EMBEDDING_URL`, `RERANKER_URL`, `INFERENCE_GATEWAY_URL`, `QDRANT_URL`, `QDRANT_COLLECTION`, `SQLITE_DB_PATH`, `HF_TOKEN`, `HF_HOME`, `SEC_USER_AGENT`, `ENVIRONMENT`, and `LOG_LEVEL`.
+- [x] Create `configs/.env.example` for the current architecture with Agent API, Gateway, NIM, embedding, Qdrant, SQLite, SEC EDGAR, and logging settings.
 - [x] Create `infra/schema.sql` for SQLite tables: `portfolios`, `holdings`, `documents`, `chunks`, `chunks_fts`, `analysis_jobs`, and `findings`.
 - [x] Add FTS5 triggers in `infra/schema.sql` so inserts into `chunks` populate `chunks_fts`.
-- [x] Create `infra/amd-gpu/docker-compose.yml` with services for `vllm-72b`, `vllm-14b`, `tei-embedding`, `tei-reranker`, and `qdrant`.
+- [x] Create Docker Compose support for local services, including Qdrant.
 - [x] Add Qdrant collection initialization script for `fincontext_chunks` with 1024 dimensions and payload indexes for `ticker`, `filing_type`, `filed_at`, and `section`.
-- [ ] Provision AMD Developer Cloud VM with AMD Instinct GPU, Ubuntu, ROCm, Docker, and enough disk for models and Qdrant data.
-- [ ] Verify AMD GPU visibility with `rocm-smi`.
-- [ ] Start GPU/storage services with Docker Compose and verify health for ports `8000`, `8001`, `8002`, `8003`, and `6333`.
+- [ ] Provision backend host with Ubuntu, Docker, enough disk for Qdrant data, SQLite, and EDGAR cache.
+- [ ] Configure NVIDIA NIM credentials and verify hosted chat completions through the Gateway.
+- [ ] Start storage/retrieval services and verify Qdrant and Gateway health.
 - [x] Create `packages/schemas/python/state.py` with `AnalysisState`, `Holding`, `RetrievalPlan`, `EvidenceChunk`, `DisclosureChange`, `RiskScore`, `Citation`, and `AnalystMemo`.
 - [x] Create `packages/schemas/python/db.py` for SQLite row models.
 - [x] Create `packages/schemas/python/api.py` for FastAPI request/response models from `docs/api-contracts.md`.
@@ -73,13 +73,13 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 
 ## Integration Tasks
 
-- [ ] Apply `infra/schema.sql` to create `fincontext.db` on the AMD VM.
-- [ ] Start full AMD VM stack and publish service health checklist.
-- [ ] Restore or verify Qdrant and SQLite demo snapshots on the AMD VM.
+- [ ] Apply `infra/schema.sql` to create `fincontext.db` on the backend host.
+- [ ] Start full backend stack and publish service health checklist.
+- [ ] Restore or verify Qdrant and SQLite demo snapshots on the backend host.
 - [ ] Run end-to-end smoke test: upload portfolio → create job → graph starts → job completes.
 - [ ] Verify HuggingFace Space can reach Agent API over HTTPS with bearer auth.
 - [ ] Run final security check: no secrets committed, only required port exposed, disclaimer always present.
-- [ ] Prepare final lablab.ai submission: project description, architecture, AMD GPU story, HuggingFace integration, GitHub repo, demo video, and Space URL.
+- [ ] Prepare final lablab.ai submission: project description, architecture, NVIDIA NIM inference story, HuggingFace integration, GitHub repo, demo video, and Space URL.
 
 ---
 
@@ -135,7 +135,7 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 
 ## Integration Tasks
 
-- [ ] Load final Qdrant snapshot and SQLite DB on AMD VM before demo rehearsals.
+- [ ] Load final Qdrant snapshot and SQLite DB on the backend host before demo rehearsals.
 - [ ] Run retrieval smoke query: `AMD supply chain third party manufacturing risk`.
 - [ ] Run retrieval smoke query: `AMD export controls advanced AI accelerators`.
 - [ ] Run retrieval smoke query: `NVDA customer concentration supply chain risk`.
@@ -150,12 +150,12 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 
 - [ ] Create `services/inference-gateway/requirements.txt` with `fastapi`, `uvicorn`, `httpx`, `pydantic`, `structlog`, and `pytest`.
 - [ ] Implement `services/inference-gateway/main.py` with FastAPI route mounting.
-- [ ] Implement `router.py` with model routing: `fincontext-reasoner` to port `8000`, `fincontext-planner` to port `8001`, `fincontext-embedding` to port `8002`, and `fincontext-reranker` to port `8003`.
+- [ ] Implement `router.py` with model routing: `fincontext-reasoner` and `fincontext-planner` to NVIDIA NIM, and embedding/reranker requests to local retrieval backends.
 - [ ] Implement `middleware.py` for request IDs and latency logging.
 - [ ] Implement `metrics.py` with in-memory rolling metrics for last 1000 requests.
 - [ ] Implement `POST /v1/chat/completions` proxy with OpenAI-compatible request/response passthrough.
-- [ ] Implement `POST /v1/embeddings` proxy for TEI embedding service.
-- [ ] Implement `POST /v1/rerank` proxy for TEI reranker service.
+- [ ] Implement `POST /v1/embeddings` proxy for the embedding backend.
+- [ ] Implement `POST /v1/rerank` proxy for the reranker backend.
 - [ ] Implement `GET /health` checking all backend services.
 - [ ] Implement `GET /metrics` returning average latency, token counts, time-to-first-token, and tokens/sec by model.
 - [ ] Add Inference Gateway tests with mocked backend services.
@@ -165,16 +165,16 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 - [ ] Write retrieval unit tests for RRF merge and diversity filter.
 - [ ] Write retrieval integration test against local Qdrant and SQLite seed data.
 - [ ] Implement `services/agent-api/app/graph.py` with the 4-node LangGraph sequence.
-- [ ] Implement `portfolio_context_planner` node with Qwen2.5-14B structured retrieval-plan output and fallback plan.
+- [ ] Implement `portfolio_context_planner` node with NIM planner structured retrieval-plan output and fallback plan.
 - [ ] Implement `filing_retrieval` node using the hybrid retrieval module.
-- [ ] Implement `disclosure_change` node with text normalization, comparison grouping, Qwen2.5-14B structured classification, and low-confidence filtering.
-- [ ] Implement `analyst_memo` node with risk score computation, Qwen2.5-72B memo generation, citation verification, 14B fallback, and hardcoded disclaimer.
+- [ ] Implement `disclosure_change` node with text normalization, comparison grouping, NIM planner structured classification, and low-confidence filtering.
+- [ ] Implement `analyst_memo` node with risk score computation, NIM reasoner memo generation, citation verification, planner fallback, and hardcoded disclaimer.
 - [ ] Add isolated unit tests for all 4 LangGraph nodes with mocked Gateway and DB/Qdrant clients.
 - [ ] Add `GET /api/findings/{portfolio_id}` endpoint.
 - [ ] Add `GET /api/diff/{ticker}` endpoint.
 - [ ] Add `POST /api/chat` SSE endpoint for citation-backed Q&A.
 - [ ] Add `GET /api/documents/{ticker}` endpoint for filing explorer.
-- [ ] Add `GET /api/benchmark/metrics` endpoint combining Gateway metrics and GPU info.
+- [ ] Add `GET /api/benchmark/metrics` endpoint exposing Gateway inference metrics and provider status.
 - [ ] Create `apps/demo-ui/requirements.txt` with `gradio`, `httpx`, and required plotting/data packages.
 - [ ] Create `apps/demo-ui/api_client.py` for authenticated calls to Agent API.
 - [ ] Build Gradio Portfolio Upload tab.
@@ -184,8 +184,8 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 - [ ] Build Gradio Risk Scores tab with score table and color coding.
 - [ ] Build Gradio Analyst Memo tab with markdown rendering and citation cards.
 - [ ] Build Gradio Chat tab with SSE streaming.
-- [ ] Build Gradio AMD Benchmark tab with tokens/sec, latency, GPU memory, and cost proxy.
-- [ ] Add HuggingFace Space README frontmatter and AMD hardware story to `apps/demo-ui/README.md`.
+- [ ] Build Gradio Inference Metrics tab with tokens/sec, latency, provider, and cost proxy.
+- [ ] Add HuggingFace Space README frontmatter and NVIDIA NIM inference story to `apps/demo-ui/README.md`.
 - [ ] Deploy Gradio app to HuggingFace Spaces and configure `AGENT_API_URL` and `AGENT_API_KEY` secrets.
 
 ## Collaboration Tasks
@@ -202,7 +202,7 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 - [ ] Run full graph smoke test: portfolio_context_planner → filing_retrieval → disclosure_change → analyst_memo.
 - [ ] Verify full analysis returns `risk_scores`, `memo`, `disclosure_changes`, and `citation_pass_rate`.
 - [ ] Verify unsupported memo citations are removed during post-processing.
-- [ ] Verify every Gradio tab works against the deployed AMD VM.
+- [ ] Verify every Gradio tab works against the deployed backend.
 - [ ] Verify Chat tab streams tokens and renders citation cards after completion.
 - [ ] Verify Benchmark tab shows real measured metrics, not placeholders.
 - [ ] Polish UI loading states, error states, and demo copy before final rehearsal.
@@ -217,8 +217,8 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 - [ ] **Prompt review:** Sunil and Kishan review planner, diff classifier, and memo prompts for structured output, citation discipline, and compliance.
 - [ ] **Compliance review:** All engineers verify no endpoint or UI text produces buy/sell/hold/short recommendations.
 - [ ] **Demo corpus review:** All engineers manually inspect AMD/NVDA/MSFT/JPM/TSLA ingestion quality and remove problematic documents if needed.
-- [ ] **Benchmark review:** All engineers agree on final benchmark numbers and confirm they were measured on AMD Developer Cloud.
-- [ ] **Build-in-public posts:** All engineers provide screenshots, numbers, and technical notes for three posts tagged `#AMDDevHackathon`, `#HuggingFace`, `#LangGraph`, and `#vLLM`.
+- [ ] **Benchmark review:** All engineers agree on final benchmark numbers and confirm they came from Gateway/NIM metrics.
+- [ ] **Build-in-public posts:** All engineers provide screenshots, numbers, and technical notes for three posts tagged `#AMDDevHackathon`, `#HuggingFace`, `#LangGraph`, and `#NVIDIA`.
 
 ---
 
@@ -232,12 +232,12 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 - [ ] Confirm the analyst memo has citations, evidence table, limitations, confidence, and hardcoded disclaimer.
 - [ ] Confirm risk scores include score, delta, confidence, drivers, citations, and portfolio impact.
 - [ ] Confirm HuggingFace Space is public and loads from a clean browser session.
-- [ ] Confirm AMD VM backend is reachable from HuggingFace Spaces over HTTPS.
+- [ ] Confirm backend is reachable from HuggingFace Spaces over HTTPS.
 - [ ] Confirm only Agent API is externally reachable; internal model ports remain private.
 - [ ] Record 3-5 minute demo video following `docs/demo-plan.md`.
 - [ ] Do final rehearsal using the 9-step demo script.
 - [ ] Publish three build-in-public posts.
-- [ ] Complete lablab.ai final submission with Space URL, GitHub URL, demo video, architecture explanation, AMD GPU usage, and HuggingFace model usage.
+- [ ] Complete lablab.ai final submission with Space URL, GitHub URL, demo video, architecture explanation, NVIDIA NIM inference usage, and HuggingFace integration.
 
 ---
 

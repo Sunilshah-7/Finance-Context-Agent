@@ -11,6 +11,7 @@ class BackendRoute:
     model_name: str
     upstream_base_url: str
     upstream_path: str
+    upstream_model_name: str | None = None
 
     @property
     def url(self) -> str:

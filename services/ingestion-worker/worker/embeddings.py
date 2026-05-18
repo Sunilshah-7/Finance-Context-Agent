@@ -1,8 +1,8 @@
 """Embedding client for the Inference Gateway.
 
-Ingestion never calls TEI directly. This client batches text and sends
+Ingestion never calls the embedding backend directly. This client batches text and sends
 OpenAI-style ``/v1/embeddings`` requests to the Gateway, then validates that
-BGE-large vectors have the expected 1024 dimensions before Qdrant upsert.
+embedding vectors have the expected 1024 dimensions before Qdrant upsert.
 """
 
 from __future__ import annotations
