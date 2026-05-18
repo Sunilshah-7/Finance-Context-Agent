@@ -46,8 +46,9 @@ docker --version  # verify
 ### 4. Configure Environment
 
 ```bash
-cd fincontext-agent
-cp configs/.env.example configs/.env
+# From repo root: copy env template into the compose directory
+cd infra/amd-gpu
+cp ../../configs/.env.example .env
 # Edit .env:
 # - Set HF_TOKEN to your HuggingFace access token
 # - Set VLLM_MODEL_ID to Qwen/Qwen2.5-72B-Instruct
@@ -76,20 +77,11 @@ curl http://localhost:6333/healthz   # Qdrant
 ### 6. Initialize Database and Collection
 
 ```bash
-cd fincontext-agent
+# From repo root
 sqlite3 fincontext.db < infra/schema.sql
 
 # Create Qdrant collection
-python -c "
-from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams
-c = QdrantClient('http://localhost:6333')
-c.create_collection('fincontext_chunks', vectors_config=VectorParams(size=1024, distance=Distance.COSINE))
-c.create_payload_index('fincontext_chunks', 'ticker', 'keyword')
-c.create_payload_index('fincontext_chunks', 'filing_type', 'keyword')
-c.create_payload_index('fincontext_chunks', 'filed_at', 'keyword')
-print('Collection created')
-"
+python3 infra/qdrant/init_collection.py
 ```
 
 ### 7. Run Pre-Ingestion
@@ -216,7 +208,6 @@ The Space's `README.md` is shown on the Space page. It must explain the AMD hard
 ```markdown
 ---
 title: FinContext Agent
-emoji: 📊
 colorFrom: blue
 colorTo: indigo
 sdk: gradio

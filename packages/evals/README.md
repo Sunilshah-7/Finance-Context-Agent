@@ -19,8 +19,11 @@ python eval_retrieval.py --db-path ../../fincontext.db --qdrant-url http://local
 # Mean reciprocal rank: 0.74
 ```
 
-Fixtures: `fixtures/labeled_queries.json` — 20 queries with known relevant chunk IDs.
-Build this fixture by manually searching EDGAR and labeling relevant paragraphs.
+Fixtures: `fixtures/labeled_queries.json` — 20 planned retrieval queries for
+the demo corpus. Before real ingestion, `expected_chunk_ids` is intentionally
+empty and `label_status` is `planned_pending_ingestion`. After AMD/NVDA/MSFT/JPM/TSLA
+are ingested, fill in chunk IDs or citation anchors by manually reviewing the
+retrieved evidence.
 
 ### 2. Citation Precision (`eval_citations.py`)
 
@@ -50,7 +53,10 @@ python eval_diff.py --db-path ../../fincontext.db
 # Accuracy: 9/10
 ```
 
-Fixtures: `fixtures/known_changes.json` — 10 manually verified disclosure changes with expected classifications.
+Fixtures: `fixtures/known_changes.json` — 10 planned disclosure-change targets
+with expected classifications. Before real ingestion, citation anchors are
+`null` and `label_status` is `planned_pending_ingestion`. After the demo corpus
+is loaded, replace the null anchors with manually verified old/new citations.
 
 ### 4. Latency Benchmark (`eval_latency.py`)
 
@@ -91,11 +97,20 @@ python eval_risk_stability.py --portfolio-id p_demo --runs 5
 
 ```
 fixtures/
-  labeled_queries.json   # [{query, expected_chunk_ids}] — for retrieval recall
-  known_changes.json     # [{ticker, section, year_a, year_b, expected_change_type}] — for diff eval
+  labeled_queries.json   # planned retrieval queries, filters, and evidence hints
+  known_changes.json     # planned disclosure-change targets and expected classes
 ```
 
-Build fixtures manually using the pre-ingested data and actual EDGAR filings as ground truth.
+The current fixtures are scaffolding for Kishan's retrieval/reranker work and
+for later manual labeling. They do not require live Qdrant, live Gateway, or a
+loaded demo database. Treat them as query/evidence targets until the real
+ingestion smoke run produces stable chunk IDs and citation anchors.
+
+Validate fixture shape without live services:
+
+```bash
+python -m pytest packages/evals/tests -x
+```
 
 ## Running All Evals
 

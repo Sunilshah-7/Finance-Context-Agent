@@ -71,7 +71,6 @@ The `README.md` in this directory is used by HuggingFace as the Space descriptio
 ```yaml
 ---
 title: FinContext Agent
-emoji: 📊
 colorFrom: blue
 colorTo: indigo
 sdk: gradio

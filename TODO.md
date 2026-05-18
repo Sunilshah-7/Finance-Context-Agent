@@ -22,7 +22,7 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 
 ## Shared Rules
 
-- [ ] Work on feature branches; never commit directly to `main`.
+- [x] Work on feature branches; never commit directly to `main` or `dev`. All PRs target `dev`.
 - [ ] Do not commit `.env`, `fincontext.db`, Qdrant storage, model cache, or secrets.
 - [ ] Use Python 3.12 and Pydantic models from `packages/schemas/python/`.
 - [ ] Every service-to-service model call must go through the Inference Gateway on port `8080`.
@@ -37,19 +37,19 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 
 ## Atomic Tasks
 
-- [ ] Create or verify `.gitignore` includes `.env`, `fincontext.db`, `fincontext_demo.db`, `/models/`, `qdrant_storage/`, `__pycache__/`, `.venv/`, and `*.pyc`.
-- [ ] Create `configs/.env.example` for the current architecture with `AMD_VM_PUBLIC_IP`, `AGENT_API_KEY`, `VLLM_REASONER_URL`, `VLLM_PLANNER_URL`, `EMBEDDING_URL`, `RERANKER_URL`, `INFERENCE_GATEWAY_URL`, `QDRANT_URL`, `QDRANT_COLLECTION`, `SQLITE_DB_PATH`, `HF_TOKEN`, `HF_HOME`, `SEC_USER_AGENT`, `ENVIRONMENT`, and `LOG_LEVEL`.
-- [ ] Create `infra/schema.sql` for SQLite tables: `portfolios`, `holdings`, `documents`, `chunks`, `chunks_fts`, `analysis_jobs`, and `findings`.
-- [ ] Add FTS5 triggers in `infra/schema.sql` so inserts into `chunks` populate `chunks_fts`.
-- [ ] Create `infra/amd-gpu/docker-compose.yml` with services for `vllm-72b`, `vllm-14b`, `tei-embedding`, `tei-reranker`, and `qdrant`.
-- [ ] Add Qdrant collection initialization script for `fincontext_chunks` with 1024 dimensions and payload indexes for `ticker`, `filing_type`, `filed_at`, and `section`.
+- [x] Create or verify `.gitignore` includes `.env`, `fincontext.db`, `fincontext_demo.db`, `/models/`, `qdrant_storage/`, `__pycache__/`, `.venv/`, and `*.pyc`.
+- [x] Create `configs/.env.example` for the current architecture with `AMD_VM_PUBLIC_IP`, `AGENT_API_KEY`, `VLLM_REASONER_URL`, `VLLM_PLANNER_URL`, `EMBEDDING_URL`, `RERANKER_URL`, `INFERENCE_GATEWAY_URL`, `QDRANT_URL`, `QDRANT_COLLECTION`, `SQLITE_DB_PATH`, `HF_TOKEN`, `HF_HOME`, `SEC_USER_AGENT`, `ENVIRONMENT`, and `LOG_LEVEL`.
+- [x] Create `infra/schema.sql` for SQLite tables: `portfolios`, `holdings`, `documents`, `chunks`, `chunks_fts`, `analysis_jobs`, and `findings`.
+- [x] Add FTS5 triggers in `infra/schema.sql` so inserts into `chunks` populate `chunks_fts`.
+- [x] Create `infra/amd-gpu/docker-compose.yml` with services for `vllm-72b`, `vllm-14b`, `tei-embedding`, `tei-reranker`, and `qdrant`.
+- [x] Add Qdrant collection initialization script for `fincontext_chunks` with 1024 dimensions and payload indexes for `ticker`, `filing_type`, `filed_at`, and `section`.
 - [ ] Provision AMD Developer Cloud VM with AMD Instinct GPU, Ubuntu, ROCm, Docker, and enough disk for models and Qdrant data.
 - [ ] Verify AMD GPU visibility with `rocm-smi`.
 - [ ] Start GPU/storage services with Docker Compose and verify health for ports `8000`, `8001`, `8002`, `8003`, and `6333`.
-- [ ] Create `packages/schemas/python/state.py` with `AnalysisState`, `Holding`, `RetrievalPlan`, `EvidenceChunk`, `DisclosureChange`, `RiskScore`, `Citation`, and `AnalystMemo`.
-- [ ] Create `packages/schemas/python/db.py` for SQLite row models.
-- [ ] Create `packages/schemas/python/api.py` for FastAPI request/response models from `docs/api-contracts.md`.
-- [ ] Add `packages/schemas` packaging files so services can install it with `pip install -e ../../packages/schemas`.
+- [x] Create `packages/schemas/python/state.py` with `AnalysisState`, `Holding`, `RetrievalPlan`, `EvidenceChunk`, `DisclosureChange`, `RiskScore`, `Citation`, and `AnalystMemo`.
+- [x] Create `packages/schemas/python/db.py` for SQLite row models.
+- [x] Create `packages/schemas/python/api.py` for FastAPI request/response models from `docs/api-contracts.md`.
+- [x] Add `packages/schemas` packaging files so services can install it with `pip install -e ../../packages/schemas`.
 - [ ] Create `services/agent-api/main.py` with FastAPI app and `GET /health`.
 - [ ] Implement Agent API bearer-token authentication using `AGENT_API_KEY`.
 - [ ] Implement `POST /api/portfolio/upload` to parse CSV, validate required columns, resolve basic portfolio totals, and write portfolio/holdings rows.
@@ -59,7 +59,7 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 - [ ] Add basic Agent API tests for health, portfolio upload validation, job creation, and job status.
 - [ ] Configure firewall/reverse proxy so only Agent API port `8090` is externally reachable.
 - [ ] Set up HTTPS for Agent API with nginx or a tested tunnel fallback.
-- [ ] Create Qdrant snapshot and SQLite backup commands in an ops note or script.
+- [x] Create Qdrant snapshot and SQLite backup commands in an ops note or script.
 - [ ] Update root README with final architecture, setup commands, demo URL placeholder, and submission instructions.
 
 ## Collaboration Tasks
@@ -87,27 +87,33 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 
 ## Atomic Tasks
 
-- [ ] Create `services/ingestion-worker/requirements.txt` with `httpx`, `beautifulsoup4`, `lxml`, `tiktoken`, `qdrant-client`, `pydantic`, and `pytest`.
-- [ ] Implement `worker/models.py` for `FilingRef`, `NormalizedDocument`, `NormalizedSection`, `ChunkInput`, and `ChunkWithEmbedding`.
-- [ ] Implement `worker/sec_client.py` with async EDGAR client, required `SEC_USER_AGENT`, ticker-to-CIK cache, submissions fetch, filing filtering, and document download.
-- [ ] Add SEC rate limiter capped at 10 requests per second with polite delay for document downloads.
-- [ ] Add local EDGAR HTML cache to avoid repeated downloads during development.
-- [ ] Write `test_sec_client.py` verifying AMD resolves to CIK `0000002488`.
-- [ ] Implement `worker/parsers/sec_html.py` using BeautifulSoup/lxml to extract `Item 1`, `Item 1A`, `Item 7`, `Item 7A`, and `Item 8`.
-- [ ] Normalize EDGAR HTML by removing XBRL tags, table-of-contents noise, headers, and repeated whitespace.
-- [ ] Add parser fixture for a saved AMD 10-K HTML file.
-- [ ] Write parser test verifying AMD `Item 1A` extracts at least 1000 words.
-- [ ] Implement `worker/chunking.py` with paragraph-aware 600-1000 token chunks, 100-token overlap, max 1200 tokens, and min 200 tokens.
-- [ ] Ensure tables become standalone chunks and are not split.
-- [ ] Generate stable `citation_anchor`, `chunk_index`, `token_count`, `text_hash`, and `is_table` fields.
-- [ ] Write chunking tests for size bounds, overlap, table handling, and citation format.
-- [ ] Implement `worker/embeddings.py` to call Inference Gateway `/v1/embeddings` in batches up to 256 texts.
-- [ ] Add retries with exponential backoff for embedding failures.
-- [ ] Write embedding shape test expecting 1024-dimensional vectors.
-- [ ] Implement `worker/db.py` to upsert documents and chunks into SQLite.
-- [ ] Implement `worker/vector_store.py` to upsert chunk vectors and payload metadata into Qdrant.
-- [ ] Add duplicate skip logic using `text_hash`.
-- [ ] Implement `ingest.py` CLI with arguments for tickers, filing types, years, DB path, Qdrant URL, and Gateway URL.
+- [x] Create `services/ingestion-worker/requirements.txt` with `httpx`, `beautifulsoup4`, `lxml`, `tiktoken`, `qdrant-client`, `pydantic`, and `pytest`.
+- [x] Implement `worker/models.py` for `FilingRef`, `NormalizedDocument`, `NormalizedSection`, `ChunkInput`, and `ChunkWithEmbedding`.
+- [x] Implement `worker/sec_client.py` with async EDGAR client, required `SEC_USER_AGENT`, ticker-to-CIK cache, submissions fetch, filing filtering, and document download.
+- [x] Add SEC rate limiter capped at 10 requests per second with polite delay for document downloads.
+- [x] Add local EDGAR HTML cache to avoid repeated downloads during development.
+- [x] Write `test_sec_client.py` verifying AMD resolves to CIK `0000002488`.
+- [x] Implement `worker/parsers/sec_html.py` using BeautifulSoup/lxml to extract `Item 1`, `Item 1A`, `Item 7`, `Item 7A`, and `Item 8`.
+- [x] Normalize EDGAR HTML by removing XBRL tags, table-of-contents noise, headers, and repeated whitespace.
+- [x] Add SEC-like AMD 10-K parser fixture that exercises realistic `Item 1A` structure without committing a full filing.
+- [x] Write parser test verifying AMD `Item 1A` extracts at least 1000 words.
+- [x] Implement `worker/chunking.py` with paragraph-aware 600-1000 token chunks, 100-token overlap, max 1200 tokens, and min 200 tokens.
+- [x] Ensure tables become standalone chunks and are not split.
+- [x] Generate stable `citation_anchor`, `chunk_index`, `token_count`, `text_hash`, and `is_table` fields.
+- [x] Write chunking tests for size bounds, overlap, table handling, and citation format.
+- [x] Implement `worker/embeddings.py` to call Inference Gateway `/v1/embeddings` in batches up to 256 texts.
+- [x] Add retries with exponential backoff for embedding failures.
+- [x] Write embedding shape test expecting 1024-dimensional vectors.
+- [x] Implement `worker/db.py` to upsert documents and chunks into SQLite.
+- [x] Implement `worker/vector_store.py` to upsert chunk vectors and payload metadata into Qdrant.
+- [x] Add duplicate skip logic using `text_hash`.
+- [x] Implement `ingest.py` CLI with arguments for tickers, filing types, years, DB path, Qdrant URL, and Gateway URL.
+- [x] Add SQLite FTS validation helper for checking searchable chunk rows.
+- [x] Add Qdrant point-count validation helper for comparing indexed vectors with SQLite chunks.
+- [x] Add citation anchor inspection helper for paragraph/table anchor format checks.
+- [x] Add ingested document summary helper for ticker, filing type, filed date, parsed sections, and chunk counts.
+- [x] Add AMD one-filing smoke runbook for post-Gateway/Qdrant validation.
+- [x] Add validation CLI for SQLite FTS, Qdrant count, citation anchor, and document summary checks.
 - [ ] Run single-ticker ingestion for AMD 10-K one-year test.
 - [ ] Run full demo ingestion for AMD, NVDA, MSFT, JPM, and TSLA with 10-K and latest 10-Q filings.
 - [ ] Verify SQLite `chunks` count matches `chunks_fts` count.
@@ -115,8 +121,8 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 - [ ] Create Qdrant snapshot after successful full ingestion.
 - [ ] Create `fincontext_demo.db` backup after successful full ingestion.
 - [ ] Manually inspect 20 random citation anchors and source URLs for correctness.
-- [ ] Build `packages/evals/fixtures/labeled_queries.json` with at least 20 query-to-relevant-citation labels.
-- [ ] Build `packages/evals/fixtures/known_changes.json` with at least 10 known disclosure changes.
+- [x] Build `packages/evals/fixtures/labeled_queries.json` with at least 20 query-to-relevant-citation labels.
+- [x] Build `packages/evals/fixtures/known_changes.json` with at least 10 known disclosure changes.
 
 ## Collaboration Tasks
 
@@ -205,8 +211,8 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 
 # Cross-Team Collaboration Tasks
 
-- [ ] **Architecture lock:** Sunil, Abhiyan, and Kishan confirm no separate edge/API platform or JavaScript frontend work will be started.
-- [ ] **Schema lock:** Sunil, Abhiyan, and Kishan review `AnalysisState`, API schemas, SQLite schema, and Qdrant payload schema before service implementation.
+- [x] **Architecture lock:** Sunil, Abhiyan, and Kishan confirm no separate edge/API platform or JavaScript frontend work will be started.
+- [x] **Schema lock:** `AnalysisState`, API schemas, SQLite schema, and Qdrant payload schema all finalized and merged to `dev` in `packages/schemas/python/`.
 - [ ] **Data contract review:** Abhiyan and Kishan validate that ingestion outputs are sufficient for retrieval, diff classification, memo generation, and citation cards.
 - [ ] **Prompt review:** Sunil and Kishan review planner, diff classifier, and memo prompts for structured output, citation discipline, and compliance.
 - [ ] **Compliance review:** All engineers verify no endpoint or UI text produces buy/sell/hold/short recommendations.

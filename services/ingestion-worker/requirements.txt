@@ -1,0 +1,8 @@
+-e ../../packages/schemas
+httpx
+beautifulsoup4
+lxml
+tiktoken
+qdrant-client
+pydantic
+pytest
