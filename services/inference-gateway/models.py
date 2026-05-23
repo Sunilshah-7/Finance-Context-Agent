@@ -11,6 +11,7 @@ class BackendRoute:
     model_name: str
     upstream_base_url: str
     upstream_path: str
+    upstream_model_name: str | None = None  # if set, overrides "model" in the upstream payload (e.g. NIM model IDs)
 
     @property
     def url(self) -> str:

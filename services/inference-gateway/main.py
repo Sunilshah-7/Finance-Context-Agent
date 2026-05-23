@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -50,6 +51,20 @@ def _usage_metrics(payload: dict[str, Any]) -> tuple[int | None, int | None]:
     return usage.get("prompt_tokens"), usage.get("completion_tokens")
 
 
+def _upstream_headers(request: Request, route_model: str | None = None) -> dict[str, str]:
+    """Build headers for an upstream request.
+
+    Always includes x-request-id for tracing. When NIM_API_KEY is set and the
+    route is a chat model, injects the Bearer token so NIM accepts the request.
+    """
+    headers: dict[str, str] = {"x-request-id": request.state.request_id}
+    if route_model in {"fincontext-reasoner", "fincontext-planner"}:
+        nim_api_key = os.getenv("NIM_API_KEY", "")
+        if nim_api_key:
+            headers["Authorization"] = f"Bearer {nim_api_key}"
+    return headers
+
+
 async def _proxy_json(
     request: Request,
     route_url: str,
@@ -58,7 +73,7 @@ async def _proxy_json(
     metric_model: str,
 ) -> JSONResponse:
     try:
-        response = await request.app.state.http.post(route_url, json=payload, headers={"x-request-id": request.state.request_id})
+        response = await request.app.state.http.post(route_url, json=payload, headers=_upstream_headers(request, metric_model))
     except httpx.HTTPError as exc:
         logger.warning("upstream_request_failed", request_id=request.state.request_id, endpoint=endpoint, error=str(exc))
         return _error_response(request.state.request_id, "upstream_unavailable", str(exc), True, 502)
@@ -101,7 +116,7 @@ async def _stream_proxy(
             "POST",
             route_url,
             json=payload,
-            headers={"x-request-id": request.state.request_id},
+            headers=_upstream_headers(request, metric_model),
         ) as upstream:
             if upstream.status_code >= 400:
                 body = await upstream.aread()
@@ -139,21 +154,30 @@ async def _stream_proxy(
 async def health(request: Request) -> dict[str, Any]:
     checks: list[HealthCheckResult] = []
     services = {
-        "vllm_72b": CHAT_MODEL_ROUTES["fincontext-reasoner"].upstream_base_url,
-        "vllm_14b": CHAT_MODEL_ROUTES["fincontext-planner"].upstream_base_url,
+        "reasoner": CHAT_MODEL_ROUTES["fincontext-reasoner"].upstream_base_url,
+        "planner": CHAT_MODEL_ROUTES["fincontext-planner"].upstream_base_url,
         "embedding": embedding_route().upstream_base_url,
         "reranker": rerank_route().upstream_base_url,
     }
+    _nim_base = os.getenv("NIM_BASE_URL", "https://integrate.api.nvidia.com/v1")
     for name, base_url in services.items():
+        # NIM is a hosted service — there is no /health endpoint to ping.
+        # Treat it as ready if NIM_API_KEY is present, error otherwise.
+        if base_url.startswith(_nim_base) or "nvidia.com" in base_url:
+            nim_api_key = os.getenv("NIM_API_KEY", "")
+            svc_status = "ready" if nim_api_key else "error"
+            detail = None if nim_api_key else "NIM_API_KEY is not set"
+            checks.append(HealthCheckResult(name=name, status=svc_status, url=base_url, detail=detail))
+            continue
         url = f"{base_url.rstrip('/')}/health"
         try:
             response = await request.app.state.http.get(url)
-            status = "ready" if response.is_success else "error"
+            svc_status = "ready" if response.is_success else "error"
             detail = None if response.is_success else response.text[:200]
         except httpx.HTTPError as exc:
-            status = "error"
+            svc_status = "error"
             detail = str(exc)
-        checks.append(HealthCheckResult(name=name, status=status, url=url, detail=detail))
+        checks.append(HealthCheckResult(name=name, status=svc_status, url=url, detail=detail))
 
     overall = "ok" if all(check.status == "ready" for check in checks) else "degraded"
     return {
@@ -181,9 +205,15 @@ async def chat_completions(request: Request):
         detail["request_id"] = request.state.request_id
         return JSONResponse(status_code=exc.status_code, content={"error": detail})
 
+    # If the route specifies an upstream model name (e.g. NIM uses the full HF model ID
+    # while the agent uses the internal alias), translate it in the forwarded payload.
+    upstream_payload = dict(payload)
+    if route.upstream_model_name:
+        upstream_payload["model"] = route.upstream_model_name
+
     if payload.get("stream") is True:
-        return await _stream_proxy(request, route.url, payload, "/v1/chat/completions", model_name)
-    return await _proxy_json(request, route.url, payload, "/v1/chat/completions", model_name)
+        return await _stream_proxy(request, route.url, upstream_payload, "/v1/chat/completions", model_name)
+    return await _proxy_json(request, route.url, upstream_payload, "/v1/chat/completions", model_name)
 
 
 @app.post("/v1/embeddings")
