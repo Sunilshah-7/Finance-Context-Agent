@@ -25,7 +25,6 @@ The AMD hardware angle: AMD MI300X has 192 GB of HBM3 VRAM. A 70B-parameter mode
 | What NOT to build | Why |
 |---|---|
 | A separate edge/API platform | Adds cross-service wiring and auth for no MVP benefit |
-| A separate edge/API platform | Adds cross-service wiring and auth for no MVP benefit |
 | 9 LangGraph agents | Requires 50+ hours of implementation, we have 9 days |
 | Live demo ingestion | Never show a progress bar to judges, pre-load all data |
 | PDF parsing for MVP | EDGAR HTML is parseable and reliable; PDF is a trap |
@@ -102,7 +101,7 @@ FastAPI is used for both the Agent API and the Inference Gateway. It provides:
 The public demo UI is a Vite React app in `apps/demo-ui/` deployed to HuggingFace Static Spaces:
 - Satisfies the hackathon's HuggingFace integration requirement
 - Is publicly accessible for judges without a separate frontend server
-- Uses a polished analyst-console layout that is difficult to achieve in React
+- Uses a polished analyst-console layout suited to the React component model
 - Calls only the Agent API; it never calls SQLite, Qdrant, Gateway, vLLM, TEI, or EDGAR directly
 - Does not embed `AGENT_API_KEY` because static browser apps cannot keep secrets
 

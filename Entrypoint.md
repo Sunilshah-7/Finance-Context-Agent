@@ -8,13 +8,13 @@ FinContext Agent ingests SEC filings from EDGAR, detects material disclosure cha
 
 ```
 HuggingFace Spaces (demo UI)
-  └── Gradio app → calls Agent API over HTTPS
+  └── React Static Space → calls Agent API over HTTPS
 
 AMD Developer Cloud VM (all compute and storage)
   ├── Agent API (port 8090)      FastAPI + LangGraph, 4-node agent graph
-  ├── Inference Gateway (8080)   FastAPI proxy to model services
-  ├── vLLM reasoner (8000)       Qwen2.5-72B-Instruct, FP16, ROCm
-  ├── vLLM planner (8001)        Qwen2.5-14B-Instruct, FP16, ROCm
+  ├── Inference Gateway (8080)   FastAPI proxy — routes to local vLLM or NVIDIA NIM
+  ├── vLLM reasoner (8000)       Qwen2.5-72B-Instruct, FP16, ROCm  [local path]
+  ├── vLLM planner (8001)        Qwen2.5-14B-Instruct, FP16, ROCm  [local path]
   ├── Embeddings (8002)          BAAI/bge-large-en-v1.5, TEI
   ├── Reranker (8003)            BAAI/bge-reranker-large, TEI
   ├── Qdrant (6333)              Vector store, Docker
@@ -32,7 +32,7 @@ AMD MI300X has 192 GB of HBM3 VRAM. Qwen2.5-72B runs in FP16 on a single GPU wit
     ingestion-worker/  SEC EDGAR fetch, parse, chunk, embed → Qdrant + SQLite
     inference-gateway/ FastAPI proxy to vLLM, embedding, reranker services
   apps/
-    demo-ui/           Gradio demo app — deployed to HuggingFace Spaces
+    demo-ui/           Vite React app — deployed as HuggingFace Static Space
   packages/
     schemas/           Shared Pydantic models
     evals/             Retrieval recall, citation precision, latency benchmarks
