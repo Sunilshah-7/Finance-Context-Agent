@@ -41,6 +41,7 @@ jobs:
           python -m pip install -e packages/schemas
           (cd services/ingestion-worker && python -m pip install -r requirements.txt)
           python -m pip install -r services/inference-gateway/requirements.txt
+          (cd services/agent-api && python -m pip install -r requirements.txt)
 
       - name: Shared schema import smoke
         run: |
@@ -59,6 +60,9 @@ jobs:
 
       - name: Run inference gateway tests
         run: python -m pytest services/inference-gateway/tests -x
+
+      - name: Run agent API tests
+        run: python -m pytest services/agent-api/tests -x --ignore=services/agent-api/tests/integration
 
       - name: Run infra tests
         run: |
@@ -82,6 +86,7 @@ jobs:
             packages/schemas/python \
             services/ingestion-worker \
             services/inference-gateway \
+            services/agent-api \
             infra
 
   frontend-checks:

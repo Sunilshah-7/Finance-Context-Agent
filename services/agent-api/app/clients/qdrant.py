@@ -25,8 +25,6 @@ class QdrantSearchClient:
 
     async def health(self) -> dict[str, Any]:
         try:
-            
-
             client = AsyncQdrantClient(url=self.url)
             collections = await client.get_collections()
             await client.close()
