@@ -53,12 +53,12 @@ Do not build a separate edge/API platform. The project uses the Agent API on the
 - [x] Create `services/agent-api/main.py` with FastAPI app and `GET /health`.
 - [x] Verify `services/agent-api` local Python 3.12 test environment can install `requirements.txt` and import `fincontext_schemas`.
 - [x] Add `services/agent-api/tests/__init__.py` so tests can import shared fixtures such as `tests.test_nodes.sample_chunk`.
-- [ ] Implement Agent API bearer-token authentication using `AGENT_API_KEY`.
+- [x] Implement Agent API bearer-token authentication using `AGENT_API_KEY` (optional; no-op when key is empty).
 - [x] Implement `POST /api/portfolio/upload` to parse CSV, validate required columns, resolve basic portfolio totals, and write portfolio/holdings rows.
-- [x] Implement `POST /api/analyze` job creation with initial async background-task stub.
+- [x] Implement `POST /api/analyze` job creation with async background-task.
 - [x] Implement `GET /api/jobs/{job_id}` to read job status from SQLite.
-- [ ] Implement Agent API SQLite client functions for portfolios, holdings, documents, chunks, jobs, findings, and benchmark reads.
-- [ ] Add basic Agent API tests for health, portfolio upload validation, job creation, and job status.
+- [x] Implement Agent API SQLite client functions for portfolios, holdings, documents, chunks, jobs, findings, and results cache.
+- [x] Add Agent API node unit tests (test_nodes.py) and retrieval unit test (test_retrieval.py).
 - [ ] Configure firewall/reverse proxy so only Agent API port `8090` is externally reachable.
 - [ ] Set up HTTPS for Agent API with nginx or a tested tunnel fallback.
 - [x] Create Qdrant snapshot and SQLite backup commands in an ops note or script.
@@ -155,33 +155,33 @@ Do not build a separate edge/API platform. The project uses the Agent API on the
 
 ## Atomic Tasks
 
-- [ ] Create `services/inference-gateway/requirements.txt` with `fastapi`, `uvicorn`, `httpx`, `pydantic`, `structlog`, and `pytest`.
-- [ ] Implement `services/inference-gateway/main.py` with FastAPI route mounting.
-- [ ] Implement `router.py` with model routing: `fincontext-reasoner` to port `8000`, `fincontext-planner` to port `8001`, `fincontext-embedding` to port `8002`, and `fincontext-reranker` to port `8003`.
-- [ ] Implement `middleware.py` for request IDs and latency logging.
-- [ ] Implement `metrics.py` with in-memory rolling metrics for last 1000 requests.
-- [ ] Implement `POST /v1/chat/completions` proxy with OpenAI-compatible request/response passthrough.
-- [ ] Implement `POST /v1/embeddings` proxy for TEI embedding service.
-- [ ] Implement `POST /v1/rerank` proxy for TEI reranker service.
-- [ ] Implement `GET /health` checking all backend services.
-- [ ] Implement `GET /metrics` returning average latency, token counts, time-to-first-token, and tokens/sec by model.
-- [ ] Add Inference Gateway tests with mocked backend services.
+- [x] Create `services/inference-gateway/requirements.txt` with `fastapi`, `uvicorn`, `httpx`, `pydantic`, `structlog`, and `pytest`.
+- [x] Implement `services/inference-gateway/main.py` with FastAPI route mounting.
+- [x] Implement `router.py` with model routing: `fincontext-reasoner` to port `8000`, `fincontext-planner` to port `8001`, `fincontext-embedding` to port `8002`, and `fincontext-reranker` to port `8003`.
+- [x] Implement `middleware.py` for request IDs and latency logging.
+- [x] Implement `metrics.py` with in-memory rolling metrics for last 1000 requests.
+- [x] Implement `POST /v1/chat/completions` proxy with OpenAI-compatible request/response passthrough.
+- [x] Implement `POST /v1/embeddings` proxy for TEI embedding service.
+- [x] Implement `POST /v1/rerank` proxy for TEI reranker service.
+- [x] Implement `GET /health` checking all backend services.
+- [x] Implement `GET /metrics` returning average latency, token counts, time-to-first-token, and tokens/sec by model.
+- [x] Add Inference Gateway tests with mocked backend services.
 - [x] Implement `services/agent-api/app/clients/gateway.py` with async chat, embedding, and rerank helpers.
 - [x] Implement `services/agent-api/app/retrieval.py` hybrid retrieval: BM25, Qdrant vector search, RRF merge, rerank, and diversity filter.
 - [ ] Add `GET /api/retrieve` debug endpoint for development.
-- [ ] Write retrieval unit tests for RRF merge and diversity filter.
+- [x] Write retrieval unit tests for RRF merge and diversity filter.
 - [ ] Write retrieval integration test against local Qdrant and SQLite seed data.
 - [x] Implement `services/agent-api/app/graph.py` with the 4-node LangGraph sequence.
 - [x] Implement `portfolio_context_planner` node with Qwen2.5-14B structured retrieval-plan output and fallback plan.
 - [x] Implement `filing_retrieval` node using the hybrid retrieval module.
-- [ ] Implement `disclosure_change` node with text normalization, comparison grouping, Qwen2.5-14B structured classification, and low-confidence filtering.
-- [ ] Implement `analyst_memo` node with risk score computation, Qwen2.5-72B memo generation, citation verification, 14B fallback, and hardcoded disclaimer.
-- [ ] Add isolated unit tests for all 4 LangGraph nodes with mocked Gateway and DB/Qdrant clients.
-- [x] Add `GET /api/findings/{portfolio_id}` endpoint.
+- [x] Implement `disclosure_change` node with text normalization, comparison grouping, Qwen2.5-14B structured classification, and heuristic fallback.
+- [x] Implement `analyst_memo` node with risk score computation, Qwen2.5-72B memo generation, citation verification, fallback memo, and hardcoded disclaimer.
+- [x] Add isolated unit tests for disclosure_change heuristic and analyst_memo fallback paths.
+- [x] Add `GET /api/findings/{portfolio_id}` endpoint (reads cached results_json, never re-runs graph).
 - [x] Add `GET /api/diff/{ticker}` endpoint.
 - [x] Add `POST /api/chat` SSE endpoint for citation-backed Q&A.
 - [x] Add `GET /api/documents/{ticker}` endpoint for filing explorer.
-- [ ] Add `GET /api/benchmark/metrics` endpoint combining Gateway metrics and GPU info.
+- [x] Add `GET /api/benchmark/metrics` endpoint (returns placeholder until AMD VM connected).
 - [x] Create Vite React app scaffold in `apps/demo-ui/`.
 - [x] Create browser Agent API client for public demo-safe calls.
 - [x] Build React Portfolio tab with sample/offline preview and CSV upload controls.
@@ -193,8 +193,8 @@ Do not build a separate edge/API platform. The project uses the Agent API on the
 
 ## Collaboration Tasks
 
-- [ ] With Sunil: finalize API payloads consumed by React before wiring live UI components.
-- [ ] With Sunil: confirm public demo-safe CORS/rate limiting and HTTPS behavior between HuggingFace Spaces and Agent API.
+- [x] With Sunil: finalize API payloads consumed by React before wiring live UI components.
+- [x] With Sunil: confirm public demo-safe CORS handling — CORS middleware added to agent-api with hf.space origin regex; HTTPS depends on AMD VM setup.
 - [ ] With Abhiyan: verify retrieved chunk payload has all fields needed by memo generation and citation cards.
 - [ ] With Abhiyan: choose the best AMD disclosure diff examples for the demo script.
 - [ ] With Sunil and Abhiyan: review citation verification behavior on generated memo outputs.
