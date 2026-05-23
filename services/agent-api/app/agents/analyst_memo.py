@@ -27,10 +27,7 @@ from app.agents.disclosure_change import citation_for
 from app.clients.gateway import InferenceGatewayClient
 
 
-DISCLAIMER = (
-    "This memo is for investment research support only. It is not investment, legal, "
-    "tax, or accounting advice and does not recommend buying, selling, or holding any security."
-)
+DISCLAIMER = "This output is research assistance only and does not constitute investment advice."
 
 
 def compute_risk_scores(state: AnalysisState) -> list[RiskScore]:

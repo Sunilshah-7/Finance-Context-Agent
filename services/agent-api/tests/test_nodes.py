@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from fincontext_schemas import AnalysisState, EvidenceChunk
 
-from app.agents.analyst_memo import analyst_memo
+from app.agents.analyst_memo import DISCLAIMER, analyst_memo
 from app.agents.disclosure_change import disclosure_change
 
 pytestmark = __import__("pytest").mark.asyncio
@@ -54,3 +54,5 @@ async def test_analyst_memo_fallback() -> None:
     result = await analyst_memo(state)
     assert result.memo is not None
     assert result.citation_pass_rate is not None
+    assert result.memo.disclaimer == DISCLAIMER
+    assert DISCLAIMER == "This output is research assistance only and does not constitute investment advice."
