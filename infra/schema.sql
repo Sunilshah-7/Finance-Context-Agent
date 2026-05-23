@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS analysis_jobs (
     citation_pass_rate REAL,
     findings_count INTEGER,
     error TEXT,
+    results_json TEXT,         -- serialized AnalysisState JSON after completion (avoids re-running graph)
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     started_at TEXT,
     completed_at TEXT,

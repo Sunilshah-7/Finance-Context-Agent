@@ -223,3 +223,22 @@ class SQLiteClient:
                 (portfolio_id,),
             ).fetchone()
         return dict(row) if row else None
+
+    def store_results(self, job_id: str, results_json: str) -> None:
+        """Persist serialized AnalysisState JSON so findings can be read back without re-running the graph."""
+        with self._connect() as conn:
+            conn.execute(
+                "UPDATE analysis_jobs SET results_json = ? WHERE id = ?",
+                (results_json, job_id),
+            )
+
+    def load_results(self, job_id: str) -> str | None:
+        """Return the stored results_json for a job, or None if not yet cached."""
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT results_json FROM analysis_jobs WHERE id = ?",
+                (job_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return row["results_json"]

@@ -16,6 +16,9 @@ The API uses `SQLiteClient` for metadata and job storage, `InferenceGatewayClien
 to reach model services, `QdrantSearchClient` for vector retrieval, and the
 `analyze` graph to run the 4-node pipeline (planning, retrieval, diff,
 memo generation).
+
+Analysis results are stored in `analysis_jobs.results_json` after completion so
+that `GET /api/findings` can read cached state instead of re-running the graph.
 """
 
 from __future__ import annotations
@@ -23,11 +26,14 @@ from __future__ import annotations
 import asyncio
 import csv
 import io
+import os
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from fincontext_schemas import (
     AnalysisState,
@@ -65,6 +71,43 @@ from app.graph import analyze
 
 app = FastAPI(title="FinContext Agent API", version="0.1.0")
 
+# ---------------------------------------------------------------------------
+# CORS — required for HuggingFace Static Space (browser) to reach this API
+# ---------------------------------------------------------------------------
+_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CORS_ORIGINS", "https://*.hf.space,http://localhost:5173").split(",")
+    if origin.strip()
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_ALLOWED_ORIGINS,
+    allow_origin_regex=r"https://.*\.hf\.space",
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "Content-Type"],
+)
+
+# ---------------------------------------------------------------------------
+# Optional bearer-token auth via AGENT_API_KEY env var
+# ---------------------------------------------------------------------------
+_bearer = HTTPBearer(auto_error=False)
+_AGENT_API_KEY = os.getenv("AGENT_API_KEY", "")
+
+
+def require_auth(
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
+) -> None:
+    """Validate bearer token when AGENT_API_KEY is set. No-op when key is empty."""
+    if not _AGENT_API_KEY:
+        return
+    if credentials is None or credentials.credentials != _AGENT_API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid or missing API key.")
+
+
+# ---------------------------------------------------------------------------
+# CSV parsing helper
+# ---------------------------------------------------------------------------
 
 def parse_portfolio_csv(content: bytes) -> list[dict[str, Any]]:
     text = content.decode("utf-8-sig")
@@ -83,6 +126,75 @@ def parse_portfolio_csv(content: bytes) -> list[dict[str, Any]]:
     return rows
 
 
+# ---------------------------------------------------------------------------
+# Findings response builder (shared between run_job and get_findings)
+# ---------------------------------------------------------------------------
+
+def _build_findings_response(portfolio_id: str, job_id: str, analyzed_at: str, state: AnalysisState) -> FindingsResponse:
+    """Build a FindingsResponse from a completed AnalysisState."""
+    memo = state.memo
+    if memo is None:
+        raise HTTPException(status_code=404, detail="Analysis completed but no memo was generated.")
+
+    risk_scores = [
+        FindingsRiskScore(
+            ticker=score.ticker,
+            overall_score=score.score,
+            score_delta=score.delta,
+            confidence=score.confidence,
+            drivers=[
+                RiskDriver(
+                    category="disclosure_change",
+                    score=score.score,
+                    summary=driver,
+                    citation=score.citations[0].citation_anchor if score.citations else "",
+                )
+                for driver in score.top_drivers
+            ],
+            portfolio_impact=PortfolioImpact(
+                holding_weight=next(
+                    (h.weight for h in state.holdings if h.ticker == score.ticker), 0.0
+                ),
+                sector_weight=next(
+                    (h.weight for h in state.holdings if h.ticker == score.ticker), 0.0
+                ),
+                exposure_level=score.portfolio_impact,
+            ),
+        )
+        for score in state.risk_scores
+    ]
+
+    memo_response = FindingsMemo(
+        executive_summary=memo.executive_summary,
+        portfolio_exposure_affected=[
+            PortfolioExposure(
+                ticker=h.ticker,
+                weight=h.weight,
+                exposure_level="high" if h.weight >= 0.2 else "medium" if h.weight >= 0.1 else "low",
+            )
+            for h in state.holdings
+        ],
+        top_disclosure_changes=[],
+        evidence_table=[],
+        watchlist_questions=memo.watchlist_questions,
+        limitations=memo.limitations,
+        confidence=memo.citation_pass_rate,
+        disclaimer=memo.disclaimer,
+    )
+
+    return FindingsResponse(
+        portfolio_id=portfolio_id,
+        job_id=job_id,
+        analyzed_at=analyzed_at,
+        risk_scores=risk_scores,
+        memo=memo_response,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Background job runner — stores results_json so findings never re-run graph
+# ---------------------------------------------------------------------------
+
 async def run_job(job_id: str, request: AnalyzeRequest) -> None:
     db = SQLiteClient()
     try:
@@ -100,6 +212,10 @@ async def run_job(job_id: str, request: AnalyzeRequest) -> None:
             question=request.question,
         )
         result = await analyze(state)
+        completed_at = utc_now()
+        # Persist the full analysis state so GET /api/findings reads from DB, not graph.
+        results_json = result.model_dump_json()
+        await asyncio.to_thread(db.store_results, job_id, results_json)
         await asyncio.to_thread(
             db.update_job,
             job_id,
@@ -109,7 +225,7 @@ async def run_job(job_id: str, request: AnalyzeRequest) -> None:
             citation_pass_rate=result.citation_pass_rate,
             findings_count=len(result.disclosure_changes),
             error=result.error,
-            completed_at=utc_now(),
+            completed_at=completed_at,
         )
     except Exception as exc:  # noqa: BLE001 - background jobs must persist failures
         await asyncio.to_thread(
@@ -122,6 +238,10 @@ async def run_job(job_id: str, request: AnalyzeRequest) -> None:
             completed_at=utc_now(),
         )
 
+
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
 
 @app.get("/health")
 async def health() -> dict[str, Any]:
@@ -136,9 +256,14 @@ async def health() -> dict[str, Any]:
 
 
 @app.post("/api/portfolio/upload", response_model=PortfolioUploadResponse)
-async def upload_portfolio(file: UploadFile = File(...)) -> PortfolioUploadResponse:
+async def upload_portfolio(
+    file: UploadFile = File(...),
+    _auth: None = Depends(require_auth),
+) -> PortfolioUploadResponse:
     rows = parse_portfolio_csv(await file.read())
-    portfolio_id = await asyncio.to_thread(SQLiteClient().create_portfolio, file.filename or "Uploaded Portfolio", rows)
+    portfolio_id = await asyncio.to_thread(
+        SQLiteClient().create_portfolio, file.filename or "Uploaded Portfolio", rows
+    )
     total = sum(float(row.get("market_value") or 0.0) for row in rows)
     tickers = [str(row["ticker"]).upper() for row in rows]
     return PortfolioUploadResponse(
@@ -153,7 +278,11 @@ async def upload_portfolio(file: UploadFile = File(...)) -> PortfolioUploadRespo
 
 
 @app.post("/api/analyze", response_model=AnalyzeResponse)
-async def start_analysis(request: AnalyzeRequest, background_tasks: BackgroundTasks) -> AnalyzeResponse:
+async def start_analysis(
+    request: AnalyzeRequest,
+    background_tasks: BackgroundTasks,
+    _auth: None = Depends(require_auth),
+) -> AnalyzeResponse:
     db = SQLiteClient()
     job_id = await asyncio.to_thread(
         db.create_job,
@@ -204,48 +333,31 @@ async def list_documents(ticker: str) -> DocumentsResponse:
 
 @app.get("/api/findings/{portfolio_id}", response_model=FindingsResponse)
 async def get_findings(portfolio_id: str) -> FindingsResponse:
-    job = await asyncio.to_thread(SQLiteClient().latest_job_for_portfolio, portfolio_id)
+    """Return analysis findings from the cached results_json — never re-runs the graph."""
+    db = SQLiteClient()
+    job = await asyncio.to_thread(db.latest_job_for_portfolio, portfolio_id)
     if job is None:
-        raise HTTPException(status_code=404, detail="No analysis job found for portfolio.")
-    state = await analyze(AnalysisState(user_id="demo", portfolio_id=portfolio_id, question=job.get("question")))
-    memo = state.memo
-    if memo is None:
-        raise HTTPException(status_code=404, detail="No memo available.")
-    return FindingsResponse(
+        raise HTTPException(status_code=404, detail="No analysis job found for this portfolio.")
+
+    if job.get("status") not in ("completed", "failed"):
+        raise HTTPException(
+            status_code=202,
+            detail=f"Analysis is still in progress (stage: {job.get('stage', 'unknown')}).",
+        )
+
+    results_json = await asyncio.to_thread(db.load_results, job["id"])
+    if not results_json:
+        raise HTTPException(
+            status_code=404,
+            detail="Analysis completed but no results were stored. Re-run the analysis.",
+        )
+
+    state = AnalysisState.model_validate_json(results_json)
+    return _build_findings_response(
         portfolio_id=portfolio_id,
         job_id=job["id"],
         analyzed_at=job.get("completed_at") or utc_now(),
-        risk_scores=[
-            FindingsRiskScore(
-                ticker=score.ticker,
-                overall_score=score.score,
-                score_delta=score.delta,
-                confidence=score.confidence,
-                drivers=[
-                    RiskDriver(category="disclosure_change", score=score.score, summary=driver, citation=score.citations[0].citation_anchor if score.citations else "")
-                    for driver in score.top_drivers
-                ],
-                portfolio_impact=PortfolioImpact(
-                    holding_weight=next((holding.weight for holding in state.holdings if holding.ticker == score.ticker), 0.0),
-                    sector_weight=next((holding.weight for holding in state.holdings if holding.ticker == score.ticker), 0.0),
-                    exposure_level=score.portfolio_impact,
-                ),
-            )
-            for score in state.risk_scores
-        ],
-        memo=FindingsMemo(
-            executive_summary=memo.executive_summary,
-            portfolio_exposure_affected=[
-                PortfolioExposure(ticker=holding.ticker, weight=holding.weight, exposure_level="high" if holding.weight >= 0.2 else "medium" if holding.weight >= 0.1 else "low")
-                for holding in state.holdings
-            ],
-            top_disclosure_changes=[],
-            evidence_table=[],
-            watchlist_questions=memo.watchlist_questions,
-            limitations=memo.limitations,
-            confidence=memo.citation_pass_rate,
-            disclaimer=memo.disclaimer,
-        ),
+        state=state,
     )
 
 
@@ -296,12 +408,25 @@ async def get_diff(
 
 
 @app.post("/api/chat")
-async def chat(request: ChatRequest) -> StreamingResponse:
+async def chat(
+    request: ChatRequest,
+    _auth: None = Depends(require_auth),
+) -> StreamingResponse:
     async def events() -> Any:
         yield ChatStageEvent(stage="planning").model_dump_json() + "\n\n"
-        state = await analyze(AnalysisState(user_id="demo", portfolio_id=request.portfolio_id, question=request.question))
+        state = await analyze(
+            AnalysisState(
+                user_id="demo",
+                portfolio_id=request.portfolio_id,
+                question=request.question,
+            )
+        )
         yield ChatStageEvent(stage="complete").model_dump_json() + "\n\n"
-        text = state.memo.executive_summary if state.memo else state.error or "No answer available."
+        text = (
+            state.memo.executive_summary
+            if state.memo
+            else state.error or "No answer available."
+        )
         yield ChatTokenEvent(text=text).model_dump_json() + "\n\n"
         yield ChatDoneEvent(citation_pass_rate=state.citation_pass_rate or 0.0).model_dump_json() + "\n\n"
 
