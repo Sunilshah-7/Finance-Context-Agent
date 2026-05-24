@@ -67,7 +67,7 @@ data before demo time so the demo feels fast and stable.
 
 ## 4. Why The Inference Gateway Matters
 
-The original plan used local GPU inference. The current MVP uses NVIDIA NIM hosted inference behind a provider-agnostic Gateway. The architectural story is:
+The current MVP uses NVIDIA NIM hosted inference behind a provider-agnostic Gateway. The architectural story is:
 
 ```text
 Agent API and ingestion code call one Gateway contract, not a vendor-specific SDK.
@@ -80,7 +80,7 @@ writes the final analyst memo.
 We can tell judges:
 
 ```text
-The workflow is insulated from the serving backend. Today the Gateway routes to NVIDIA NIM.
+The workflow is insulated from the serving backend. Today the Gateway routes chat completions to NVIDIA NIM.
 ```
 
 We still use the smaller planner model for cheaper intermediate tasks, because
@@ -123,15 +123,15 @@ Purpose:
 Be the single doorway to every model service.
 ```
 
-Instead of letting every part of the app call NVIDIA NIM or embedding backends directly, everything
+Instead of letting every part of the app call NIM or embedding backends directly, everything
 goes through the Gateway. This gives us one place for request IDs, logging,
 metrics, routing, and error normalization.
 
 Gateway routes:
 
 ```text
-/v1/chat/completions with fincontext-planner  -> NIM planner model
-/v1/chat/completions with fincontext-reasoner -> NIM reasoner model
+/v1/chat/completions with fincontext-planner  -> 14B planner model
+/v1/chat/completions with fincontext-reasoner -> 72B reasoner model
 /v1/embeddings                                -> embedding model
 /v1/rerank                                    -> reranker model
 ```
@@ -167,7 +167,7 @@ apps/demo-ui/
 Purpose:
 
 ```text
-Gradio app deployed on HuggingFace Spaces for judges.
+React app deployed on HuggingFace Spaces for judges.
 ```
 
 The UI should call the Agent API. It should not call model services directly.
@@ -513,7 +513,7 @@ The biggest unfinished items are:
 - Agent API is not merged and ready.
 - Retrieval pipeline is not implemented in Agent API.
 - LangGraph nodes are not implemented.
-- Gradio UI is not wired end to end.
+- React UI is not wired end to end.
 - Demo video and final submission are not done.
 
 ## 16. The Critical Path From Here
@@ -528,7 +528,7 @@ The next practical order is:
 6. Fill eval fixtures with real chunk IDs and citation anchors.
 7. Implement retrieval pipeline.
 8. Implement LangGraph nodes.
-9. Wire Agent API to Gradio UI.
+9. Wire Agent API to React UI.
 10. Rehearse and record demo.
 
 ## 17. What To Say If Asked "What Did You Do?"
@@ -579,7 +579,7 @@ Say this:
 
 ```text
 Not yet. We have important foundations merged, but the backend, real ingestion
-run, retrieval pipeline, Agent API graph, and Gradio UI still need integration.
+run, retrieval pipeline, Agent API graph, and React UI still need integration.
 We should not live-ingest during the judge demo. We should pre-ingest, validate,
 snapshot, and then demo from stable data.
 ```

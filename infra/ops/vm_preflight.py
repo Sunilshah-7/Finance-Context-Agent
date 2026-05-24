@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Check whether the backend is ready for ingestion smoke testing.
+"""Check whether the prototype backend is ready for ingestion smoke testing.
 
 This CLI catches the simple setup mistakes that waste the most time on the
-shared backend: missing `.env` values, missing local commands, missing repo
+prototype backend: missing `.env` values, missing local commands, missing repo
 scripts, and optionally unhealthy Qdrant/Gateway endpoints. It does not start
 containers or mutate data; it only reports readiness.
 """
@@ -44,7 +44,7 @@ PLACEHOLDER_MARKERS = (
 )
 REQUIRED_PATHS = (
     "infra/schema.sql",
-    "infra/amd-gpu/docker-compose.yml",
+    "infra/docker-compose.yml",
     "infra/qdrant/init_collection.py",
     "services/ingestion-worker/ingest.py",
     "services/ingestion-worker/requirements.txt",
@@ -291,7 +291,7 @@ def format_result(result: CheckResult) -> str:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Preflight-check the backend before ingestion smoke testing."
+        description="Preflight-check the prototype backend before ingestion smoke testing."
     )
     parser.add_argument(
         "--repo-root",

@@ -8,9 +8,9 @@ The demo is NOT about fancy AI tricks. It's about solving a real financial analy
 
 ## Inference Thesis (tell this to judges explicitly)
 
-The live MVP uses NVIDIA NIM hosted inference behind a provider-agnostic Inference Gateway. The Agent API and ingestion worker do not know or care whether the model is served by NIM or another OpenAI-compatible backend.
+The live MVP uses NVIDIA NIM hosted inference behind a provider-agnostic Inference Gateway. The Agent API and ingestion worker do not call NIM directly; they call the Gateway.
 
-Say this out loud during the demo: "The agent workflow is isolated from the inference provider. Today the Gateway routes to NVIDIA NIM hosted endpoints, while retrieval, evidence storage, citation verification, and the UI stay unchanged."
+Say this out loud during the demo: "The agent workflow is isolated from the inference provider. Today the Gateway routes chat completions to NVIDIA NIM, while retrieval, evidence storage, citation verification, and the UI stay unchanged."
 
 ## Seed Portfolio
 
@@ -40,7 +40,7 @@ Pre-ingest all 5 tickers before demo day. The demo never shows live ingestion.
 
 "I'm uploading a sample portfolio with five holdings across semiconductors, software, financials, energy, and consumer discretionary."
 
-- Drag and drop `demo/seed_portfolio.csv` into the Gradio Portfolio Upload tab
+- Drag and drop `demo/seed_portfolio.csv` into the React Portfolio Upload tab
 - Show the holdings table that appears: ticker, shares, market value, weight, sector
 - Point out AMD is the largest semiconductor holding at 25.4% weight
 
@@ -124,13 +124,13 @@ Show:
 
 ### Step 9: Architecture Slide (30 seconds — verbal only)
 
-"Three layers. HuggingFace Spaces for the public UI — that's this Gradio interface. The backend host runs the Agent API, Gateway, Qdrant, and SQLite. NVIDIA NIM provides hosted LLM inference. SEC EDGAR is the data source — all public filings, no data license required."
+"Three layers. HuggingFace Spaces for the public UI — that's this React interface. The backend host runs the Agent API, Gateway, Qdrant, and SQLite. NVIDIA NIM provides hosted LLM inference. SEC EDGAR is the data source — all public filings, no data license required."
 
 "The key engineering choice is that all model calls go through the Inference Gateway, so the workflow stays stable even when the serving backend changes."
 
 ---
 
-## Demo Screens (Gradio Tabs)
+## Demo Screens (React Tabs)
 
 ### Tab 1: Portfolio Upload
 - CSV file input widget
@@ -172,7 +172,7 @@ Show:
 - Gauge: tokens per second (Qwen2.5-72B and Qwen2.5-14B)
 - Gauge: request latency
 - Table: benchmark scenario | latency | tokens in | tokens out
-- Note: "LLM inference via NVIDIA NIM · Gateway-normalized metrics"
+- Note: "LLM inference via the Gateway · local retrieval and citation metrics"
 
 ---
 

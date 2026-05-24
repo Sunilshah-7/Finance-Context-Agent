@@ -2,7 +2,7 @@
 
 Evaluation harness for retrieval quality, citation precision, disclosure diff accuracy, and inference performance benchmarks.
 
-Run evals after the full pipeline is working and before demo polish. Eval results feed the inference metrics panel in the Gradio UI.
+Run evals after the full pipeline is working and before demo polish. Eval results feed the inference metrics panel in the React UI.
 
 ## Eval Suites
 

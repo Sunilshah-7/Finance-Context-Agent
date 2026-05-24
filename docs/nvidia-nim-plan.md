@@ -2,7 +2,7 @@
 
 ## What Changed
 
-The original plan served Qwen and BGE models with a local model-serving stack. The current MVP uses NVIDIA NIM hosted inference for LLM calls and keeps retrieval infrastructure local.
+The original plan served Qwen models locally on large GPU instances. That is obsolete for the prototype: the $100 cloud budget is not enough to comfortably run and rehearse 70B-class inference. The current MVP uses NVIDIA NIM hosted chat-completions endpoints and keeps retrieval infrastructure local.
 
 The application architecture did not change:
 
@@ -11,7 +11,7 @@ The application architecture did not change:
 - All model-facing code still goes through the Inference Gateway.
 - Citation verification and memo post-processing are unchanged.
 
-Only the Gateway's upstream inference provider changed.
+Only the chat-completions upstream changed. The Agent API, LangGraph nodes, retrieval pipeline, citations, Qdrant, and SQLite contracts stay the same.
 
 ## Model Serving Architecture
 
@@ -23,13 +23,13 @@ Inference Gateway
   |
   +-- NVIDIA NIM hosted chat completions
   |     fincontext-reasoner -> Qwen2.5-72B-Instruct compatible endpoint
-  |     fincontext-planner  -> Qwen2.5-7B-Instruct compatible endpoint
+  |     fincontext-planner  -> Qwen2.5-14B-Instruct compatible endpoint
   |
-  +-- Local embeddings
-  |     used for ingestion and query embeddings
+  +-- Local TEI embeddings
+  |     BAAI/bge-large-en-v1.5, 1024 dimensions
   |
-  +-- Reranking
-        reciprocal-rank-fused candidates are reranked before diversity filtering
+  +-- Local TEI reranking
+        BAAI/bge-reranker-large reranks reciprocal-rank-fused candidates
 ```
 
 The Gateway should expose the same OpenAI-compatible surface to the rest of the app:
@@ -42,7 +42,7 @@ The Gateway should expose the same OpenAI-compatible surface to the rest of the 
 
 ## Environment Variables
 
-Use provider-neutral names for new configuration where possible:
+NVIDIA NIM is required for chat completions. Embeddings and reranking stay behind the Gateway so the Qdrant 1024-dimensional vector contract remains stable.
 
 ```bash
 INFERENCE_GATEWAY_URL=http://localhost:8080
@@ -50,18 +50,19 @@ INFERENCE_GATEWAY_URL=http://localhost:8080
 NIM_API_KEY=
 NIM_BASE_URL=https://integrate.api.nvidia.com/v1
 NIM_REASONER_MODEL=Qwen/Qwen2.5-72B-Instruct
-NIM_PLANNER_MODEL=Qwen/Qwen2.5-7B-Instruct
+NIM_PLANNER_MODEL=Qwen/Qwen2.5-14B-Instruct
 
-EMBEDDING_PROVIDER=local
-EMBEDDING_MODEL_ID=sentence-transformers/all-MiniLM-L6-v2
-RERANKER_PROVIDER=local
+EMBEDDING_URL=http://localhost:8002
+RERANKER_URL=http://localhost:8003
+EMBEDDING_MODEL_ID=BAAI/bge-large-en-v1.5
+RERANKER_MODEL_ID=BAAI/bge-reranker-large
 
 QDRANT_URL=http://localhost:6333
 QDRANT_COLLECTION=fincontext_chunks
 SQLITE_DB_PATH=./fincontext.db
 ```
 
-Legacy local-serving variables may remain in older local-development scripts, but documentation and new code should describe the live architecture as NIM-backed.
+Local 70B serving variables are intentionally not part of the prototype environment.
 
 ## Gateway Routing
 
@@ -69,10 +70,10 @@ Legacy local-serving variables may remain in older local-development scripts, bu
 |---------------|--------------------|----------|
 | Reasoner | `fincontext-reasoner` | NVIDIA NIM chat completions |
 | Planner | `fincontext-planner` | NVIDIA NIM chat completions |
-| Embeddings | `fincontext-embedding` | Local embedding service |
-| Reranker | `fincontext-reranker` | Local reranker or scoring implementation |
+| Embeddings | `fincontext-embedding` | Local TEI BGE-large embedding service |
+| Reranker | `fincontext-reranker` | Local TEI BGE reranker service |
 
-The Agent API should never import a NIM client directly. It calls the Gateway with logical model names and lets the Gateway translate those names to provider-specific model IDs.
+The Agent API should never import a NIM, embedding, or reranker client directly. It calls the Gateway with logical model names and lets the Gateway translate those names to provider-specific routes.
 
 ## Metrics Plan
 
@@ -103,11 +104,11 @@ Metrics to record for each:
 }
 ```
 
-Save results to `packages/evals/benchmark_results.json`. The Gradio inference metrics panel reads from this file.
+Save results to `packages/evals/benchmark_results.json`. The React inference metrics panel reads from this file.
 
 ## Operational Notes
 
 - Keep `NIM_API_KEY` out of git and configure it as an environment variable or secret.
 - Centralize retries, request IDs, timeout handling, and provider errors in the Gateway.
 - Keep local embeddings deterministic for reproducible retrieval tests.
-- Preserve the Gateway contract so local GPU serving can be reintroduced later without changing Agent API or ingestion code.
+- Preserve the Gateway contract so inference providers can be swapped later without changing Agent API or ingestion code.

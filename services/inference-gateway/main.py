@@ -53,7 +53,7 @@ def _usage_metrics(payload: dict[str, Any]) -> tuple[int | None, int | None]:
 
 def _upstream_headers(request: Request, route_model: str | None = None) -> dict[str, str]:
     headers = {"x-request-id": request.state.request_id}
-    if route_model in {"fincontext-reasoner", "fincontext-planner"}:
+    if route_model in CHAT_MODEL_ROUTES:
         nim_api_key = os.getenv("NIM_API_KEY")
         if nim_api_key:
             headers["Authorization"] = f"Bearer {nim_api_key}"
@@ -149,14 +149,14 @@ async def _stream_proxy(
 async def health(request: Request) -> dict[str, Any]:
     checks: list[HealthCheckResult] = []
     services = {
-        "reasoner": CHAT_MODEL_ROUTES["fincontext-reasoner"].upstream_base_url,
-        "planner": CHAT_MODEL_ROUTES["fincontext-planner"].upstream_base_url,
+        "nim_reasoner": CHAT_MODEL_ROUTES["fincontext-reasoner"].upstream_base_url,
+        "nim_planner": CHAT_MODEL_ROUTES["fincontext-planner"].upstream_base_url,
         "embedding": embedding_route().upstream_base_url,
         "reranker": rerank_route().upstream_base_url,
     }
     for name, base_url in services.items():
         url = f"{base_url.rstrip('/')}/health"
-        if name in {"reasoner", "planner"} and base_url.startswith("https://integrate.api.nvidia.com"):
+        if name in {"nim_reasoner", "nim_planner"}:
             status = "ready" if os.getenv("NIM_API_KEY") else "error"
             detail = None if status == "ready" else "NIM_API_KEY is not set"
             checks.append(HealthCheckResult(name=name, status=status, url=base_url, detail=detail))
@@ -195,6 +195,15 @@ async def chat_completions(request: Request):
         detail = exc.detail["error"]
         detail["request_id"] = request.state.request_id
         return JSONResponse(status_code=exc.status_code, content={"error": detail})
+
+    if route.requires_api_key and not os.getenv("NIM_API_KEY"):
+        return _error_response(
+            request.state.request_id,
+            "missing_nim_api_key",
+            "NIM_API_KEY is required for hosted chat completions.",
+            False,
+            503,
+        )
 
     upstream_payload = dict(payload)
     if route.upstream_model_name:

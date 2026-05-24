@@ -12,6 +12,7 @@ class BackendRoute:
     upstream_base_url: str
     upstream_path: str
     upstream_model_name: str | None = None
+    requires_api_key: bool = False
 
     @property
     def url(self) -> str:

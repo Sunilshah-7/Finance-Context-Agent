@@ -17,7 +17,7 @@ cp configs/.env.example .env
 # Fill NIM_API_KEY, NIM_BASE_URL, SEC_USER_AGENT, and AGENT_API_KEY
 
 # Start storage service
-docker compose -f infra/amd-gpu/docker-compose.yml up -d qdrant
+docker compose -f infra/docker-compose.yml up -d qdrant
 
 # Verify services are healthy
 curl http://localhost:8080/health      # Inference Gateway
@@ -406,18 +406,20 @@ Build after Agent API is functional end-to-end.
 
 ```
 apps/demo-ui/
-  app.py            # Main Gradio app — all tabs defined here
-  components/
-    portfolio.py    # Portfolio upload tab
-    analysis.py     # Analysis trigger + status polling tab
-    diff.py         # Disclosure diff viewer tab
-    risk.py         # Risk score panel tab
-    memo.py         # Analyst memo viewer tab
-    benchmark.py    # inference metrics panel tab
-    chat.py         # Citation-backed chat tab
-  api_client.py     # httpx client for Agent API calls
-  requirements.txt
-  README.md         # HuggingFace Space description — NVIDIA NIM inference story
+  package.json
+  index.html
+  src/
+    App.tsx         # Main React app — all tabs assembled here
+    components/
+      Portfolio.tsx # Portfolio upload tab
+      Analysis.tsx  # Analysis trigger + status polling tab
+      Diff.tsx      # Disclosure diff viewer tab
+      Risk.tsx      # Risk score panel tab
+      Memo.tsx      # Analyst memo viewer tab
+      Benchmark.tsx # Inference metrics panel tab
+      Chat.tsx      # Citation-backed chat tab
+    lib/api.ts      # Agent API client
+  README.md         # HuggingFace Static Space description
 ```
 
 HuggingFace Space metadata (in README.md YAML frontmatter):
@@ -426,9 +428,9 @@ HuggingFace Space metadata (in README.md YAML frontmatter):
 title: FinContext Agent
 colorFrom: blue
 colorTo: indigo
-sdk: gradio
-sdk_version: 4.x
-app_file: app.py
+sdk: static
+app_build_command: npm run build
+app_file: dist/index.html
 pinned: false
 ---
 ```
@@ -459,4 +461,4 @@ python eval_diff.py       # prints change detection accuracy
 python eval_latency.py    # prints latency table (saves to benchmark_results.json)
 ```
 
-The latency benchmark results feed the inference metrics panel in the Gradio UI.
+The latency benchmark results feed the inference metrics panel in the React UI.

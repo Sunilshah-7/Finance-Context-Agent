@@ -1,6 +1,6 @@
 # services/inference-gateway
 
-Lightweight FastAPI proxy that sits between the Agent API and all model providers. In the current MVP, chat completions route to NVIDIA NIM hosted inference endpoints, while embeddings and reranking stay behind the same Gateway contract.
+Lightweight FastAPI proxy that sits between the Agent API and all model providers. In the current MVP, chat completions route to NVIDIA NIM hosted endpoints. Embeddings and reranking stay behind the same Gateway contract.
 
 ## Why this exists
 
@@ -15,8 +15,8 @@ Lightweight FastAPI proxy that sits between the Agent API and all model provider
 |---------|-------------|-----------|------|
 | POST /v1/chat/completions | fincontext-reasoner | NVIDIA NIM reasoner | hosted |
 | POST /v1/chat/completions | fincontext-planner | NVIDIA NIM planner | hosted |
-| POST /v1/embeddings | fincontext-embedding | local embedding service | internal |
-| POST /v1/rerank | fincontext-reranker | local reranker/scorer | internal |
+| POST /v1/embeddings | fincontext-embedding | local BGE-large embedding service | 8002 |
+| POST /v1/rerank | fincontext-reranker | local BGE reranker service | 8003 |
 | GET /health | — | all services | — |
 | GET /metrics | — | aggregated logs | — |
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import sys
 
@@ -15,6 +16,12 @@ def make_transport():
     def handler(request: httpx.Request) -> httpx.Response:
         path = request.url.path
         if path.endswith("/chat/completions"):
+            assert request.headers["authorization"] == "Bearer test-nim-key"
+            request_payload = json.loads(request.content.decode("utf-8"))
+            assert request_payload["model"] in {
+                "Qwen/Qwen2.5-72B-Instruct",
+                "Qwen/Qwen2.5-14B-Instruct",
+            }
             payload = {
                 "id": "chatcmpl-test",
                 "object": "chat.completion",
@@ -35,7 +42,8 @@ def make_transport():
     return httpx.MockTransport(handler)
 
 
-def test_chat_proxy_routes_to_reasoner():
+def test_chat_proxy_routes_to_reasoner(monkeypatch):
+    monkeypatch.setenv("NIM_API_KEY", "test-nim-key")
     with TestClient(app) as client:
         client.app.state.http = httpx.AsyncClient(transport=make_transport())
         response = client.post(
@@ -44,6 +52,17 @@ def test_chat_proxy_routes_to_reasoner():
         )
         assert response.status_code == 200
         assert response.json()["choices"][0]["message"]["content"] == "ok"
+
+
+def test_chat_proxy_requires_nim_api_key(monkeypatch):
+    monkeypatch.delenv("NIM_API_KEY", raising=False)
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/chat/completions",
+            json={"model": "fincontext-reasoner", "messages": [{"role": "user", "content": "Hi"}]},
+        )
+        assert response.status_code == 503
+        assert response.json()["error"]["code"] == "missing_nim_api_key"
 
 
 def test_embeddings_proxy_returns_payload():
@@ -55,7 +74,7 @@ def test_embeddings_proxy_returns_payload():
 
 
 def test_health_reports_services(monkeypatch):
-    monkeypatch.setenv("NIM_API_KEY", "test-key")
+    monkeypatch.setenv("NIM_API_KEY", "test-nim-key")
     with TestClient(app) as client:
         client.app.state.http = httpx.AsyncClient(transport=make_transport())
         response = client.get("/health")
@@ -64,7 +83,8 @@ def test_health_reports_services(monkeypatch):
         assert len(response.json()["services"]) == 4
 
 
-def test_metrics_accumulate_requests():
+def test_metrics_accumulate_requests(monkeypatch):
+    monkeypatch.setenv("NIM_API_KEY", "test-nim-key")
     with TestClient(app) as client:
         client.app.state.http = httpx.AsyncClient(transport=make_transport())
         client.post("/v1/chat/completions", json={"model": "fincontext-planner", "messages": [{"role": "user", "content": "plan"}]})

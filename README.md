@@ -40,86 +40,50 @@ This output is research assistance only and does not constitute investment advic
 
 The system never gives buy, sell, hold, or short recommendations.
 
-## Inference Architecture
+## Why Hosted Inference
 
-The original architecture was designed around local GPU inference. The live MVP now uses a provider-agnostic inference layer backed by NVIDIA NIM hosted inference endpoints.
+The prototype does not need to own 70B-class GPU serving. We tested AMD
+Developer Cloud, but the available credit was not enough for comfortable
+development and demo rehearsal with a 70B model. The final MVP uses NVIDIA NIM
+hosted chat completions behind the Inference Gateway.
 
-The important architectural story is the abstraction boundary: Agent API and ingestion code call the Inference Gateway, and the Gateway routes model requests to NVIDIA NIM-compatible OpenAI endpoints. This lets the app keep the same LangGraph, retrieval, citation, Qdrant, and SQLite design while changing the inference provider.
-
-The original planned model split was:
+The model split is:
 
 - Qwen2.5-14B for planning and disclosure-change classification.
-- Qwen2.5-72B for the final analyst memo generation.
+- Qwen2.5-72B for the final analyst memo only.
 - BAAI/bge-large-en-v1.5 for embeddings.
 - BAAI/bge-reranker-large for reranking retrieval candidates.
 
-The original model IDs came from Hugging Face. The current live stack uses NIM-hosted chat models plus local embeddings for retrieval.
+The important architecture point is the Gateway contract: Agent API and
+ingestion code call one local Gateway, and the Gateway handles provider routing,
+request IDs, latency metrics, retries, and normalized errors.
 
 ## System Architecture
 
-Due to hosted-inference availability during the hackathon period, the live MVP uses a provider-agnostic inference architecture built around NVIDIA NIM endpoints.
-
-The architecture itself remains unchanged.
-
-Only the inference backend provider was swapped.
-
-This preserves:
-
-- LangGraph orchestration
-- Retrieval architecture
-- Citation grounding
-- Qdrant vector search
-- SQLite BM25 retrieval
-- FastAPI services
-- Inference Gateway abstraction
-
-The project is still compatible with future local GPU deployment because the Inference Gateway preserves a provider-neutral contract.
-
-## Current Model Stack
-
-The current hosted inference split is:
-
-- Qwen2.5-7B-Instruct for planning and intermediate reasoning
-- Qwen2.5-72B-Instruct for final analyst memo generation
-- Local embedding model for retrieval embeddings
-- Reciprocal Rank Fusion plus reranking retrieval pipeline
-
-The system uses:
-
-- NVIDIA NIM hosted inference APIs for LLM inference
-- Local CPU embeddings for lightweight retrieval generation
-- Qdrant for semantic vector search
-- SQLite FTS5 for BM25 keyword retrieval
-
-## System Architecture
-
-The demo UI runs on HuggingFace Spaces. The app services run on the backend host, while LLM inference is served by NVIDIA NIM hosted endpoints:
+Everything application-specific runs on one lightweight backend host:
 
 ```text
 HuggingFace Space
-  Gradio UI
+  React Static Space UI
     |
     v
-Agent API, port 8090
-  FastAPI plus LangGraph workflow
+Backend host
+  Agent API, port 8090
+    FastAPI plus LangGraph workflow
     |
     v
-Inference Gateway, port 8080
-  Provider abstraction layer
+  Inference Gateway, port 8080
+    Routes all model, embedding, and rerank calls
     |
-    +-- NVIDIA NIM hosted inference
-    |     Qwen2.5-72B-Instruct
-    |     Qwen2.5-7B-Instruct
-    |
-    +-- Local embedding service
-    |
+    +-- NVIDIA NIM hosted chat completions
+    +-- Embedding backend, port 8002
+    +-- Reranker backend, port 8003
     +-- Qdrant vector store, port 6333
-    |
     +-- SQLite file, fincontext.db
 ```
 
 Important rule: Agent API code and ingestion code call the Inference Gateway.
-They do not call NVIDIA NIM, local embedding code, or retrieval services directly.
+They do not call NVIDIA NIM, embedding backends, or reranker backends directly.
 
 ## Current Build State
 
@@ -139,7 +103,7 @@ Open or pending:
 - Agent API PR #19 is marked "DONOT MERGE THIS PR: Still in review".
 - Validation CLI PR #24 is open for review.
 - Eval fixture scaffolding PR #23 is open for review.
-- Real NIM-backed ingestion has not run yet.
+- Real backend host ingestion has not run yet.
 - Demo corpus has not been loaded into Qdrant/SQLite yet.
 
 ## Repository Map
@@ -147,11 +111,11 @@ Open or pending:
 ```text
 services/
   ingestion-worker/      EDGAR fetch, SEC HTML parse, chunk, embed, write data
-  inference-gateway/     FastAPI proxy to NIM chat models, embeddings, and reranker
+  inference-gateway/     FastAPI proxy to NIM, embeddings, and reranker
   agent-api/             FastAPI plus LangGraph analysis workflow
 
 apps/
-  demo-ui/               Gradio UI for HuggingFace Spaces
+  demo-ui/               Vite React UI for HuggingFace Static Spaces
 
 packages/
   schemas/               Shared Pydantic state, DB, and API contracts
@@ -159,6 +123,7 @@ packages/
 
 infra/
   schema.sql             SQLite tables, indexes, and FTS5 triggers
+  docker-compose.yml     Lightweight prototype services, currently Qdrant
   qdrant/                Qdrant collection initialization
   ops/                   Demo backup and snapshot helpers
 
@@ -201,7 +166,8 @@ The ingestion worker does this:
 8. Store chunk text in SQLite for keyword search.
 9. Store vectors in Qdrant for semantic search.
 
-That is why retrieval later works efficiently. The data is already shaped for retrieval.
+That is why Kishan can later retrieve and rerank chunks. The data is already
+shaped for retrieval.
 
 ## Retrieval In Plain English
 
@@ -216,6 +182,8 @@ The intended retrieval flow is:
 5. Send candidate chunk texts to the Gateway reranker.
 6. Return the best chunks with text, source URL, and citation anchor.
 
+Kishan's "ranking" work is mainly steps 4 and 5.
+
 ## Local Checks
 
 Run focused checks for the parts that already exist. Install each service's
@@ -227,7 +195,7 @@ python3 -m pytest services/inference-gateway/tests -x
 python3 -m pytest infra/tests -x
 ```
 
-Some future tests will require Qdrant, Gateway, or live model
+Some future tests will require the backend host, Qdrant, Gateway, or live model
 services. The current foundation tests mostly use mocked HTTP and temporary
 SQLite files.
 
@@ -254,14 +222,13 @@ eval(evals): add retrieval fixture scaffolding
 
 ## Useful Docs
 
-| Document                             | Purpose                                       |
-| ------------------------------------ | --------------------------------------------- |
-| `docs/fincontext-agent-explained.md` | Beginner-friendly full project explanation    |
-| `docs/codex-work-handoff.md`         | What agent-built branches added and why       |
-| `docs/ingestion-output-contract.md`  | SQLite/Qdrant fields used by retrieval and UI |
-| `docs/data-and-retrieval.md`         | Retrieval architecture and Qdrant/BM25 design |
-| `docs/agent-design.md`               | LangGraph node specs                          |
-| `docs/api-contracts.md`              | Agent API request and response contracts      |
-| `docs/nvidia-nim-plan.md`            | NIM routing, Gateway contract, and metrics    |
-| `docs/demo-data-ops.md`              | SQLite backup and Qdrant snapshot commands    |
-| `docs/demo-plan.md`                  | Judge-facing demo flow                        |
+| Document | Purpose |
+| --- | --- |
+| `docs/fincontext-agent-explained.md` | Beginner-friendly full project explanation |
+| `docs/codex-work-handoff.md` | What agent-built branches added and why |
+| `docs/ingestion-output-contract.md` | SQLite/Qdrant fields used by retrieval and UI |
+| `docs/data-and-retrieval.md` | Retrieval architecture and Qdrant/BM25 design |
+| `docs/agent-design.md` | LangGraph node specs |
+| `docs/api-contracts.md` | Agent API request and response contracts |
+| `docs/demo-data-ops.md` | SQLite backup and Qdrant snapshot commands |
+| `docs/demo-plan.md` | Judge-facing demo flow |

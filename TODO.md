@@ -2,9 +2,9 @@
 
 Task plan for completing FinContext Agent with three engineers: Sunil, Abhiyan, and Kishan.
 
-This plan follows `AGENTS.md` as the source of truth. Build the current architecture: FastAPI, LangGraph, Qdrant, and SQLite behind a public Gradio demo on HuggingFace Spaces, with LLM inference routed through NVIDIA NIM by the Inference Gateway.
+This plan follows `AGENTS.md` as the source of truth. Build the current architecture: FastAPI, LangGraph, Qdrant, and SQLite behind a public React demo on HuggingFace Static Spaces, with all model calls routed through the Inference Gateway.
 
-Do not build a separate edge/API platform or JavaScript frontend. The project uses the Agent API backend and a Gradio app in `apps/demo-ui/`.
+Do not build a separate edge/API platform or second frontend. The project uses the Agent API backend and the Vite React app in `apps/demo-ui/`.
 
 ## Task Types
 
@@ -18,7 +18,7 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 | --- | --- |
 | Sunil | Backend infrastructure, schema, Agent API skeleton, deployment, final submission |
 | Abhiyan | EDGAR ingestion, parsing, chunking, embeddings, Qdrant/SQLite indexing, retrieval quality |
-| Kishan | Inference Gateway, LangGraph nodes, Gradio UI, benchmark panel, demo polish |
+| Kishan | Inference Gateway, LangGraph nodes, React UI, benchmark panel, demo polish |
 
 ## Shared Rules
 
@@ -38,7 +38,7 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 ## Atomic Tasks
 
 - [x] Create or verify `.gitignore` includes `.env`, `fincontext.db`, `fincontext_demo.db`, `/models/`, `qdrant_storage/`, `__pycache__/`, `.venv/`, and `*.pyc`.
-- [x] Create `configs/.env.example` for the current architecture with Agent API, Gateway, NIM, embedding, Qdrant, SQLite, SEC EDGAR, and logging settings.
+- [x] Create `configs/.env.example` for the current architecture with Agent API, Gateway, NIM, retrieval backends, Qdrant, SQLite, SEC EDGAR, and logging settings.
 - [x] Create `infra/schema.sql` for SQLite tables: `portfolios`, `holdings`, `documents`, `chunks`, `chunks_fts`, `analysis_jobs`, and `findings`.
 - [x] Add FTS5 triggers in `infra/schema.sql` so inserts into `chunks` populate `chunks_fts`.
 - [x] Create Docker Compose support for local services, including Qdrant.
@@ -66,7 +66,7 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 
 - [ ] With Abhiyan: finalize SQLite `documents` and `chunks` columns before ingestion writes data.
 - [ ] With Abhiyan: verify `citation_anchor` format exactly matches `{TICKER} {FILING_TYPE} {SECTION_LABEL} paragraph {N}` or table equivalent.
-- [ ] With Kishan: finalize Agent API response schemas for Gradio tabs before UI wiring.
+- [ ] With Kishan: finalize Agent API response schemas for React tabs before UI wiring.
 - [ ] With Kishan: agree on job stages and progress values: `planning`, `retrieving`, `analyzing`, `writing`, `complete`.
 - [ ] With Abhiyan and Kishan: review `AnalysisState` before any agent node implementation starts.
 - [ ] With Abhiyan and Kishan: define demo seed portfolio and confirm all tickers are pre-ingested.
@@ -79,7 +79,7 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 - [ ] Run end-to-end smoke test: upload portfolio → create job → graph starts → job completes.
 - [ ] Verify HuggingFace Space can reach Agent API over HTTPS with bearer auth.
 - [ ] Run final security check: no secrets committed, only required port exposed, disclaimer always present.
-- [ ] Prepare final lablab.ai submission: project description, architecture, NVIDIA NIM inference story, HuggingFace integration, GitHub repo, demo video, and Space URL.
+- [ ] Prepare final lablab.ai submission: project description, architecture, AMD inference story, HuggingFace integration, GitHub repo, demo video, and Space URL.
 
 ---
 
@@ -150,7 +150,7 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 
 - [ ] Create `services/inference-gateway/requirements.txt` with `fastapi`, `uvicorn`, `httpx`, `pydantic`, `structlog`, and `pytest`.
 - [ ] Implement `services/inference-gateway/main.py` with FastAPI route mounting.
-- [ ] Implement `router.py` with model routing: `fincontext-reasoner` and `fincontext-planner` to NVIDIA NIM, and embedding/reranker requests to local retrieval backends.
+- [ ] Implement `router.py` with model routing: `fincontext-reasoner` and `fincontext-planner` to NVIDIA NIM, and embedding/reranker requests to retrieval backends.
 - [ ] Implement `middleware.py` for request IDs and latency logging.
 - [ ] Implement `metrics.py` with in-memory rolling metrics for last 1000 requests.
 - [ ] Implement `POST /v1/chat/completions` proxy with OpenAI-compatible request/response passthrough.
@@ -165,9 +165,9 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 - [ ] Write retrieval unit tests for RRF merge and diversity filter.
 - [ ] Write retrieval integration test against local Qdrant and SQLite seed data.
 - [ ] Implement `services/agent-api/app/graph.py` with the 4-node LangGraph sequence.
-- [ ] Implement `portfolio_context_planner` node with NIM planner structured retrieval-plan output and fallback plan.
+- [ ] Implement `portfolio_context_planner` node with 14B planner structured retrieval-plan output and fallback plan.
 - [ ] Implement `filing_retrieval` node using the hybrid retrieval module.
-- [ ] Implement `disclosure_change` node with text normalization, comparison grouping, NIM planner structured classification, and low-confidence filtering.
+- [ ] Implement `disclosure_change` node with text normalization, comparison grouping, 14B planner structured classification, and low-confidence filtering.
 - [ ] Implement `analyst_memo` node with risk score computation, NIM reasoner memo generation, citation verification, planner fallback, and hardcoded disclaimer.
 - [ ] Add isolated unit tests for all 4 LangGraph nodes with mocked Gateway and DB/Qdrant clients.
 - [ ] Add `GET /api/findings/{portfolio_id}` endpoint.
@@ -175,22 +175,22 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 - [ ] Add `POST /api/chat` SSE endpoint for citation-backed Q&A.
 - [ ] Add `GET /api/documents/{ticker}` endpoint for filing explorer.
 - [ ] Add `GET /api/benchmark/metrics` endpoint exposing Gateway inference metrics and provider status.
-- [ ] Create `apps/demo-ui/requirements.txt` with `gradio`, `httpx`, and required plotting/data packages.
-- [ ] Create `apps/demo-ui/api_client.py` for authenticated calls to Agent API.
-- [ ] Build Gradio Portfolio Upload tab.
-- [ ] Build Gradio Analysis tab with job polling every 2 seconds.
-- [ ] Build Gradio Filing Explorer tab listing ingested documents by ticker.
-- [ ] Build Gradio Disclosure Diff tab with ticker/section/year controls and change cards.
-- [ ] Build Gradio Risk Scores tab with score table and color coding.
-- [ ] Build Gradio Analyst Memo tab with markdown rendering and citation cards.
-- [ ] Build Gradio Chat tab with SSE streaming.
-- [ ] Build Gradio Inference Metrics tab with tokens/sec, latency, provider, and cost proxy.
-- [ ] Add HuggingFace Space README frontmatter and NVIDIA NIM inference story to `apps/demo-ui/README.md`.
-- [ ] Deploy Gradio app to HuggingFace Spaces and configure `AGENT_API_URL` and `AGENT_API_KEY` secrets.
+- [ ] Create `apps/demo-ui/package.json` with Vite, React, TypeScript, and required charting/table packages.
+- [ ] Create `apps/demo-ui/src/lib/api.ts` for calls to Agent API.
+- [ ] Build React Portfolio Upload tab.
+- [ ] Build React Analysis tab with job polling every 2 seconds.
+- [ ] Build React Filing Explorer tab listing ingested documents by ticker.
+- [ ] Build React Disclosure Diff tab with ticker/section/year controls and change cards.
+- [ ] Build React Risk Scores tab with score table and color coding.
+- [ ] Build React Analyst Memo tab with markdown rendering and citation cards.
+- [ ] Build React Chat tab with SSE streaming.
+- [ ] Build React Inference Metrics tab with tokens/sec, latency, provider, and cost proxy.
+- [ ] Add HuggingFace Space README frontmatter and AMD inference story to `apps/demo-ui/README.md`.
+- [ ] Deploy React app to HuggingFace Static Spaces and configure `AGENT_API_URL`.
 
 ## Collaboration Tasks
 
-- [ ] With Sunil: finalize API payloads consumed by Gradio before wiring UI components.
+- [ ] With Sunil: finalize API payloads consumed by React before wiring UI components.
 - [ ] With Sunil: confirm authentication and HTTPS behavior between HuggingFace Spaces and Agent API.
 - [ ] With Abhiyan: verify retrieved chunk payload has all fields needed by memo generation and citation cards.
 - [ ] With Abhiyan: choose the best AMD disclosure diff examples for the demo script.
@@ -202,7 +202,7 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 - [ ] Run full graph smoke test: portfolio_context_planner → filing_retrieval → disclosure_change → analyst_memo.
 - [ ] Verify full analysis returns `risk_scores`, `memo`, `disclosure_changes`, and `citation_pass_rate`.
 - [ ] Verify unsupported memo citations are removed during post-processing.
-- [ ] Verify every Gradio tab works against the deployed backend.
+- [ ] Verify every React tab works against the deployed backend.
 - [ ] Verify Chat tab streams tokens and renders citation cards after completion.
 - [ ] Verify Benchmark tab shows real measured metrics, not placeholders.
 - [ ] Polish UI loading states, error states, and demo copy before final rehearsal.
@@ -211,13 +211,13 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 
 # Cross-Team Collaboration Tasks
 
-- [x] **Architecture lock:** Sunil, Abhiyan, and Kishan confirm no separate edge/API platform or JavaScript frontend work will be started.
+- [x] **Architecture lock:** Sunil, Abhiyan, and Kishan confirm no separate edge/API platform or second frontend will be started.
 - [x] **Schema lock:** `AnalysisState`, API schemas, SQLite schema, and Qdrant payload schema all finalized and merged to `dev` in `packages/schemas/python/`.
 - [ ] **Data contract review:** Abhiyan and Kishan validate that ingestion outputs are sufficient for retrieval, diff classification, memo generation, and citation cards.
 - [ ] **Prompt review:** Sunil and Kishan review planner, diff classifier, and memo prompts for structured output, citation discipline, and compliance.
 - [ ] **Compliance review:** All engineers verify no endpoint or UI text produces buy/sell/hold/short recommendations.
 - [ ] **Demo corpus review:** All engineers manually inspect AMD/NVDA/MSFT/JPM/TSLA ingestion quality and remove problematic documents if needed.
-- [ ] **Benchmark review:** All engineers agree on final benchmark numbers and confirm they came from Gateway/NIM metrics.
+- [ ] **Benchmark review:** All engineers agree on final benchmark numbers and confirm they came from Gateway metrics.
 - [ ] **Build-in-public posts:** All engineers provide screenshots, numbers, and technical notes for three posts tagged `#AMDDevHackathon`, `#HuggingFace`, `#LangGraph`, and `#NVIDIA`.
 
 ---
@@ -237,7 +237,7 @@ Do not build a separate edge/API platform or JavaScript frontend. The project us
 - [ ] Record 3-5 minute demo video following `docs/demo-plan.md`.
 - [ ] Do final rehearsal using the 9-step demo script.
 - [ ] Publish three build-in-public posts.
-- [ ] Complete lablab.ai final submission with Space URL, GitHub URL, demo video, architecture explanation, NVIDIA NIM inference usage, and HuggingFace integration.
+- [ ] Complete lablab.ai final submission with Space URL, GitHub URL, demo video, architecture explanation, AMD inference usage, and HuggingFace integration.
 
 ---
 

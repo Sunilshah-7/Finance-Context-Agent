@@ -11,7 +11,7 @@ These tasks must be completed before the official build phase starts. They are n
 ```bash
 cp configs/.env.example .env
 # Fill NIM_API_KEY, NIM_BASE_URL, SEC_USER_AGENT, and AGENT_API_KEY
-docker compose -f infra/amd-gpu/docker-compose.yml up -d qdrant
+docker compose -f infra/docker-compose.yml up -d qdrant
 uvicorn services.inference-gateway.main:app --host 0.0.0.0 --port 8080
 curl http://localhost:8080/health      # Gateway and NIM routing ready
 curl http://localhost:6333/healthz     # Qdrant ready
@@ -72,12 +72,12 @@ Expected: 3 results returned, citation anchors make sense, text is relevant to s
 - [ ] Create `services/inference-gateway/` with FastAPI
 - [ ] Routes: `POST /v1/chat/completions`, `POST /v1/embeddings`, `POST /v1/rerank`, `GET /health`
 - [ ] Each route proxies to the appropriate NIM or local retrieval backend with request ID logging
-- [ ] Create `apps/demo-ui/` with basic Gradio app
-- [ ] Gradio tab 1: Portfolio upload (CSV file input → POST to Agent API → show holdings table)
-- [ ] Gradio tab 2: Analysis (button → POST to Agent API → poll job status → show "Analysis complete")
+- [ ] Create `apps/demo-ui/` with basic React app
+- [ ] React tab 1: Portfolio upload (CSV file input → POST to Agent API → show holdings table)
+- [ ] React tab 2: Analysis (button → POST to Agent API → poll job status → show "Analysis complete")
 
 ### Day 1 Deliverable
-- Portfolio CSV can be uploaded via Gradio, appears in SQLite, Gradio shows the holdings table
+- Portfolio CSV can be uploaded via React, appears in SQLite, React shows the holdings table
 - `GET /health` returns 200 from both Agent API and Inference Gateway
 - Gateway, NIM routing, and Qdrant confirmed running
 
@@ -102,11 +102,11 @@ Expected: 3 results returned, citation anchors make sense, text is relevant to s
 - [ ] If pre-ingestion didn't create FTS5 index, build it: `INSERT INTO chunks_fts SELECT text, ticker, filing_type, filed_at, citation_anchor FROM chunks`
 - [ ] Fix any parsing issues found in ingested data (section labels, missing fields)
 - [ ] Add `GET /api/documents/{ticker}` endpoint — list all ingested documents for a ticker
-- [ ] Add Gradio tab 3: Filing Explorer — dropdown to select ticker, show list of ingested documents with filing dates and types
+- [ ] Add React tab 3: Filing Explorer — dropdown to select ticker, show list of ingested documents with filing dates and types
 
 ### Day 2 Deliverable
 - Retrieval endpoint returns citation-grounded chunks for a test query like "AMD supply chain risk"
-- Filing Explorer in Gradio shows all pre-ingested documents for each ticker
+- Filing Explorer in React shows all pre-ingested documents for each ticker
 - Retrieval tests pass
 
 ---
@@ -121,8 +121,8 @@ Expected: 3 results returned, citation anchors make sense, text is relevant to s
 - [ ] Wire `POST /api/analyze` to run the graph async (background task)
 - [ ] `GET /api/jobs/{job_id}` returns progress stage: "planning" → "retrieving" → "analyzing" → "writing" → "complete"
 
-### Developer B: Gradio real-time job status polling
-- [ ] Gradio Analysis tab: after clicking "Analyze", poll `GET /api/jobs/{job_id}` every 2 seconds
+### Developer B: React real-time job status polling
+- [ ] React Analysis tab: after clicking "Analyze", poll `GET /api/jobs/{job_id}` every 2 seconds
 - [ ] Show progress stage as text (e.g. "Planning retrieval queries...")
 - [ ] When status = "complete", fetch and display a placeholder result (even if it's just "Analysis complete - 5 tickers processed")
 - [ ] Test the full round-trip: upload CSV → trigger analysis → watch status change → see completion
@@ -147,7 +147,7 @@ This is the most technically important day. The disclosure diff is the hero demo
 ### Developer B: Node 3 — disclosure_change
 - [ ] `services/agent-api/app/agents/disclosure_change.py` — full implementation (see agent-design.md Node 3)
 - [ ] Section text normalization function (strip boilerplate, XBRL, whitespace)
-- [ ] Diff classification with the NIM planner model (structured output)
+- [ ] Diff classification with the 14B planner model (structured output)
 - [ ] Node 3 unit test: use hardcoded example chunk pairs, verify correct classification
 - [ ] `GET /api/diff/{ticker}` endpoint — runs Node 3 on pre-loaded chunks for a ticker, returns `DisclosureChange` list
 
@@ -165,25 +165,25 @@ This is the day the full pipeline runs end-to-end for the first time.
 ### Developer A: Node 4 — analyst_memo
 - [ ] `services/agent-api/app/agents/analyst_memo.py` — full implementation (see agent-design.md Node 4)
 - [ ] Risk score computation function
-- [ ] NIM reasoner memo generation with citation instructions
+- [ ] 72B reasoner memo generation with citation instructions
 - [ ] Citation post-processing: `verify_citations()` function
 - [ ] Disclaimer injection (hardcoded, always appended)
 - [ ] Node 4 test: mock 72B call, verify disclaimer is always present, verify unsupported citations are removed
 - [ ] `GET /api/findings/{portfolio_id}` endpoint — return all findings for a portfolio
 
-### Developer B: Gradio Disclosure Diff and Memo display
-- [ ] Gradio tab 3: Disclosure Diff viewer — select ticker + year range → call `/api/diff/{ticker}` → render side-by-side diff with change type labels and materiality badges
-- [ ] Gradio tab 4: Analyst Memo — after analysis completes, fetch memo from `/api/findings/{portfolio_id}` → render formatted memo with inline citation references
+### Developer B: React Disclosure Diff and Memo display
+- [ ] React tab 3: Disclosure Diff viewer — select ticker + year range → call `/api/diff/{ticker}` → render side-by-side diff with change type labels and materiality badges
+- [ ] React tab 4: Analyst Memo — after analysis completes, fetch memo from `/api/findings/{portfolio_id}` → render formatted memo with inline citation references
 - [ ] Citation cards: each `[citation_anchor]` in the memo renders as a clickable card showing the chunk text and the SEC EDGAR source URL
 
 ### Day 5 Deliverable
-- Full pipeline: upload CSV → analyze → see memo with citations in Gradio
+- Full pipeline: upload CSV → analyze → see memo with citations in React
 - Disclosure diff viewer shows real AMD filing changes with before/after text
 - Citation cards link to actual EDGAR URLs
 
 ---
 
-## Day 6 — May 16: Risk Scores and Gradio Polish
+## Day 6 — May 16: Risk Scores and React Polish
 
 ### Developer A: Risk score panel and API refinements
 - [ ] Risk score panel data: ensure `GET /api/findings/{portfolio_id}` includes full risk score breakdown per holding
@@ -191,11 +191,11 @@ This is the day the full pipeline runs end-to-end for the first time.
 - [ ] Test streaming with `httpx` SSE client
 - [ ] Bug fixes from Day 5 end-to-end run
 
-### Developer B: Gradio Risk panel and streaming chat
-- [ ] Gradio tab 5: Risk Scores — table showing per-holding score, score delta, top driver, exposure level
+### Developer B: React Risk panel and streaming chat
+- [ ] React tab 5: Risk Scores — table showing per-holding score, score delta, top driver, exposure level
 - [ ] Color coding: score 0-20 green, 21-40 yellow, 41-60 orange, 61-80 red, 81-100 dark red
-- [ ] Gradio tab 6: Citation-Backed Chat — text input → SSE stream from `/api/chat` → live token rendering → citation cards below
-- [ ] Deploy Gradio app to HuggingFace Spaces (even if not all tabs are polished yet — get the public URL early)
+- [ ] React tab 6: Citation-Backed Chat — text input → SSE stream from `/api/chat` → live token rendering → citation cards below
+- [ ] Deploy React app to HuggingFace Spaces (even if not all tabs are polished yet — get the public URL early)
 
 ### Day 6 Deliverable
 - Public HuggingFace Spaces URL works with the backend
@@ -215,13 +215,13 @@ This is the day the full pipeline runs end-to-end for the first time.
   3. 5-stock portfolio review (full demo portfolio)
 - [ ] Record and document actual measured values (not estimated)
 
-### Developer B: Gradio benchmark panel + Build-in-Public posts
-- [ ] Gradio tab 7: Inference Metrics — tokens/sec gauge, latency histogram, provider/model labels, concurrent request count, cost proxy
+### Developer B: React benchmark panel + Build-in-Public posts
+- [ ] React tab 7: Inference Metrics — tokens/sec gauge, latency histogram, provider/model labels, concurrent request count, cost proxy
 - [ ] Write and post first Build-in-Public post on X/LinkedIn: "Swapping the inference backend to NVIDIA NIM without changing the agent graph" (tag #AMDDevHackathon)
 - [ ] Screenshot the running demo on HuggingFace Spaces for the post
 
 ### Day 7 Deliverable
-- Real benchmark numbers collected and displayed in Gradio
+- Real benchmark numbers collected and displayed in React
 - First Build-in-Public post published
 - End-to-end demo takes under 60 seconds for the demo seed portfolio (pre-ingested data)
 
@@ -231,7 +231,7 @@ This is the day the full pipeline runs end-to-end for the first time.
 
 ### Both developers:
 - [ ] Demo run-through: follow the exact demo script from `docs/demo-plan.md` start to finish, fix any blocking issues
-- [ ] Gradio UI polish: loading states, error messages, responsive layout
+- [ ] React UI polish: loading states, error messages, responsive layout
 - [ ] HuggingFace Space README — explain the NVIDIA NIM inference architecture and Gateway abstraction
 - [ ] Project README updated with architecture diagram (ASCII is fine), setup instructions, and demo instructions
 - [ ] Second Build-in-Public post: "Hybrid BM25 + vector retrieval on financial text — benchmark comparison" (with real numbers)
@@ -247,9 +247,9 @@ This is the day the full pipeline runs end-to-end for the first time.
 ## Day 9 — May 19: Final Submission
 
 ### Both developers:
-- [ ] Final check: all Gradio tabs functional on HuggingFace Spaces
-- [ ] Submission write-up on lablab.ai: project description, architecture diagram, NVIDIA NIM inference story, HuggingFace integration description, demo video link, GitHub repo link
-- [ ] Third Build-in-Public post: "Hosted 72B inference with NVIDIA NIM plus citation-grounded retrieval" (tag #AMDDevHackathon)
+- [ ] Final check: all React tabs functional on HuggingFace Spaces
+- [ ] Submission write-up on lablab.ai: project description, architecture diagram, AMD inference story, HuggingFace integration description, demo video link, GitHub repo link
+- [ ] Third Build-in-Public post: "Hosted inference plus citation-grounded retrieval for financial filings" (tag #AMDDevHackathon)
 - [ ] Verify submission is complete before the hackathon deadline
 
 ---

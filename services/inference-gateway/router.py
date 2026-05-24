@@ -13,12 +13,14 @@ CHAT_MODEL_ROUTES = {
         upstream_base_url=os.getenv("NIM_BASE_URL", "https://integrate.api.nvidia.com/v1"),
         upstream_path="/chat/completions",
         upstream_model_name=os.getenv("NIM_REASONER_MODEL", "Qwen/Qwen2.5-72B-Instruct"),
+        requires_api_key=True,
     ),
     "fincontext-planner": BackendRoute(
         model_name="fincontext-planner",
         upstream_base_url=os.getenv("NIM_BASE_URL", "https://integrate.api.nvidia.com/v1"),
         upstream_path="/chat/completions",
-        upstream_model_name=os.getenv("NIM_PLANNER_MODEL", "Qwen/Qwen2.5-7B-Instruct"),
+        upstream_model_name=os.getenv("NIM_PLANNER_MODEL", "Qwen/Qwen2.5-14B-Instruct"),
+        requires_api_key=True,
     ),
 }
 

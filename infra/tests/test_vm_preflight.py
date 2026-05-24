@@ -1,4 +1,4 @@
-"""Tests for the backend preflight checker.
+"""Tests for the prototype backend preflight checker.
 
 The tests keep network and machine-specific checks mocked so the preflight
 logic can be trusted before the team runs it on the real backend.
@@ -101,7 +101,7 @@ def test_check_required_paths_reports_missing_files(tmp_path):
     by_name = {result.name: result for result in results}
 
     assert by_name["path:infra/schema.sql"].ok
-    assert not by_name["path:infra/amd-gpu/docker-compose.yml"].ok
+    assert not by_name["path:infra/docker-compose.yml"].ok
 
 
 def test_check_required_commands_reports_required_commands(monkeypatch):

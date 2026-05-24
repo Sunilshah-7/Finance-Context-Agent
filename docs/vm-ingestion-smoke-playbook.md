@@ -32,7 +32,7 @@ It does not prove:
 - full AMD/NVDA/MSFT/JPM/TSLA demo corpus quality;
 - disclosure-change classification quality;
 - final memo quality;
-- Gradio UI integration;
+- React UI integration;
 - public HTTPS access from HuggingFace Spaces;
 - benchmark numbers.
 
@@ -106,13 +106,13 @@ Pass condition:
 From repository root:
 
 ```bash
-docker compose --env-file .env -f infra/amd-gpu/docker-compose.yml up -d qdrant
+docker compose --env-file .env -f infra/docker-compose.yml up -d qdrant
 ```
 
 Check containers:
 
 ```bash
-docker compose --env-file .env -f infra/amd-gpu/docker-compose.yml ps
+docker compose --env-file .env -f infra/docker-compose.yml ps
 ```
 
 Expected services:

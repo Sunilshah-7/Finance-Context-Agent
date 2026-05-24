@@ -4,12 +4,12 @@ FastAPI service that runs the 4-node LangGraph financial analysis workflow.
 
 ## What this service does
 
-- Receives portfolio upload and analysis requests from the Gradio UI via HTTPS
+- Receives portfolio upload and analysis requests from the React UI via HTTPS
 - Runs the LangGraph agent graph: portfolio_context_planner → filing_retrieval → disclosure_change → analyst_memo
 - Calls the Inference Gateway for all LLM, embedding, and reranking operations
 - Reads and writes SQLite for portfolio metadata, job status, and findings
 - Reads Qdrant for vector retrieval during the filing_retrieval node
-- Streams SSE tokens to the Gradio UI for the chat endpoint
+- Streams SSE tokens to the React UI for the chat endpoint
 
 ## Stack
 

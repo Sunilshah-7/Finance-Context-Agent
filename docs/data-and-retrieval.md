@@ -9,7 +9,7 @@ The MVP uses only free, publicly available sources:
 | SEC EDGAR HTML filings | 10-K and 10-Q for all public companies | Direct EDGAR REST API, no key required |
 | EDGAR company_tickers.json | Ticker → CIK mapping for all public companies | Single JSON file download, cache locally |
 | EDGAR submissions API | Filing list per company | `https://data.sec.gov/submissions/CIK{cik}.json` |
-| User portfolio CSV | Holdings: ticker, shares, market_value, sector | File upload via Gradio UI |
+| User portfolio CSV | Holdings: ticker, shares, market_value, sector | File upload via React UI |
 
 **Not used in MVP:**
 - PDF filings (too unreliable to parse quickly, not needed for HTML-available filings)
@@ -339,7 +339,7 @@ def apply_diversity_filter(
 
 ## Citation Format in UI
 
-Display format in the Gradio citation card:
+Display format in the React citation card:
 ```
 [AMD 10-K · Item 1A · Risk Factors · filed 2025-02-14 · paragraph 42]
 ```

@@ -16,10 +16,10 @@ Useful implementation notes from the official docs:
 
 ## HuggingFace
 
-- HuggingFace Spaces Gradio documentation: https://huggingface.co/docs/hub/spaces-sdks-gradio
+- HuggingFace Spaces React documentation: https://huggingface.co/docs/hub/spaces-sdks-static
 - HuggingFace Text Embeddings Inference documentation: https://huggingface.co/docs/text-embeddings-inference/index
 
 Useful implementation notes:
 
-- Gradio Spaces provide a simple public demo surface for judges.
-- HuggingFace Spaces provides the public Gradio demo surface.
+- React Spaces provide a simple public demo surface for judges.
+- HuggingFace Spaces provides the public React demo surface.

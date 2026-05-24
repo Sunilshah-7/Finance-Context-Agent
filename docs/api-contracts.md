@@ -1,6 +1,6 @@
 # API Contracts
 
-All APIs are FastAPI services running behind the Agent API. The Gradio UI on HuggingFace Spaces communicates directly with the Agent API over HTTPS.
+All APIs are FastAPI services running behind the Agent API. The React Static Space on HuggingFace Spaces communicates directly with the Agent API over HTTPS.
 
 Authentication: all Agent API endpoints require `Authorization: Bearer {AGENT_API_KEY}` header.
 
