@@ -41,6 +41,7 @@ jobs:
           python -m pip install -e packages/schemas
           (cd services/ingestion-worker && python -m pip install -r requirements.txt)
           python -m pip install -r services/inference-gateway/requirements.txt
+          (cd services/agent-api && python -m pip install -r requirements.txt)
 
       - name: Shared schema import smoke
         run: |
@@ -59,6 +60,9 @@ jobs:
 
       - name: Run inference gateway tests
         run: python -m pytest services/inference-gateway/tests -x
+
+      - name: Run agent API tests
+        run: python -m pytest services/agent-api/tests -x --ignore=services/agent-api/tests/integration
 
       - name: Run infra tests
         run: |
@@ -82,7 +86,36 @@ jobs:
             packages/schemas/python \
             services/ingestion-worker \
             services/inference-gateway \
+            services/agent-api \
             infra
+
+  frontend-checks:
+    name: Demo UI Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/demo-ui/package-lock.json
+
+      - name: Install demo UI dependencies
+        working-directory: apps/demo-ui
+        run: npm ci
+
+      - name: Run demo UI tests
+        working-directory: apps/demo-ui
+        run: npm run test
+
+      - name: Build demo UI
+        working-directory: apps/demo-ui
+        run: npm run build
 
   repository-policy:
     name: Repository Policy
@@ -134,6 +167,13 @@ jobs:
               ".txt",
               ".yml",
               ".yaml",
+              ".js",
+              ".jsx",
+              ".ts",
+              ".tsx",
+              ".css",
+              ".html",
+              ".json",
           }
 
           event_name = os.environ.get("GITHUB_EVENT_NAME", "")

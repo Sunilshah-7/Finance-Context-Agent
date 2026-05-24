@@ -10,6 +10,8 @@ from fastapi.testclient import TestClient
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from main import app  # noqa: E402
+from models import BackendRoute  # noqa: E402
+import router as gateway_router  # noqa: E402
 
 
 def make_transport():

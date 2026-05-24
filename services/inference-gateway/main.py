@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import time
 import os
 from collections.abc import AsyncIterator
@@ -154,7 +155,16 @@ async def health(request: Request) -> dict[str, Any]:
         "embedding": embedding_route().upstream_base_url,
         "reranker": rerank_route().upstream_base_url,
     }
+    _nim_base = os.getenv("NIM_BASE_URL", "https://integrate.api.nvidia.com/v1")
     for name, base_url in services.items():
+        # NIM is a hosted service — there is no /health endpoint to ping.
+        # Treat it as ready if NIM_API_KEY is present, error otherwise.
+        if base_url.startswith(_nim_base) or "nvidia.com" in base_url:
+            nim_api_key = os.getenv("NIM_API_KEY", "")
+            svc_status = "ready" if nim_api_key else "error"
+            detail = None if nim_api_key else "NIM_API_KEY is not set"
+            checks.append(HealthCheckResult(name=name, status=svc_status, url=base_url, detail=detail))
+            continue
         url = f"{base_url.rstrip('/')}/health"
         if name in {"nim_reasoner", "nim_planner"}:
             status = "ready" if os.getenv("NIM_API_KEY") else "error"
@@ -163,12 +173,12 @@ async def health(request: Request) -> dict[str, Any]:
             continue
         try:
             response = await request.app.state.http.get(url)
-            status = "ready" if response.is_success else "error"
+            svc_status = "ready" if response.is_success else "error"
             detail = None if response.is_success else response.text[:200]
         except httpx.HTTPError as exc:
-            status = "error"
+            svc_status = "error"
             detail = str(exc)
-        checks.append(HealthCheckResult(name=name, status=status, url=url, detail=detail))
+        checks.append(HealthCheckResult(name=name, status=svc_status, url=url, detail=detail))
 
     overall = "ok" if all(check.status == "ready" for check in checks) else "degraded"
     return {

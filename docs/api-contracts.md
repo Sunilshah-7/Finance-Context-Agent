@@ -2,7 +2,7 @@
 
 All APIs are FastAPI services running behind the Agent API. The React Static Space on HuggingFace Spaces communicates directly with the Agent API over HTTPS.
 
-Authentication: all Agent API endpoints require `Authorization: Bearer {AGENT_API_KEY}` header.
+Authentication: private Agent API operations may require `Authorization: Bearer {AGENT_API_KEY}`. The public React demo cannot keep secrets in browser code, so demo-facing endpoints must either be public and rate-limited or proxied by a backend if bearer auth is required.
 
 ---
 

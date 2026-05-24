@@ -106,6 +106,7 @@ class AnalysisJobRow(BaseModel):
     citation_pass_rate: Optional[float] = None
     findings_count: Optional[int] = None
     error: Optional[str] = None
+    results_json: Optional[str] = None  # serialized AnalysisState JSON; avoids re-running graph
     started_at: Optional[str] = None
     completed_at: Optional[str] = None
 
