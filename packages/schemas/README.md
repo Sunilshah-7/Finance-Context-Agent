@@ -2,7 +2,7 @@
 
 Shared data contracts used by all Python services. Every Pydantic model that crosses service boundaries lives here.
 
-**TypeScript types are not generated for this project.** The frontend is Gradio (Python), so all services share the Python schemas directly.
+The Python services share these Pydantic schemas directly. The React frontend should consume the Agent API contracts rather than importing Python schema code.
 
 ## What lives here
 

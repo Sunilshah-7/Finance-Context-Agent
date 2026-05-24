@@ -9,7 +9,7 @@ The MVP uses only free, publicly available sources:
 | SEC EDGAR HTML filings | 10-K and 10-Q for all public companies | Direct EDGAR REST API, no key required |
 | EDGAR company_tickers.json | Ticker → CIK mapping for all public companies | Single JSON file download, cache locally |
 | EDGAR submissions API | Filing list per company | `https://data.sec.gov/submissions/CIK{cik}.json` |
-| User portfolio CSV | Holdings: ticker, shares, market_value, sector | File upload via Gradio UI |
+| User portfolio CSV | Holdings: ticker, shares, market_value, sector | File upload via React UI |
 
 **Not used in MVP:**
 - PDF filings (too unreliable to parse quickly, not needed for HTML-available filings)
@@ -234,7 +234,7 @@ Primary: `BAAI/bge-large-en-v1.5`
 
 Fallback: `intfloat/e5-large-v2`
 - Same dimensions (1024)
-- Use if BGE-large has loading issues on ROCm
+- Use if BGE-large has loading or runtime issues in the configured embedding backend
 
 **Important:** BGE-large requires prepending `"Represent this sentence: "` to query text but NOT to document text. e5-large requires `"query: "` prefix for queries and `"passage: "` prefix for documents. Choose one model and stick with it for the entire ingestion run.
 
@@ -339,7 +339,7 @@ def apply_diversity_filter(
 
 ## Citation Format in UI
 
-Display format in the Gradio citation card:
+Display format in the React citation card:
 ```
 [AMD 10-K · Item 1A · Risk Factors · filed 2025-02-14 · paragraph 42]
 ```

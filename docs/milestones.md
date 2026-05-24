@@ -1,25 +1,23 @@
 # Milestones
 
-Build phase: May 11–19, 2026. Two developers. $100 AMD Developer Cloud credit.
+Build phase: May 11–19, 2026. Two developers. Hosted inference via NVIDIA NIM.
 
 ## Pre-Build Phase (Before May 11 — do this NOW)
 
 These tasks must be completed before the official build phase starts. They are not optional.
 
-### Task 1: AMD Developer Cloud VM provisioned and GPU services running
+### Task 1: Backend host and NIM inference verified
 
 ```bash
-# On AMD VM
-# Install ROCm following AMD documentation
-# Install Docker and docker-compose
-cd infra/amd-gpu
-docker compose up -d
-curl http://localhost:8000/health      # vLLM 72B ready
-curl http://localhost:8001/health      # vLLM 14B ready
+cp configs/.env.example .env
+# Fill NIM_API_KEY, NIM_BASE_URL, SEC_USER_AGENT, and AGENT_API_KEY
+docker compose -f infra/docker-compose.yml up -d qdrant
+uvicorn services.inference-gateway.main:app --host 0.0.0.0 --port 8080
+curl http://localhost:8080/health      # Gateway and NIM routing ready
 curl http://localhost:6333/healthz     # Qdrant ready
 ```
 
-Expected time: 4–6 hours (most of this is model download time — 72B is ~140 GB).
+Expected time: 1–2 hours, mostly environment and secret setup.
 
 ### Task 2: EDGAR filings pre-ingested for all demo tickers
 
@@ -59,11 +57,11 @@ Expected: 3 results returned, citation anchors make sense, text is relevant to s
 
 ## Day 1 — May 11: Infrastructure and Skeleton
 
-**Owner split:** Both developers together on AMD setup, then split.
+**Owner split:** Both developers together on backend setup, then split.
 
 ### Developer A: Agent API skeleton
 - [ ] Create `services/agent-api/` directory structure
-- [ ] FastAPI app with health endpoint: `GET /health → {"status": "ok", "gpu": "AMD MI300X"}`
+- [ ] FastAPI app with health endpoint: `GET /health → {"status": "ok", "inference_provider": "nvidia-nim"}`
 - [ ] FastAPI portfolio upload endpoint: `POST /api/portfolio/upload` — read CSV, write to SQLite, return `portfolio_id`
 - [ ] Stub for `POST /api/analyze` — creates a job record in SQLite, returns `job_id`, runs empty graph
 - [ ] Stub for `GET /api/jobs/{job_id}` — returns job status from SQLite
@@ -73,15 +71,15 @@ Expected: 3 results returned, citation anchors make sense, text is relevant to s
 ### Developer B: Inference Gateway + Demo UI skeleton
 - [ ] Create `services/inference-gateway/` with FastAPI
 - [ ] Routes: `POST /v1/chat/completions`, `POST /v1/embeddings`, `POST /v1/rerank`, `GET /health`
-- [ ] Each route proxies to the appropriate vLLM/TEI port with request ID logging
-- [ ] Create `apps/demo-ui/` with basic Gradio app
-- [ ] Gradio tab 1: Portfolio upload (CSV file input → POST to Agent API → show holdings table)
-- [ ] Gradio tab 2: Analysis (button → POST to Agent API → poll job status → show "Analysis complete")
+- [ ] Each route proxies to the appropriate NIM or local retrieval backend with request ID logging
+- [ ] Create `apps/demo-ui/` with basic React app
+- [ ] React tab 1: Portfolio upload (CSV file input → POST to Agent API → show holdings table)
+- [ ] React tab 2: Analysis (button → POST to Agent API → poll job status → show "Analysis complete")
 
 ### Day 1 Deliverable
-- Portfolio CSV can be uploaded via Gradio, appears in SQLite, Gradio shows the holdings table
+- Portfolio CSV can be uploaded via React, appears in SQLite, React shows the holdings table
 - `GET /health` returns 200 from both Agent API and Inference Gateway
-- vLLM and Qdrant confirmed running on AMD VM
+- Gateway, NIM routing, and Qdrant confirmed running
 
 ---
 
@@ -104,11 +102,11 @@ Expected: 3 results returned, citation anchors make sense, text is relevant to s
 - [ ] If pre-ingestion didn't create FTS5 index, build it: `INSERT INTO chunks_fts SELECT text, ticker, filing_type, filed_at, citation_anchor FROM chunks`
 - [ ] Fix any parsing issues found in ingested data (section labels, missing fields)
 - [ ] Add `GET /api/documents/{ticker}` endpoint — list all ingested documents for a ticker
-- [ ] Add Gradio tab 3: Filing Explorer — dropdown to select ticker, show list of ingested documents with filing dates and types
+- [ ] Add React tab 3: Filing Explorer — dropdown to select ticker, show list of ingested documents with filing dates and types
 
 ### Day 2 Deliverable
 - Retrieval endpoint returns citation-grounded chunks for a test query like "AMD supply chain risk"
-- Filing Explorer in Gradio shows all pre-ingested documents for each ticker
+- Filing Explorer in React shows all pre-ingested documents for each ticker
 - Retrieval tests pass
 
 ---
@@ -123,8 +121,8 @@ Expected: 3 results returned, citation anchors make sense, text is relevant to s
 - [ ] Wire `POST /api/analyze` to run the graph async (background task)
 - [ ] `GET /api/jobs/{job_id}` returns progress stage: "planning" → "retrieving" → "analyzing" → "writing" → "complete"
 
-### Developer B: Gradio real-time job status polling
-- [ ] Gradio Analysis tab: after clicking "Analyze", poll `GET /api/jobs/{job_id}` every 2 seconds
+### Developer B: React real-time job status polling
+- [ ] React Analysis tab: after clicking "Analyze", poll `GET /api/jobs/{job_id}` every 2 seconds
 - [ ] Show progress stage as text (e.g. "Planning retrieval queries...")
 - [ ] When status = "complete", fetch and display a placeholder result (even if it's just "Analysis complete - 5 tickers processed")
 - [ ] Test the full round-trip: upload CSV → trigger analysis → watch status change → see completion
@@ -149,7 +147,7 @@ This is the most technically important day. The disclosure diff is the hero demo
 ### Developer B: Node 3 — disclosure_change
 - [ ] `services/agent-api/app/agents/disclosure_change.py` — full implementation (see agent-design.md Node 3)
 - [ ] Section text normalization function (strip boilerplate, XBRL, whitespace)
-- [ ] Diff classification with Qwen2.5-14B (structured output)
+- [ ] Diff classification with the 14B planner model (structured output)
 - [ ] Node 3 unit test: use hardcoded example chunk pairs, verify correct classification
 - [ ] `GET /api/diff/{ticker}` endpoint — runs Node 3 on pre-loaded chunks for a ticker, returns `DisclosureChange` list
 
@@ -167,25 +165,25 @@ This is the day the full pipeline runs end-to-end for the first time.
 ### Developer A: Node 4 — analyst_memo
 - [ ] `services/agent-api/app/agents/analyst_memo.py` — full implementation (see agent-design.md Node 4)
 - [ ] Risk score computation function
-- [ ] Qwen2.5-72B memo generation with citation instructions
+- [ ] 72B reasoner memo generation with citation instructions
 - [ ] Citation post-processing: `verify_citations()` function
 - [ ] Disclaimer injection (hardcoded, always appended)
 - [ ] Node 4 test: mock 72B call, verify disclaimer is always present, verify unsupported citations are removed
 - [ ] `GET /api/findings/{portfolio_id}` endpoint — return all findings for a portfolio
 
-### Developer B: Gradio Disclosure Diff and Memo display
-- [ ] Gradio tab 3: Disclosure Diff viewer — select ticker + year range → call `/api/diff/{ticker}` → render side-by-side diff with change type labels and materiality badges
-- [ ] Gradio tab 4: Analyst Memo — after analysis completes, fetch memo from `/api/findings/{portfolio_id}` → render formatted memo with inline citation references
+### Developer B: React Disclosure Diff and Memo display
+- [ ] React tab 3: Disclosure Diff viewer — select ticker + year range → call `/api/diff/{ticker}` → render side-by-side diff with change type labels and materiality badges
+- [ ] React tab 4: Analyst Memo — after analysis completes, fetch memo from `/api/findings/{portfolio_id}` → render formatted memo with inline citation references
 - [ ] Citation cards: each `[citation_anchor]` in the memo renders as a clickable card showing the chunk text and the SEC EDGAR source URL
 
 ### Day 5 Deliverable
-- Full pipeline: upload CSV → analyze → see memo with citations in Gradio
+- Full pipeline: upload CSV → analyze → see memo with citations in React
 - Disclosure diff viewer shows real AMD filing changes with before/after text
 - Citation cards link to actual EDGAR URLs
 
 ---
 
-## Day 6 — May 16: Risk Scores and Gradio Polish
+## Day 6 — May 16: Risk Scores and React Polish
 
 ### Developer A: Risk score panel and API refinements
 - [ ] Risk score panel data: ensure `GET /api/findings/{portfolio_id}` includes full risk score breakdown per holding
@@ -193,37 +191,37 @@ This is the day the full pipeline runs end-to-end for the first time.
 - [ ] Test streaming with `httpx` SSE client
 - [ ] Bug fixes from Day 5 end-to-end run
 
-### Developer B: Gradio Risk panel and streaming chat
-- [ ] Gradio tab 5: Risk Scores — table showing per-holding score, score delta, top driver, exposure level
+### Developer B: React Risk panel and streaming chat
+- [ ] React tab 5: Risk Scores — table showing per-holding score, score delta, top driver, exposure level
 - [ ] Color coding: score 0-20 green, 21-40 yellow, 41-60 orange, 61-80 red, 81-100 dark red
-- [ ] Gradio tab 6: Citation-Backed Chat — text input → SSE stream from `/api/chat` → live token rendering → citation cards below
-- [ ] Deploy Gradio app to HuggingFace Spaces (even if not all tabs are polished yet — get the public URL early)
+- [ ] React tab 6: Citation-Backed Chat — text input → SSE stream from `/api/chat` → live token rendering → citation cards below
+- [ ] Deploy React app to HuggingFace Spaces (even if not all tabs are polished yet — get the public URL early)
 
 ### Day 6 Deliverable
-- Public HuggingFace Spaces URL works with AMD VM backend
+- Public HuggingFace Spaces URL works with the backend
 - Risk score panel shows per-holding scores with color coding
-- Streaming chat tab shows live token generation from Qwen2.5-72B
+- Streaming chat tab shows live token generation through the Gateway
 
 ---
 
-## Day 7 — May 17: AMD Benchmark Panel + Evals
+## Day 7 — May 17: Inference Metrics Panel + Evals
 
 ### Developer A: Benchmark metrics collection
 - [ ] Add latency tracking to Inference Gateway: record `time_to_first_token`, `total_latency`, `input_tokens`, `output_tokens` per request
 - [ ] `GET /api/benchmark/metrics` endpoint — return aggregated metrics from the last N requests
-- [ ] Run benchmark scenarios from `docs/amd-gpu-plan.md`:
+- [ ] Run benchmark scenarios from `docs/nvidia-nim-plan.md`:
   1. Single 10-K analysis (AMD only)
   2. Latest vs prior 10-Q diff (AMD)
   3. 5-stock portfolio review (full demo portfolio)
 - [ ] Record and document actual measured values (not estimated)
 
-### Developer B: Gradio benchmark panel + Build-in-Public posts
-- [ ] Gradio tab 7: AMD Benchmark — tokens/sec gauge, latency histogram, GPU memory utilization, concurrent request count, cost proxy (GPU-minutes per analysis)
-- [ ] Write and post first Build-in-Public post on X/LinkedIn: "Getting vLLM running on AMD ROCm — what worked, what didn't" (tag #AMDDevHackathon)
+### Developer B: React benchmark panel + Build-in-Public posts
+- [ ] React tab 7: Inference Metrics — tokens/sec gauge, latency histogram, provider/model labels, concurrent request count, cost proxy
+- [ ] Write and post first Build-in-Public post on X/LinkedIn: "Swapping the inference backend to NVIDIA NIM without changing the agent graph" (tag #AMDDevHackathon)
 - [ ] Screenshot the running demo on HuggingFace Spaces for the post
 
 ### Day 7 Deliverable
-- Real benchmark numbers collected and displayed in Gradio
+- Real benchmark numbers collected and displayed in React
 - First Build-in-Public post published
 - End-to-end demo takes under 60 seconds for the demo seed portfolio (pre-ingested data)
 
@@ -233,8 +231,8 @@ This is the day the full pipeline runs end-to-end for the first time.
 
 ### Both developers:
 - [ ] Demo run-through: follow the exact demo script from `docs/demo-plan.md` start to finish, fix any blocking issues
-- [ ] Gradio UI polish: loading states, error messages, responsive layout
-- [ ] HuggingFace Space README — explain the AMD MI300X hardware story, link to AMD Developer Cloud, describe the agent architecture
+- [ ] React UI polish: loading states, error messages, responsive layout
+- [ ] HuggingFace Space README — explain the NVIDIA NIM inference architecture and Gateway abstraction
 - [ ] Project README updated with architecture diagram (ASCII is fine), setup instructions, and demo instructions
 - [ ] Second Build-in-Public post: "Hybrid BM25 + vector retrieval on financial text — benchmark comparison" (with real numbers)
 - [ ] Record a demo video (3-5 minutes) following the demo script
@@ -249,9 +247,9 @@ This is the day the full pipeline runs end-to-end for the first time.
 ## Day 9 — May 19: Final Submission
 
 ### Both developers:
-- [ ] Final check: all Gradio tabs functional on HuggingFace Spaces
-- [ ] Submission write-up on lablab.ai: project description, architecture diagram, AMD GPU story, HuggingFace integration description, demo video link, GitHub repo link
-- [ ] Third Build-in-Public post: "AMD MI300X 192 GB VRAM — running Qwen2.5-72B FP16 on a single GPU with real benchmark numbers" (tag #AMDDevHackathon)
+- [ ] Final check: all React tabs functional on HuggingFace Spaces
+- [ ] Submission write-up on lablab.ai: project description, architecture diagram, AMD inference story, HuggingFace integration description, demo video link, GitHub repo link
+- [ ] Third Build-in-Public post: "Hosted inference plus citation-grounded retrieval for financial filings" (tag #AMDDevHackathon)
 - [ ] Verify submission is complete before the hackathon deadline
 
 ---
@@ -273,10 +271,10 @@ Do not start these until the core pipeline is demo-ready.
 
 | Day | Primary risk | Mitigation |
 |-----|-------------|------------|
-| Pre-build | AMD VM provisioning takes longer than expected | Start immediately, not on May 11 |
-| Pre-build | 72B model download is slow | Begin download as first step |
+| Pre-build | Backend or NIM credential setup takes longer than expected | Start immediately, not on May 11 |
+| Pre-build | Hosted model access is delayed | Verify API access before building Gateway-dependent flows |
 | Day 1-2 | EDGAR HTML parsing is messier than expected | Use only the 5 pre-ingested demo tickers |
 | Day 3-4 | LangGraph state mutations cause unexpected behavior | Test each node in complete isolation before graph integration |
-| Day 5 | Qwen2.5-72B generates hallucinated citations | Citation post-processor handles this — test it first |
-| Day 6-7 | HuggingFace Spaces can't reach AMD VM | Expose Agent API with ngrok as a temporary fallback |
+| Day 5 | Hosted reasoner generates hallucinated citations | Citation post-processor handles this — test it first |
+| Day 6-7 | HuggingFace Spaces can't reach backend | Expose Agent API with ngrok as a temporary fallback |
 | Day 8 | Demo run-through reveals blocking issues | Reserve full Day 8 for this — do not add features on Day 8 |

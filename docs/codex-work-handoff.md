@@ -34,7 +34,7 @@ The pipeline works in this order:
 9. Store chunk text and metadata in SQLite for BM25/FTS retrieval.
 10. Store vectors and retrieval payloads in Qdrant collection `fincontext_chunks`.
 
-The key architectural point: ingestion code never calls TEI or vLLM directly.
+The key architectural point: ingestion code never calls NVIDIA NIM, embedding backends, or reranker backends directly.
 Embedding calls go through the Inference Gateway URL so the same routing layer
 is used everywhere.
 
@@ -103,7 +103,7 @@ Not safe without coordination:
 
 - shared schema changes under `packages/schemas/`;
 - live demo ingestion inside UI flows;
-- direct calls from Agent API nodes to TEI or vLLM;
+- direct calls from Agent API nodes to NVIDIA NIM, embedding backends, or reranker backends;
 - buy/sell/hold recommendation behavior;
 - self-merging PRs without teammate review.
 

@@ -14,7 +14,7 @@ Master context file for all AI coding agents (Claude Code, Codex, and any other 
 
 3. **Produces citation-grounded portfolio impact memos** — not generic summaries, but analyst-style reports that say "your AMD holding has elevated supply-chain risk because Item 1A paragraph 42 of the 2025 10-K introduced new language around third-party manufacturing dependency that was absent in prior filings."
 
-The AMD hardware angle: AMD MI300X has 192 GB of HBM3 VRAM. A 70B-parameter model in FP16 needs ~140 GB. A single MI300X can run it without multi-GPU orchestration. NVIDIA H100 (80 GB) cannot. Our demo shows a 70B model processing an entire annual report in one context window on a single GPU — that's the infrastructure story we're telling AMD judges.
+The current inference angle: this is a prototype, so we do not own 70B-class GPU serving. Chat completions go through the Inference Gateway to NVIDIA NIM hosted endpoints, while retrieval, citation verification, Qdrant, and SQLite stay local and auditable. This keeps the demo focused on the agent workflow instead of scaling infrastructure.
 
 ---
 
@@ -25,7 +25,6 @@ The AMD hardware angle: AMD MI300X has 192 GB of HBM3 VRAM. A 70B-parameter mode
 | What NOT to build | Why |
 |---|---|
 | A separate edge/API platform | Adds cross-service wiring and auth for no MVP benefit |
-| A JavaScript frontend | Gradio on HuggingFace Spaces is 10x faster to ship |
 | 9 LangGraph agents | Requires 50+ hours of implementation, we have 9 days |
 | Live demo ingestion | Never show a progress bar to judges, pre-load all data |
 | PDF parsing for MVP | EDGAR HTML is parseable and reliable; PDF is a trap |
@@ -33,37 +32,37 @@ The AMD hardware angle: AMD MI300X has 192 GB of HBM3 VRAM. A 70B-parameter mode
 | Buy/sell/hold recommendations | Legal non-goal, compliance requirement |
 | Broker integrations | Out of scope for hackathon |
 
-The frontend is `apps/demo-ui/` (Gradio). Do not add a separate web app unless the MVP is already complete.
+The frontend is `apps/demo-ui/`, a Vite React console deployed as a HuggingFace Static Space. Do not add a second frontend app unless the team explicitly agrees.
 
 ---
 
 ## Technology Stack and Rationale
 
-### Compute: AMD Developer Cloud
+### Compute: Prototype Backend Host
 
-One VM with AMD Instinct GPU (ideally MI300X or MI250). All services run on this machine. No separate compute node needed.
+One lightweight backend host runs the Agent API, Inference Gateway, Qdrant, SQLite, and ingestion scripts. No GPU is required for the MVP backend.
 
-Why: The $100 credit gives ~50 hours of GPU time. Everything on one machine eliminates cross-cloud networking latency, secrets management complexity, and inter-service authentication overhead. Localhost calls are sub-millisecond.
+Why: the project is a prototype, and the $100 AMD Developer Cloud budget is not enough to comfortably serve 70B-class models through development and demo rehearsal. Hosted NIM inference lets us spend engineering time on retrieval quality, disclosure drift, citations, and the UI.
 
-### LLM Serving: vLLM with ROCm backend
+### LLM Serving: NVIDIA NIM
 
-vLLM provides an OpenAI-compatible API (`/v1/chat/completions`, `/v1/embeddings`) and is the standard choice for serving open-source LLMs on AMD GPUs via ROCm. It handles continuous batching, KV cache management, and speculative decoding automatically.
+NVIDIA NIM provides hosted OpenAI-compatible chat completion endpoints. The Inference Gateway maps logical model names to provider-specific NIM model IDs and adds request IDs, metrics, retries, and normalized errors.
 
-Run two instances:
-- Port 8000: `Qwen/Qwen2.5-72B-Instruct` — used only for final memo generation
-- Port 8001: `Qwen/Qwen2.5-14B-Instruct` — used for retrieval planning, diff classification, and any intermediate LLM calls
+Use two logical Gateway model names:
+- `fincontext-reasoner`: `Qwen/Qwen2.5-72B-Instruct` compatible NIM endpoint — used only for final memo generation
+- `fincontext-planner`: `Qwen/Qwen2.5-14B-Instruct` compatible NIM endpoint — used for retrieval planning, diff classification, and intermediate LLM calls
 
 Why Qwen2.5 over Llama 3: Qwen2.5 has strong instruction-following on structured output tasks. The 72B variant benchmarks competitively with GPT-4o on coding and reasoning. The 14B variant is fast enough for sub-second intermediate calls.
 
 ### Embeddings and Reranking: HuggingFace TEI (Text Embeddings Inference)
 
-TEI is HuggingFace's optimized embedding and reranking server. It serves BAAI/bge-large-en-v1.5 (1024-dimensional embeddings) and BAAI/bge-reranker-large with hardware-aware batching on AMD ROCm.
+TEI is HuggingFace's optimized embedding and reranking server. It serves BAAI/bge-large-en-v1.5 (1024-dimensional embeddings) and BAAI/bge-reranker-large. For the prototype, these services can run locally, on a small hosted process, or be mocked in tests; they do not require 70B-class GPU inference.
 
 Why BGE over other embedding models: BGE-large-en-v1.5 consistently ranks at the top of the MTEB retrieval benchmark for its size class. The BGE reranker (cross-encoder) significantly improves precision over bi-encoder-only retrieval on domain-specific text.
 
 ### Vector Store: Qdrant
 
-Qdrant runs in Docker on the AMD VM. It provides:
+Qdrant runs in Docker on the backend host. It provides:
 - HNSW approximate nearest-neighbor search
 - Rich payload filtering (exact match, range, geo) without a separate SQL query
 - Named collections with configurable distance metrics
@@ -95,16 +94,16 @@ FastAPI is used for both the Agent API and the Inference Gateway. It provides:
 - Automatic OpenAPI documentation (useful for debugging during hackathon)
 - Pydantic integration for request/response validation
 - Async support for concurrent model calls
-- SSE (Server-Sent Events) for streaming memo generation to the Gradio UI
+- SSE (Server-Sent Events) for streaming memo generation to the React UI
 
-### Demo UI: Gradio on HuggingFace Spaces
+### Demo UI: React on HuggingFace Static Spaces
 
-Gradio is HuggingFace's UI framework. A Gradio app deployed to HuggingFace Spaces:
+The public demo UI is a Vite React app in `apps/demo-ui/` deployed to HuggingFace Static Spaces:
 - Satisfies the hackathon's HuggingFace integration requirement
-- Is publicly accessible for judges without any auth setup
-- Deploys with a single `git push`
-- Takes 2 hours to build, not 2 days like a custom JavaScript frontend
-- Supports SSE streaming for live memo generation
+- Is publicly accessible for judges without a separate frontend server
+- Uses a polished analyst-console layout suited to the React component model
+- Calls only the Agent API; it never calls SQLite, Qdrant, Gateway, NVIDIA NIM, embedding services, rerankers, or EDGAR directly
+- Does not embed `AGENT_API_KEY` because static browser apps cannot keep secrets
 
 ---
 
@@ -366,16 +365,16 @@ Response includes scores. Re-sort the merged candidates by reranker score before
 
 All LLM, embedding, and reranker calls from the Agent API go through the Inference Gateway at `http://localhost:8080`. The gateway routes based on endpoint:
 
-| Endpoint | Routes to | Port |
-|----------|-----------|------|
-| POST /v1/chat/completions (model=fincontext-planner) | vLLM 14B | 8001 |
-| POST /v1/chat/completions (model=fincontext-reasoner) | vLLM 72B | 8000 |
-| POST /v1/embeddings | TEI embedding service | 8002 |
-| POST /v1/rerank | TEI reranker service | 8003 |
-| GET /health | all services | — |
-| GET /metrics | Prometheus metrics | — |
+| Endpoint | Routes to |
+|----------|-----------|
+| POST /v1/chat/completions (model=fincontext-planner) | NVIDIA NIM planner endpoint |
+| POST /v1/chat/completions (model=fincontext-reasoner) | NVIDIA NIM reasoner endpoint |
+| POST /v1/embeddings | configured embedding backend |
+| POST /v1/rerank | configured reranker backend |
+| GET /health | all configured upstream services |
+| GET /metrics | aggregated Gateway metrics |
 
-The gateway adds request IDs, logs latency, and normalizes error responses. Agent API code never calls vLLM or TEI directly — always through the gateway.
+The gateway adds request IDs, logs latency, and normalizes error responses. Agent API code never calls NVIDIA NIM, embedding backends, or reranker backends directly — always through the gateway.
 
 ---
 
@@ -418,14 +417,14 @@ When multiple agents (Claude Code and Codex) are working in parallel, use this d
 **Codex works on:**
 - `services/ingestion-worker/` — SEC EDGAR client, HTML parser, chunking, embedding pipeline
 - `services/inference-gateway/` — FastAPI proxy service
-- `apps/demo-ui/` — Gradio interface
+- `apps/demo-ui/` — Vite React interface for HuggingFace Static Spaces
 - `infra/` — Docker Compose configuration, SQLite schema
 
 Both agents should coordinate on `packages/schemas/python/state.py` — this is the shared contract. Any change to `AnalysisState` must be discussed before implementation, as it affects both service teams.
 
 ---
 
-## AMD Hardware Demo Script
+## Demo Script
 
 This is what we show to judges (in order):
 
@@ -434,8 +433,8 @@ This is what we show to judges (in order):
 3. **Show the disclosure diff for AMD** — side-by-side comparison of Item 1A risk factor language across 2022–2025 10-Ks, with classified changes highlighted
 4. **Ask a question:** "What changed in supply-chain or customer concentration risk for my semiconductor holdings?"
 5. **Show the analyst memo** — citation-grounded, with inline `[citation_anchor]` references linking to the exact filing paragraph
-6. **Show the AMD GPU benchmark panel** — tokens/sec, time-to-first-token, concurrent requests, GPU memory utilization
-7. **Explain the hardware angle:** "This 72B parameter model runs in FP16 on a single AMD MI300X because it has 192 GB of VRAM. On NVIDIA H100 (80 GB), this same model requires multi-GPU orchestration with tensor parallelism. We use the full long-context window — 65,536 tokens — to analyze an entire 10-K in a single pass."
+6. **Show the inference metrics panel** — tokens/sec, time-to-first-token, concurrent requests, provider status
+7. **Explain the inference angle:** "The workflow calls one Gateway contract. Today that Gateway routes LLM calls to NVIDIA NIM hosted endpoints, while retrieval, citations, and storage stay local and auditable."
 
 ---
 
@@ -444,9 +443,9 @@ This is what we show to judges (in order):
 The hackathon requires meaningful HuggingFace integration. We satisfy this through:
 
 - [ ] Models pulled from HuggingFace Hub: `Qwen/Qwen2.5-72B-Instruct`, `Qwen/Qwen2.5-14B-Instruct`, `BAAI/bge-large-en-v1.5`, `BAAI/bge-reranker-large`
-- [ ] `HF_TOKEN` environment variable used for authenticated model downloads
-- [ ] Demo UI deployed as a public HuggingFace Space
-- [ ] Space README explains what AMD hardware is being used and links to the AMD Developer Cloud
+- [ ] `NIM_API_KEY` environment variable used for hosted inference access
+- [ ] Demo UI deployed as a public HuggingFace Static Space
+- [ ] Space README explains the NVIDIA NIM inference architecture and Gateway abstraction
 - [ ] Build-in-Public posts tagged `#AMDDevHackathon` and `#HuggingFace` on X/LinkedIn
 
 ---
@@ -455,9 +454,9 @@ The hackathon requires meaningful HuggingFace integration. We satisfy this throu
 
 The hackathon has a dedicated prize pool for teams that post 3+ technical build-in-public posts on X or LinkedIn tagged `#AMDDevHackathon`. Post about:
 
-1. Getting vLLM running on ROCm — what flags worked, what didn't
+1. Swapping the inference backend to NVIDIA NIM without changing the agent graph
 2. Hybrid BM25 + vector retrieval quality comparison on financial text
-3. The AMD MI300X 192 GB VRAM advantage for 70B model inference — real benchmark numbers
+3. Hosted reasoner inference with NVIDIA NIM plus citation-grounded retrieval
 
 These posts also make your submission visible to judges before they open it.
 
@@ -576,14 +575,13 @@ __pycache__/
 ## Environment Variables Reference
 
 ```bash
-# AMD VM
-AMD_VM_PUBLIC_IP=            # public IP of the AMD Developer Cloud VM
-
-# Model services (all localhost from AMD VM perspective)
-VLLM_REASONER_URL=http://localhost:8000/v1   # Qwen2.5-72B
-VLLM_PLANNER_URL=http://localhost:8001/v1    # Qwen2.5-14B
-EMBEDDING_URL=http://localhost:8002          # BGE embedding
-RERANKER_URL=http://localhost:8003           # BGE reranker
+# Model services
+NIM_API_KEY=                 # NVIDIA NIM API key
+NIM_BASE_URL=https://integrate.api.nvidia.com/v1
+NIM_REASONER_MODEL=Qwen/Qwen2.5-72B-Instruct
+NIM_PLANNER_MODEL=Qwen/Qwen2.5-14B-Instruct
+EMBEDDING_URL=http://localhost:8002
+RERANKER_URL=http://localhost:8003
 INFERENCE_GATEWAY_URL=http://localhost:8080  # unified gateway
 AGENT_API_URL=http://localhost:8090          # LangGraph agent service
 
@@ -591,10 +589,6 @@ AGENT_API_URL=http://localhost:8090          # LangGraph agent service
 QDRANT_URL=http://localhost:6333
 QDRANT_COLLECTION=fincontext_chunks
 SQLITE_DB_PATH=./fincontext.db
-
-# HuggingFace
-HF_TOKEN=                    # for authenticated model downloads from HF Hub
-HF_HOME=/models/huggingface  # model cache directory on AMD VM
 
 # SEC EDGAR (required, no key needed)
 SEC_USER_AGENT=FinContextAgent/0.1 your-email@example.com

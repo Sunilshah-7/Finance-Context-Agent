@@ -2,7 +2,7 @@
 
 This document explains the lightweight CI checks and the recommended GitHub
 branch rules for FinContext Agent. The goal is to protect `dev` and `main`
-without blocking hackathon velocity or requiring AMD hardware in CI.
+without blocking hackathon velocity or requiring live hosted inference in CI.
 
 ## What CI Checks
 
@@ -44,11 +44,11 @@ This job blocks common accidental commits:
 
 ## What CI Does Not Check
 
-CI does not start AMD GPU services. It does not run vLLM, TEI, live EDGAR
-ingestion, live Qdrant integration, or HuggingFace Spaces deployment.
+CI does not call NVIDIA NIM. It does not run live EDGAR ingestion, live Qdrant
+integration, or HuggingFace Spaces deployment.
 
-Those checks belong on the AMD VM with the smoke playbook and validation CLI
-because GitHub-hosted runners do not have the required AMD GPU environment.
+Those checks belong in the backend smoke playbook and validation CLI because
+they require secrets, network access, and live services.
 
 ## Recommended Branch Rules
 

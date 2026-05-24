@@ -1,15 +1,15 @@
 # services/agent-api
 
-FastAPI service that runs the 4-node LangGraph financial analysis workflow on AMD Developer Cloud.
+FastAPI service that runs the 4-node LangGraph financial analysis workflow.
 
 ## What this service does
 
-- Receives portfolio upload and analysis requests from the Gradio UI via HTTPS
+- Receives portfolio upload and analysis requests from the React UI via HTTPS
 - Runs the LangGraph agent graph: portfolio_context_planner → filing_retrieval → disclosure_change → analyst_memo
 - Calls the Inference Gateway for all LLM, embedding, and reranking operations
 - Reads and writes SQLite for portfolio metadata, job status, and findings
 - Reads Qdrant for vector retrieval during the filing_retrieval node
-- Streams SSE tokens to the Gradio UI for the chat endpoint
+- Streams SSE tokens to the React UI for the chat endpoint
 
 ## Stack
 
@@ -66,9 +66,9 @@ pytest tests/integration/ -x                       # integration tests (needs Qd
 
 **Agents never call each other directly.** Each node function has the signature `async def node_name(state: AnalysisState) -> AnalysisState`. LangGraph handles routing. Nodes read from state, perform their work, and return updated state.
 
-**All model calls go through the Inference Gateway at port 8080.** Never call vLLM, TEI embedding, or TEI reranker directly. The gateway adds request IDs, logs metrics, and normalizes responses.
+**All model calls go through the Inference Gateway at port 8080.** Never call NVIDIA NIM, embedding, or reranker backends directly. The gateway adds request IDs, logs metrics, and normalizes responses.
 
-**72B model is used only in the analyst_memo node.** All other LLM calls use the 14B model (port 8001, `fincontext-planner`). This protects the $100 AMD credit.
+**The reasoner model is used only in the analyst_memo node.** All other LLM calls use the smaller planner model (`fincontext-planner`) to keep latency and hosted inference cost under control.
 
 **Citation verification is a post-processing step in analyst_memo, not a separate agent.** Every `[chunk_id]` in the generated memo text is verified against the retrieved chunks in state. Sentences with unverified citations are removed.
 
@@ -86,4 +86,4 @@ See `docs/api-contracts.md` for full request/response specifications.
 - `GET /api/diff/{ticker}` — get disclosure changes for a ticker
 - `POST /api/chat` — SSE streaming citation-backed Q&A
 - `GET /api/documents/{ticker}` — list ingested documents
-- `GET /api/benchmark/metrics` — AMD GPU performance metrics
+- `GET /api/benchmark/metrics` — inference performance metrics

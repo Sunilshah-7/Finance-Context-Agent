@@ -1,7 +1,7 @@
-"""Tests for the AMD VM preflight checker.
+"""Tests for the prototype backend preflight checker.
 
 The tests keep network and machine-specific checks mocked so the preflight
-logic can be trusted before the team runs it on the real AMD VM.
+logic can be trusted before the team runs it on the real backend.
 """
 
 from __future__ import annotations
@@ -28,7 +28,8 @@ def write_env(path: Path, **values: str) -> Path:
 
 def valid_env_values() -> dict[str, str]:
     return {
-        "HF_TOKEN": "hf_real_token",
+        "NIM_API_KEY": "nvapi_real_token",
+        "NIM_BASE_URL": "https://integrate.api.nvidia.com/v1",
         "SEC_USER_AGENT": "FinContextAgent/0.1 teammate@example.com",
         "INFERENCE_GATEWAY_URL": "http://localhost:8080",
         "QDRANT_URL": "http://localhost:6333",
@@ -40,21 +41,22 @@ def valid_env_values() -> dict[str, str]:
 def test_parse_env_file_strips_inline_comments(tmp_path):
     env_path = tmp_path / ".env"
     env_path.write_text(
-        "HF_TOKEN= # your HuggingFace token\n"
+        "NIM_API_KEY= # your NIM API key\n"
         "QDRANT_COLLECTION=fincontext_chunks # collection name\n",
         encoding="utf-8",
     )
 
     values = vm_preflight.parse_env_file(env_path)
 
-    assert values["HF_TOKEN"] == ""
+    assert values["NIM_API_KEY"] == ""
     assert values["QDRANT_COLLECTION"] == "fincontext_chunks"
 
 
 def test_check_env_file_flags_placeholders(tmp_path):
     env_path = write_env(
         tmp_path / ".env",
-        HF_TOKEN="",
+        NIM_API_KEY="",
+        NIM_BASE_URL="https://integrate.api.nvidia.com/v1",
         SEC_USER_AGENT="FinContextAgent/0.1 your-email@example.com",
         INFERENCE_GATEWAY_URL="http://localhost:8080",
         QDRANT_URL="http://localhost:6333",
@@ -65,7 +67,7 @@ def test_check_env_file_flags_placeholders(tmp_path):
     results = vm_preflight.check_env_file(env_path)
     failures = {result.name: result.message for result in results if not result.ok}
 
-    assert failures["env:HF_TOKEN"] == "HF_TOKEN is unset or still a placeholder"
+    assert failures["env:NIM_API_KEY"] == "NIM_API_KEY is unset or still a placeholder"
     assert failures["env:SEC_USER_AGENT"] == (
         "SEC_USER_AGENT is unset or still a placeholder"
     )
@@ -99,37 +101,18 @@ def test_check_required_paths_reports_missing_files(tmp_path):
     by_name = {result.name: result for result in results}
 
     assert by_name["path:infra/schema.sql"].ok
-    assert not by_name["path:infra/amd-gpu/docker-compose.yml"].ok
+    assert not by_name["path:infra/docker-compose.yml"].ok
 
 
-def test_check_required_commands_treats_rocm_as_warning(monkeypatch):
+def test_check_required_commands_reports_required_commands(monkeypatch):
     def fake_which(command):
-        if command == "rocm-smi":
-            return None
         return f"/usr/bin/{command}"
 
     monkeypatch.setattr(vm_preflight.shutil, "which", fake_which)
 
     results = vm_preflight.check_required_commands()
-    rocm = next(result for result in results if result.name == "command:rocm-smi")
 
-    assert not rocm.ok
-    assert rocm.level == "warning"
-
-
-def test_check_required_commands_can_require_rocm(monkeypatch):
-    def fake_which(command):
-        if command == "rocm-smi":
-            return None
-        return f"/usr/bin/{command}"
-
-    monkeypatch.setattr(vm_preflight.shutil, "which", fake_which)
-
-    results = vm_preflight.check_required_commands(require_rocm=True)
-    rocm = next(result for result in results if result.name == "command:rocm-smi")
-
-    assert not rocm.ok
-    assert rocm.level == "error"
+    assert all(result.ok for result in results)
 
 
 def test_check_gateway_health_reports_response_status(monkeypatch):
@@ -150,7 +133,7 @@ def test_check_gateway_health_reports_response_status(monkeypatch):
 def test_has_blocking_failures_ignores_warnings():
     results = [
         vm_preflight.CheckResult(
-            name="command:rocm-smi",
+            name="online:nim",
             ok=False,
             level="warning",
             message="missing locally",

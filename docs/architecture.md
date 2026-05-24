@@ -1,23 +1,23 @@
 # Architecture
 
-## Decision: Single-VM Architecture
+## Decision: Lightweight Prototype Backend + Hosted Inference
 
-The MVP runs compute, storage, retrieval, and orchestration on one AMD Developer Cloud VM. This keeps the system simple enough for a 9-day hackathon build: localhost service calls, one database file, one vector store, one GPU host, and one public Gradio interface on HuggingFace Spaces.
+The MVP runs app orchestration, retrieval, metadata, and ingestion on one lightweight backend host. LLM inference is hosted by NVIDIA NIM through the Inference Gateway. This keeps the prototype simple without requiring us to run 70B-class GPU infrastructure.
 
-The frontend is a Gradio app on HuggingFace Spaces. It satisfies the hackathon's HuggingFace integration requirement, deploys with a `git push`, and is publicly accessible to judges.
+The frontend is a Vite React app on HuggingFace Static Spaces, giving the demo a polished analyst-console UI while keeping HuggingFace integration.
 
 ## High-Level Architecture
 
 ```
-User (browser / Gradio UI)
+User (browser / React UI)
   │
   │  HTTPS
   ▼
-HuggingFace Spaces — Gradio app (apps/demo-ui/)
+HuggingFace Spaces — React Static Space (apps/demo-ui/)
   │
   │  HTTPS  →  AMD_VM_PUBLIC_IP:8090
   ▼
-AMD Developer Cloud VM
+Backend host
   ├── Agent API (port 8090) ─────────────────────────────────────┐
   │     FastAPI + LangGraph                                       │
   │     4-node agent graph                                        │
@@ -27,14 +27,13 @@ AMD Developer Cloud VM
   │                                                               │
   ├── Inference Gateway (port 8080) ←────────────────────────────┘
   │     FastAPI proxy
-  │     Routes completions → vLLM 72B or vLLM 14B
+  │     Routes completions → NVIDIA NIM
   │     Routes embeddings → BGE embedding service
   │     Routes rerank → BGE reranker service
   │     Logs latency, token counts, error rates
   │
-  ├── vLLM reasoner (port 8000)     Qwen2.5-72B-Instruct, FP16, ROCm
-  ├── vLLM planner (port 8001)      Qwen2.5-14B-Instruct, FP16, ROCm
-  ├── Embedding service (port 8002) BAAI/bge-large-en-v1.5, TEI or vLLM
+  ├── NVIDIA NIM hosted chat        Qwen2.5-72B / Qwen2.5-14B compatible endpoints
+  ├── Embedding service (port 8002) BAAI/bge-large-en-v1.5 compatible backend
   ├── Reranker service (port 8003)  BAAI/bge-reranker-large, TEI
   ├── Qdrant (port 6333)            Docker, persistent volume, HNSW index
   └── SQLite (on-disk)              Metadata: portfolios, holdings, jobs, findings, chunks
@@ -44,7 +43,7 @@ AMD Developer Cloud VM
 
 ### Agent API (`services/agent-api/`)
 
-The brain of the system. Receives analysis requests from the Gradio UI, runs the 4-node LangGraph graph, coordinates retrieval and model calls through the Inference Gateway, and writes findings back to SQLite.
+The brain of the system. Receives analysis requests from the React UI, runs the 4-node LangGraph graph, coordinates retrieval and model calls through the Inference Gateway, and writes findings back to SQLite.
 
 Endpoints:
 - `POST /api/portfolio/upload` — validate and store a portfolio CSV in SQLite
@@ -77,15 +76,15 @@ This service makes the Agent API independent of which specific model is loaded. 
 
 ### Demo UI (`apps/demo-ui/`)
 
-A Gradio app that provides the judge-facing interface. It communicates with the Agent API over HTTPS using the AMD VM's public IP. It is deployed to HuggingFace Spaces.
+A Vite React app that provides the judge-facing interface. It communicates with the Agent API over HTTPS using the backend host's public IP. It is deployed as a HuggingFace Static Space.
 
-Key Gradio tabs:
+Key UI tabs:
 1. Portfolio Upload — CSV upload, holdings display
 2. Analysis — trigger analysis, job status stream
 3. Disclosure Diff — side-by-side filing comparison with change labels
 4. Risk Scores — per-holding score table with drivers
 5. Analyst Memo — streaming memo display with citation cards
-6. AMD Benchmark — tokens/sec, latency, GPU memory utilization panel
+6. Inference Metrics — tokens/sec, latency, provider/model status panel
 
 ## Data Flow: Full Request Lifecycle
 
@@ -93,18 +92,18 @@ Key Gradio tabs:
 
 ```
 User uploads CSV
-  → Gradio calls POST /api/portfolio/upload
+  → React UI calls POST /api/portfolio/upload
   → Agent API validates CSV (required columns: ticker, shares, market_value)
   → Agent API writes to SQLite: portfolios, holdings rows
   → Calls ticker-to-CIK resolver for each holding (EDGAR company_tickers.json cache)
-  → Returns portfolio_id to Gradio UI
+  → Returns portfolio_id to React UI
 ```
 
 ### Portfolio Analysis (async)
 
 ```
 User clicks "Analyze Latest Filings"
-  → Gradio calls POST /api/analyze with portfolio_id
+  → React UI calls POST /api/analyze with portfolio_id
   → Agent API creates analysis_jobs row (status=queued), returns job_id immediately
   → Background task starts LangGraph graph
 
@@ -141,22 +140,22 @@ User clicks "Analyze Latest Filings"
 
 ```
 User navigates to Disclosure Diff tab, selects AMD + section
-  → Gradio calls GET /api/diff/AMD?section=Item+1A&year_a=2023&year_b=2025
+  → React UI calls GET /api/diff/AMD?section=Item+1A&year_a=2023&year_b=2025
   → Agent API queries SQLite for chunk records matching ticker + section + filing years
   → Runs disclosure_change node logic on those specific chunks (no full graph needed)
   → Returns DisclosureChange list with classification labels and citation anchors
-  → Gradio renders side-by-side diff with change labels highlighted
+  → React UI renders side-by-side diff with change labels highlighted
 ```
 
 ### Citation-Backed Chat (synchronous, streaming)
 
 ```
 User types "What changed in supply-chain risk for AMD?"
-  → Gradio opens SSE connection to POST /api/chat
+  → React UI opens SSE connection to POST /api/chat
   → Agent API runs mini graph: context_planner → filing_retrieval → memo (no diff node)
   → Memo node streams tokens via SSE
-  → Gradio renders tokens as they arrive
-  → At end of stream, Gradio renders citation cards below the answer
+  → React UI renders tokens as they arrive
+  → At end of stream, React UI renders citation cards below the answer
 ```
 
 ## Data Stores
@@ -186,22 +185,17 @@ Both teammates should restore from the same snapshot before demo day to ensure i
 
 ## Security Notes (minimal, hackathon scope)
 
-- The Agent API should require a simple bearer token (`AGENT_API_KEY` env var) so the HuggingFace Spaces UI can authenticate without exposing the VM directly
-- The AMD VM's firewall should expose only port 8090 (Agent API) externally; ports 8000, 8001, 8002, 8003, 8080, and 6333 should be internal-only
+- Static browser apps cannot keep `AGENT_API_KEY` secret. For the public demo, Agent API should expose demo-safe frontend endpoints with CORS and rate limiting, while private/admin operations can still require bearer auth.
+- The backend host's firewall should expose only port 8090 (Agent API) externally; embedding, reranker, Gateway, and Qdrant ports should be internal-only
 - The `SEC_USER_AGENT` header must identify the application and include a contact email — EDGAR will block requests that omit it or use a generic user agent
 
-## Why This Beats the NVIDIA Story
+## Why This Fits The Prototype
 
-AMD MI300X has 192 GB of HBM3 VRAM. Qwen2.5-72B in FP16 requires approximately 144 GB of VRAM. A single MI300X runs it without tensor parallelism. NVIDIA H100 SXM has 80 GB — it cannot hold a 72B FP16 model and would require a multi-GPU setup with tensor-parallel configuration.
-
-Our demo shows:
-- Full 10-K text (average 200–350 pages, ~150,000 tokens) processed in a single context window pass
-- `--max-model-len 65536` in vLLM, using the full long-context capability
-- No chunked multi-pass inference, no context fragmentation, no multi-GPU orchestration overhead
+The product value is the disclosure-drift workflow, citation discipline, and portfolio impact memo. Running a 70B-class model ourselves would add infrastructure cost and operational risk without improving the prototype's core evidence pipeline. NVIDIA NIM gives us hosted, OpenAI-compatible chat completions while the Gateway keeps the rest of the system provider-neutral.
 
 For the benchmark panel, record and display:
 - Tokens per second (input + output)
 - Time to first token (ms)
-- GPU memory utilization (%)
+- Provider/model status
 - Number of concurrent analysis requests handled
-- Cost proxy: GPU-minutes per full portfolio analysis
+- Cost proxy: hosted inference calls per full portfolio analysis

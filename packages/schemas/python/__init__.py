@@ -20,7 +20,7 @@ from .api import (
     FindingsMemo,
     FindingsResponse,
     FindingsRiskScore,
-    GpuInfo,
+    ProviderInfo,
     JobStatusResponse,
     AnalyzeRequest,
     AnalyzeResponse,
@@ -30,7 +30,7 @@ from .api import (
     RecentRequests,
     RerankerMetrics,
     RiskDriver,
-    VllmMetrics,
+    ModelMetrics,
 )
 from .db import (
     AnalysisJobRow,
@@ -101,11 +101,11 @@ __all__ = [
     "EvidenceEntry",
     "FindingsMemo",
     "FindingsRiskScore",
-    "GpuInfo",
+    "ProviderInfo",
     "PortfolioExposure",
     "PortfolioImpact",
     "RecentRequests",
     "RerankerMetrics",
     "RiskDriver",
-    "VllmMetrics",
+    "ModelMetrics",
 ]

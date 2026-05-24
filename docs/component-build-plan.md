@@ -6,25 +6,21 @@ Build components in this exact order. Each step produces a testable deliverable.
 
 ## Step 0: Environment and Schema (Pre-Build Phase)
 
-### AMD VM Setup
+### Backend Setup
 
 ```bash
-# Verify ROCm is installed and GPU is visible
-rocm-smi
-# Expected: shows GPU device with memory info
-
 # Verify Docker is installed
 docker --version && docker compose version
 
-# Start all GPU services
-cd infra/amd-gpu
-docker compose up -d
+# Configure hosted inference
+cp configs/.env.example .env
+# Fill NIM_API_KEY, NIM_BASE_URL, SEC_USER_AGENT, and AGENT_API_KEY
 
-# Verify each service is healthy
-curl http://localhost:8000/health      # vLLM 72B — may take 3-5 min to load
-curl http://localhost:8001/health      # vLLM 14B
-curl http://localhost:8002/health      # embedding service
-curl http://localhost:8003/health      # reranker service
+# Start storage service
+docker compose -f infra/docker-compose.yml up -d qdrant
+
+# Verify services are healthy
+curl http://localhost:8080/health      # Inference Gateway
 curl http://localhost:6333/healthz     # Qdrant
 ```
 
@@ -166,7 +162,7 @@ Test: Chunk a 5000-word section, verify chunk sizes are within range, verify ove
 
 Responsibilities:
 - Accept a list of chunk texts (up to 256 at once)
-- POST to `http://localhost:8002/embeddings` (Inference Gateway → TEI embedding service)
+- POST to the Inference Gateway `/v1/embeddings`
 - Return list of 1024-dimensional float vectors
 - Handle rate limits and retries (3 retries with exponential backoff)
 
@@ -270,10 +266,10 @@ services/inference-gateway/
 Routing logic:
 ```python
 MODEL_ROUTING = {
-    "fincontext-reasoner": "http://localhost:8000",   # vLLM 72B
-    "fincontext-planner":  "http://localhost:8001",   # vLLM 14B
-    "fincontext-embedding": "http://localhost:8002",  # TEI embedding
-    "fincontext-reranker":  "http://localhost:8003",  # TEI reranker
+    "fincontext-reasoner": "nvidia-nim",      # hosted reasoner endpoint
+    "fincontext-planner": "nvidia-nim",       # hosted planner endpoint
+    "fincontext-embedding": "local-embedding",
+    "fincontext-reranker": "local-reranker",
 }
 ```
 
@@ -410,18 +406,20 @@ Build after Agent API is functional end-to-end.
 
 ```
 apps/demo-ui/
-  app.py            # Main Gradio app — all tabs defined here
-  components/
-    portfolio.py    # Portfolio upload tab
-    analysis.py     # Analysis trigger + status polling tab
-    diff.py         # Disclosure diff viewer tab
-    risk.py         # Risk score panel tab
-    memo.py         # Analyst memo viewer tab
-    benchmark.py    # AMD GPU benchmark panel tab
-    chat.py         # Citation-backed chat tab
-  api_client.py     # httpx client for Agent API calls
-  requirements.txt
-  README.md         # HuggingFace Space description — AMD hardware story
+  package.json
+  index.html
+  src/
+    App.tsx         # Main React app — all tabs assembled here
+    components/
+      Portfolio.tsx # Portfolio upload tab
+      Analysis.tsx  # Analysis trigger + status polling tab
+      Diff.tsx      # Disclosure diff viewer tab
+      Risk.tsx      # Risk score panel tab
+      Memo.tsx      # Analyst memo viewer tab
+      Benchmark.tsx # Inference metrics panel tab
+      Chat.tsx      # Citation-backed chat tab
+    lib/api.ts      # Agent API client
+  README.md         # HuggingFace Static Space description
 ```
 
 HuggingFace Space metadata (in README.md YAML frontmatter):
@@ -430,9 +428,9 @@ HuggingFace Space metadata (in README.md YAML frontmatter):
 title: FinContext Agent
 colorFrom: blue
 colorTo: indigo
-sdk: gradio
-sdk_version: 4.x
-app_file: app.py
+sdk: static
+app_build_command: npm run build
+app_file: dist/index.html
 pinned: false
 ---
 ```
@@ -448,7 +446,7 @@ packages/evals/
   eval_retrieval.py      # Retrieval recall against labeled query-document pairs
   eval_citations.py      # Citation precision: does each [citation_anchor] support the claim?
   eval_diff.py           # Disclosure diff quality: does classifier detect known real changes?
-  eval_latency.py        # End-to-end latency benchmark across the 5 scenarios in amd-gpu-plan.md
+  eval_latency.py        # End-to-end latency benchmark across the 5 scenarios in nvidia-nim-plan.md
   fixtures/
     labeled_queries.json  # 20 query + expected citations pairs for retrieval eval
     known_changes.json    # 10 known real AMD/NVDA disclosure changes for diff eval
@@ -463,4 +461,4 @@ python eval_diff.py       # prints change detection accuracy
 python eval_latency.py    # prints latency table (saves to benchmark_results.json)
 ```
 
-The latency benchmark results feed the AMD benchmark panel in the Gradio UI.
+The latency benchmark results feed the inference metrics panel in the React UI.

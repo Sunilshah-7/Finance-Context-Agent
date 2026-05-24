@@ -225,7 +225,7 @@ def rrf_merge(bm25_results, vector_results, k=60):
 
 **Error behavior:** If Qdrant or SQLite returns no results for a ticker, log a warning and continue. The memo node will note missing evidence in the limitations section.
 
-**Performance target:** Full retrieval for 5 tickers should complete in under 10 seconds on the AMD VM.
+**Performance target:** Full retrieval for 5 tickers should complete in under 10 seconds on the backend host.
 
 ## Node 3: disclosure_change
 
@@ -426,7 +426,7 @@ Only the `analyst_memo` node generates prose. Even there, the memo sections foll
 
 ## Testing Each Node
 
-Each node must be testable in isolation without a running vLLM instance:
+Each node must be testable in isolation without a live NIM or model-serving instance:
 
 ```python
 # tests/test_nodes.py
