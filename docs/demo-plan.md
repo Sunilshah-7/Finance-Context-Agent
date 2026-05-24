@@ -40,11 +40,7 @@ Pre-ingest all 5 tickers before demo day. The demo never shows live ingestion.
 
 "I'm uploading a sample portfolio with five holdings across semiconductors, software, financials, energy, and consumer discretionary."
 
-<<<<<<< HEAD
-- Drag and drop `demo/seed_portfolio.csv` into the React Portfolio tab
-=======
 - Drag and drop `demo/seed_portfolio.csv` into the React Portfolio Upload tab
->>>>>>> origin/dev
 - Show the holdings table that appears: ticker, shares, market value, weight, sector
 - Point out AMD is the largest semiconductor holding at 25.4% weight
 
@@ -128,11 +124,7 @@ Show:
 
 ### Step 9: Architecture Slide (30 seconds — verbal only)
 
-<<<<<<< HEAD
-"Three layers. HuggingFace Spaces for the public UI — that's this React interface. AMD Developer Cloud for everything GPU — the 72B reasoner, the 14B planner, the BGE embedding and reranker, and the Qdrant vector store. And SEC EDGAR as the data source — all public filings, no data license required."
-=======
 "Three layers. HuggingFace Spaces for the public UI — that's this React interface. The backend host runs the Agent API, Gateway, Qdrant, and SQLite. NVIDIA NIM provides hosted LLM inference. SEC EDGAR is the data source — all public filings, no data license required."
->>>>>>> origin/dev
 
 "The key engineering choice is that all model calls go through the Inference Gateway, so the workflow stays stable even when the serving backend changes."
 
