@@ -1,10 +1,6 @@
 # API Contracts
 
-<<<<<<< HEAD
-All APIs are FastAPI services running on the AMD Developer Cloud VM. The React UI on HuggingFace Static Spaces communicates directly with the Agent API over HTTPS.
-=======
 All APIs are FastAPI services running behind the Agent API. The React Static Space on HuggingFace Spaces communicates directly with the Agent API over HTTPS.
->>>>>>> origin/dev
 
 Authentication: private Agent API operations may require `Authorization: Bearer {AGENT_API_KEY}`. The public React demo cannot keep secrets in browser code, so demo-facing endpoints must either be public and rate-limited or proxied by a backend if bearer auth is required.
 

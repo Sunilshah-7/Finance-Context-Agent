@@ -1,10 +1,11 @@
-# AMD GPU Plan
+# AMD GPU Plan (This plan is obsolete, no need to work on this plan)
 
 ## The Hardware Advantage We Are Demonstrating
 
 AMD MI300X has 192 GB of HBM3 VRAM. Qwen2.5-72B in FP16 requires approximately 144 GB. This means a single MI300X runs the full 72B model with 48 GB of remaining VRAM headroom for KV cache.
 
 NVIDIA H100 SXM has 80 GB. It cannot hold a 72B FP16 model on a single card. It requires:
+
 - 2-GPU tensor-parallel setup (doubles cost, adds NVLink overhead)
 - OR INT8 quantization (reduces model quality)
 - OR reduced context length to fit within 80 GB
@@ -13,13 +14,13 @@ We never need to benchmark against NVIDIA directly. Published benchmarks from in
 
 ## GPU Workloads (Why GPU Matters for Each)
 
-| Workload | Why GPU is better than CPU |
-|----------|---------------------------|
-| 72B LLM inference | CPU inference is 10-50x slower; impractical for any interactive use |
-| 14B LLM inference | CPU acceptable for very short calls, but GPU gives sub-second latency for structured outputs |
-| BGE-large embedding (1024d) | Batch of 256 texts: GPU <1s vs CPU ~10s |
-| BGE reranker cross-encoder | 40 candidates: GPU ~200ms vs CPU ~3s |
-| Parallel agent calls | GPU serves multiple concurrent LLM requests efficiently; CPU cannot |
+| Workload                    | Why GPU is better than CPU                                                                   |
+| --------------------------- | -------------------------------------------------------------------------------------------- |
+| 72B LLM inference           | CPU inference is 10-50x slower; impractical for any interactive use                          |
+| 14B LLM inference           | CPU acceptable for very short calls, but GPU gives sub-second latency for structured outputs |
+| BGE-large embedding (1024d) | Batch of 256 texts: GPU <1s vs CPU ~10s                                                      |
+| BGE reranker cross-encoder  | 40 candidates: GPU ~200ms vs CPU ~3s                                                         |
+| Parallel agent calls        | GPU serves multiple concurrent LLM requests efficiently; CPU cannot                          |
 
 The embedding and reranking workloads are small but run frequently (every query triggers reranking). At GPU latency these are fast enough to be invisible to users. At CPU latency they dominate total response time.
 
@@ -98,28 +99,33 @@ Common issues when first setting up vLLM on ROCm:
 
 **`/dev/kfd not found`**
 ROCm is not installed or the current user is not in the `video` group.
+
 ```bash
 sudo usermod -aG video $USER && newgrp video
 ls /dev/kfd  # should exist
 ```
 
 **`Out of memory` during model load**
+
 - Check current GPU memory: `rocm-smi`
 - If another process is using the GPU: `fuser /dev/kfd` and kill it
 - Reduce `--gpu-memory-utilization` to 0.80
 
 **`CUDA_VISIBLE_DEVICES` errors in vLLM ROCm**
 vLLM ROCm uses `HIP_VISIBLE_DEVICES` or `ROCR_VISIBLE_DEVICES`, not `CUDA_VISIBLE_DEVICES`.
+
 ```bash
 export HIP_VISIBLE_DEVICES=0
 ```
 
 **Model download fails**
+
 - Check HF_TOKEN is set and valid
 - Check HuggingFace model access (Qwen2.5-72B requires accepting model terms)
 - Try `huggingface-cli download Qwen/Qwen2.5-72B-Instruct` interactively first
 
 **vLLM build from source (if Docker image has ROCm compatibility issues)**
+
 ```bash
 git clone https://github.com/vllm-project/vllm.git
 cd vllm
@@ -158,13 +164,13 @@ If the ROCm TEI image doesn't support your GPU model, fall back to CPU for embed
 
 Run these 5 scenarios and record metrics for the benchmark panel:
 
-| Scenario | Description |
-|----------|-------------|
-| 1. Single 10-K analysis | AMD 2025 10-K, one question about risk factors |
-| 2. Disclosure diff | AMD 2022 vs 2025 10-K, Item 1A comparison |
-| 3. 5-stock portfolio review | Full demo portfolio, general portfolio review |
-| 4. Interactive Q&A (3 questions) | Streaming chat over pre-analyzed portfolio |
-| 5. Batch embedding | Embed 1,000 chunks, measure throughput |
+| Scenario                         | Description                                    |
+| -------------------------------- | ---------------------------------------------- |
+| 1. Single 10-K analysis          | AMD 2025 10-K, one question about risk factors |
+| 2. Disclosure diff               | AMD 2022 vs 2025 10-K, Item 1A comparison      |
+| 3. 5-stock portfolio review      | Full demo portfolio, general portfolio review  |
+| 4. Interactive Q&A (3 questions) | Streaming chat over pre-analyzed portfolio     |
+| 5. Batch embedding               | Embed 1,000 chunks, measure throughput         |
 
 Metrics to record for each:
 
@@ -190,15 +196,15 @@ Rough GPU hour cost: ~$2/hr (check actual AMD Developer Cloud pricing at provisi
 
 $100 = ~50 GPU hours.
 
-| Activity | Estimated GPU hours |
-|----------|-------------------|
-| Initial model download and vLLM startup tests | 2 hours |
-| Pre-ingestion (embedding 15,000 chunks) | 1 hour |
-| Development iterations (agent graph debugging) | 8 hours |
-| End-to-end testing and benchmark collection | 3 hours |
-| Demo day prep and practice runs | 2 hours |
-| **Total estimated** | **16 hours** |
-| **Buffer remaining** | **~34 hours** |
+| Activity                                       | Estimated GPU hours |
+| ---------------------------------------------- | ------------------- |
+| Initial model download and vLLM startup tests  | 2 hours             |
+| Pre-ingestion (embedding 15,000 chunks)        | 1 hour              |
+| Development iterations (agent graph debugging) | 8 hours             |
+| End-to-end testing and benchmark collection    | 3 hours             |
+| Demo day prep and practice runs                | 2 hours             |
+| **Total estimated**                            | **16 hours**        |
+| **Buffer remaining**                           | **~34 hours**       |
 
 The buffer is large because we use 14B for most LLM calls and only 72B for the final memo. Every development call that doesn't need 72B quality should use the 14B model.
 

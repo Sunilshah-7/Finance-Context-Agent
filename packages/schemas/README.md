@@ -2,11 +2,7 @@
 
 Shared data contracts used by all Python services. Every Pydantic model that crosses service boundaries lives here.
 
-<<<<<<< HEAD
-**TypeScript types are not generated for this project.** The React frontend (HuggingFace Static Space) consumes the Agent API HTTP endpoints directly; only Python services import these schemas.
-=======
 The Python services share these Pydantic schemas directly. The React frontend should consume the Agent API contracts rather than importing Python schema code.
->>>>>>> origin/dev
 
 ## What lives here
 

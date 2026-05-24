@@ -2,15 +2,9 @@
 
 ## Decision: Lightweight Prototype Backend + Hosted Inference
 
-<<<<<<< HEAD
-The MVP runs compute, storage, retrieval, and orchestration on one AMD Developer Cloud VM. This keeps the backend simple: localhost service calls, one database file, one vector store, one GPU host, and one public React Static Space on HuggingFace Spaces.
-
-The frontend is a Vite React app on HuggingFace Static Spaces. The original fast-ship plan used Gradio, but the project moved to React after the deadline to get a more polished analyst-console UI while keeping HuggingFace integration.
-=======
 The MVP runs app orchestration, retrieval, metadata, and ingestion on one lightweight backend host. LLM inference is hosted by NVIDIA NIM through the Inference Gateway. This keeps the prototype simple without requiring us to run 70B-class GPU infrastructure.
 
 The frontend is a Vite React app on HuggingFace Static Spaces, giving the demo a polished analyst-console UI while keeping HuggingFace integration.
->>>>>>> origin/dev
 
 ## High-Level Architecture
 
@@ -82,11 +76,7 @@ This service makes the Agent API independent of which specific model is loaded. 
 
 ### Demo UI (`apps/demo-ui/`)
 
-<<<<<<< HEAD
-A Vite React app that provides the judge-facing interface. It communicates with the Agent API over HTTPS using the AMD VM's public IP. It is deployed as a HuggingFace Static Space.
-=======
 A Vite React app that provides the judge-facing interface. It communicates with the Agent API over HTTPS using the backend host's public IP. It is deployed as a HuggingFace Static Space.
->>>>>>> origin/dev
 
 Key UI tabs:
 1. Portfolio Upload — CSV upload, holdings display
@@ -196,11 +186,7 @@ Both teammates should restore from the same snapshot before demo day to ensure i
 ## Security Notes (minimal, hackathon scope)
 
 - Static browser apps cannot keep `AGENT_API_KEY` secret. For the public demo, Agent API should expose demo-safe frontend endpoints with CORS and rate limiting, while private/admin operations can still require bearer auth.
-<<<<<<< HEAD
-- The AMD VM's firewall should expose only port 8090 (Agent API) externally; ports 8000, 8001, 8002, 8003, 8080, and 6333 should be internal-only
-=======
 - The backend host's firewall should expose only port 8090 (Agent API) externally; embedding, reranker, Gateway, and Qdrant ports should be internal-only
->>>>>>> origin/dev
 - The `SEC_USER_AGENT` header must identify the application and include a contact email — EDGAR will block requests that omit it or use a generic user agent
 
 ## Why This Fits The Prototype

@@ -406,14 +406,6 @@ Build after Agent API is functional end-to-end.
 
 ```
 apps/demo-ui/
-<<<<<<< HEAD
-  package.json      # Vite React scripts and dependencies
-  src/
-    App.jsx         # Main React app and tab composition
-    lib/            # Browser Agent API client and runtime config
-    data/           # Clearly labeled sample fallback data
-  README.md         # HuggingFace Space description — AMD hardware story
-=======
   package.json
   index.html
   src/
@@ -428,7 +420,6 @@ apps/demo-ui/
       Chat.tsx      # Citation-backed chat tab
     lib/api.ts      # Agent API client
   README.md         # HuggingFace Static Space description
->>>>>>> origin/dev
 ```
 
 HuggingFace Space metadata (in README.md YAML frontmatter):
@@ -470,8 +461,4 @@ python eval_diff.py       # prints change detection accuracy
 python eval_latency.py    # prints latency table (saves to benchmark_results.json)
 ```
 
-<<<<<<< HEAD
-The latency benchmark results feed the AMD benchmark panel in the React UI.
-=======
 The latency benchmark results feed the inference metrics panel in the React UI.
->>>>>>> origin/dev

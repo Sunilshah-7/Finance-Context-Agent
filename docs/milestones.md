@@ -71,11 +71,7 @@ Expected: 3 results returned, citation anchors make sense, text is relevant to s
 ### Developer B: Inference Gateway + Demo UI skeleton
 - [ ] Create `services/inference-gateway/` with FastAPI
 - [ ] Routes: `POST /v1/chat/completions`, `POST /v1/embeddings`, `POST /v1/rerank`, `GET /health`
-<<<<<<< HEAD
-- [ ] Each route proxies to the appropriate vLLM/TEI port with request ID logging
-=======
 - [ ] Each route proxies to the appropriate NIM or local retrieval backend with request ID logging
->>>>>>> origin/dev
 - [ ] Create `apps/demo-ui/` with basic React app
 - [ ] React tab 1: Portfolio upload (CSV file input → POST to Agent API → show holdings table)
 - [ ] React tab 2: Analysis (button → POST to Agent API → poll job status → show "Analysis complete")
@@ -175,11 +171,7 @@ This is the day the full pipeline runs end-to-end for the first time.
 - [ ] Node 4 test: mock 72B call, verify disclaimer is always present, verify unsupported citations are removed
 - [ ] `GET /api/findings/{portfolio_id}` endpoint — return all findings for a portfolio
 
-<<<<<<< HEAD
-### Developer B: React Disclosure Drift and Memo display
-=======
 ### Developer B: React Disclosure Diff and Memo display
->>>>>>> origin/dev
 - [ ] React tab 3: Disclosure Diff viewer — select ticker + year range → call `/api/diff/{ticker}` → render side-by-side diff with change type labels and materiality badges
 - [ ] React tab 4: Analyst Memo — after analysis completes, fetch memo from `/api/findings/{portfolio_id}` → render formatted memo with inline citation references
 - [ ] Citation cards: each `[citation_anchor]` in the memo renders as a clickable card showing the chunk text and the SEC EDGAR source URL
@@ -224,13 +216,8 @@ This is the day the full pipeline runs end-to-end for the first time.
 - [ ] Record and document actual measured values (not estimated)
 
 ### Developer B: React benchmark panel + Build-in-Public posts
-<<<<<<< HEAD
-- [ ] React tab 7: AMD Benchmark — tokens/sec gauge, latency histogram, GPU memory utilization, concurrent request count, cost proxy (GPU-minutes per analysis)
-- [ ] Write and post first Build-in-Public post on X/LinkedIn: "Getting vLLM running on AMD ROCm — what worked, what didn't" (tag #AMDDevHackathon)
-=======
 - [ ] React tab 7: Inference Metrics — tokens/sec gauge, latency histogram, provider/model labels, concurrent request count, cost proxy
 - [ ] Write and post first Build-in-Public post on X/LinkedIn: "Swapping the inference backend to NVIDIA NIM without changing the agent graph" (tag #AMDDevHackathon)
->>>>>>> origin/dev
 - [ ] Screenshot the running demo on HuggingFace Spaces for the post
 
 ### Day 7 Deliverable
@@ -245,11 +232,7 @@ This is the day the full pipeline runs end-to-end for the first time.
 ### Both developers:
 - [ ] Demo run-through: follow the exact demo script from `docs/demo-plan.md` start to finish, fix any blocking issues
 - [ ] React UI polish: loading states, error messages, responsive layout
-<<<<<<< HEAD
-- [ ] HuggingFace Space README — explain the AMD MI300X hardware story, link to AMD Developer Cloud, describe the agent architecture
-=======
 - [ ] HuggingFace Space README — explain the NVIDIA NIM inference architecture and Gateway abstraction
->>>>>>> origin/dev
 - [ ] Project README updated with architecture diagram (ASCII is fine), setup instructions, and demo instructions
 - [ ] Second Build-in-Public post: "Hybrid BM25 + vector retrieval on financial text — benchmark comparison" (with real numbers)
 - [ ] Record a demo video (3-5 minutes) following the demo script
@@ -265,13 +248,8 @@ This is the day the full pipeline runs end-to-end for the first time.
 
 ### Both developers:
 - [ ] Final check: all React tabs functional on HuggingFace Spaces
-<<<<<<< HEAD
-- [ ] Submission write-up on lablab.ai: project description, architecture diagram, AMD GPU story, HuggingFace integration description, demo video link, GitHub repo link
-- [ ] Third Build-in-Public post: "AMD MI300X 192 GB VRAM — running Qwen2.5-72B FP16 on a single GPU with real benchmark numbers" (tag #AMDDevHackathon)
-=======
 - [ ] Submission write-up on lablab.ai: project description, architecture diagram, AMD inference story, HuggingFace integration description, demo video link, GitHub repo link
 - [ ] Third Build-in-Public post: "Hosted inference plus citation-grounded retrieval for financial filings" (tag #AMDDevHackathon)
->>>>>>> origin/dev
 - [ ] Verify submission is complete before the hackathon deadline
 
 ---

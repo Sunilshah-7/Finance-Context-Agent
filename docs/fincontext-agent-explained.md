@@ -578,11 +578,7 @@ Abhiyan reviewing the ingestion data contract.
 Say this:
 
 ```text
-<<<<<<< HEAD
-Not yet. We have important foundations merged, but the AMD VM, real ingestion
-=======
 Not yet. We have important foundations merged, but the backend, real ingestion
->>>>>>> origin/dev
 run, retrieval pipeline, Agent API graph, and React UI still need integration.
 We should not live-ingest during the judge demo. We should pre-ingest, validate,
 snapshot, and then demo from stable data.
