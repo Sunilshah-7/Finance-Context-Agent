@@ -1,6 +1,10 @@
 # API Contracts
 
+<<<<<<< HEAD
 All APIs are FastAPI services running on the AMD Developer Cloud VM. The React UI on HuggingFace Static Spaces communicates directly with the Agent API over HTTPS.
+=======
+All APIs are FastAPI services running behind the Agent API. The React Static Space on HuggingFace Spaces communicates directly with the Agent API over HTTPS.
+>>>>>>> origin/dev
 
 Authentication: private Agent API operations may require `Authorization: Bearer {AGENT_API_KEY}`. The public React demo cannot keep secrets in browser code, so demo-facing endpoints must either be public and rate-limited or proxied by a backend if bearer auth is required.
 
@@ -18,9 +22,9 @@ Response:
 ```json
 {
   "status": "ok",
-  "gpu": "AMD MI300X",
-  "vllm_72b": "ready",
-  "vllm_14b": "ready",
+  "inference_provider": "nvidia-nim",
+  "reasoner": "ready",
+  "planner": "ready",
   "qdrant": "ready",
   "chunks_indexed": 14392
 }
@@ -328,13 +332,13 @@ Authorization: Bearer {AGENT_API_KEY}
 Response:
 ```json
 {
-  "gpu_info": {
-    "device": "AMD Instinct MI300X",
-    "vram_gb": 192,
-    "vram_used_gb": 156.4
+  "provider_info": {
+    "provider": "nvidia-nim",
+    "base_url": "https://integrate.api.nvidia.com/v1",
+    "status": "ready"
   },
   "recent_requests": {
-    "vllm_72b": {
+    "fincontext-reasoner": {
       "count": 12,
       "avg_input_tokens": 8420,
       "avg_output_tokens": 1850,
@@ -342,7 +346,7 @@ Response:
       "avg_total_latency_ms": 18240,
       "avg_tokens_per_second": 52.3
     },
-    "vllm_14b": {
+    "fincontext-planner": {
       "count": 47,
       "avg_input_tokens": 2140,
       "avg_output_tokens": 320,
@@ -383,8 +387,8 @@ Content-Type: application/json
 ```
 
 Passthrough of OpenAI chat completions format. The `model` field routes to the correct backend:
-- `fincontext-reasoner` → vLLM 72B (port 8000)
-- `fincontext-planner` → vLLM 14B (port 8001)
+- `fincontext-reasoner` → NVIDIA NIM reasoner endpoint
+- `fincontext-planner` → NVIDIA NIM planner endpoint
 
 ### Embeddings
 
@@ -398,7 +402,7 @@ Request:
 {"input": ["text 1", "text 2"], "model": "fincontext-embedding"}
 ```
 
-Response follows OpenAI embeddings format. Routes to TEI embedding service (port 8002).
+Response follows OpenAI embeddings format. Routes to the configured embedding backend.
 
 ### Rerank
 
@@ -427,7 +431,7 @@ Response:
 }
 ```
 
-Routes to TEI reranker service (port 8003).
+Routes to the configured reranker backend.
 
 ### Health
 
@@ -439,8 +443,8 @@ Response:
 ```json
 {
   "gateway": "ok",
-  "vllm_72b": "ok",
-  "vllm_14b": "ok",
+  "reasoner": "ok",
+  "planner": "ok",
   "embedding": "ok",
   "reranker": "ok"
 }

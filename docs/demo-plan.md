@@ -6,13 +6,11 @@
 
 The demo is NOT about fancy AI tricks. It's about solving a real financial analyst problem that takes hours to do manually, in under 90 seconds, with verifiable sources.
 
-## AMD Hardware Thesis (tell this to judges explicitly)
+## Inference Thesis (tell this to judges explicitly)
 
-Qwen2.5-72B in FP16 requires approximately 144 GB of VRAM. AMD MI300X has 192 GB. One GPU, no tensor parallelism, full 65,536-token context window. An entire 10-K annual report (average 200-350 pages) processes in a single context pass — no chunked multi-pass inference, no context fragmentation.
+The live MVP uses NVIDIA NIM hosted inference behind a provider-agnostic Inference Gateway. The Agent API and ingestion worker do not call NIM directly; they call the Gateway.
 
-NVIDIA H100 has 80 GB. It cannot run a 72B FP16 model on a single card. You would need a 2-GPU setup with tensor parallel configuration, additional networking overhead, and a reduced effective context window per request.
-
-Say this out loud during the demo: "This 72B parameter model is running in FP16 on a single AMD MI300X because it has 192 GB of VRAM. No NVIDIA H100 can do this without multi-GPU orchestration."
+Say this out loud during the demo: "The agent workflow is isolated from the inference provider. Today the Gateway routes chat completions to NVIDIA NIM, while retrieval, evidence storage, citation verification, and the UI stay unchanged."
 
 ## Seed Portfolio
 
@@ -42,7 +40,11 @@ Pre-ingest all 5 tickers before demo day. The demo never shows live ingestion.
 
 "I'm uploading a sample portfolio with five holdings across semiconductors, software, financials, energy, and consumer discretionary."
 
+<<<<<<< HEAD
 - Drag and drop `demo/seed_portfolio.csv` into the React Portfolio tab
+=======
+- Drag and drop `demo/seed_portfolio.csv` into the React Portfolio Upload tab
+>>>>>>> origin/dev
 - Show the holdings table that appears: ticker, shares, market value, weight, sector
 - Point out AMD is the largest semiconductor holding at 25.4% weight
 
@@ -110,25 +112,29 @@ Navigate to the Chat tab.
 - Show tokens streaming in the chat interface
 - Watch citation cards appear below the answer as it completes
 
-### Step 8: AMD Benchmark Panel (15 seconds)
+### Step 8: Inference Metrics Panel (15 seconds)
 
-Navigate to the AMD Benchmark tab.
+Navigate to the Inference Metrics tab.
 
 "Here are the performance numbers from the last analysis."
 
 Show:
 - Tokens per second for Qwen2.5-72B: ~50 tokens/sec
 - Time to first token: ~380ms
-- GPU memory: 156/192 GB in use
+- Provider: NVIDIA NIM
 - Full 5-stock portfolio analysis: 91 seconds end-to-end
 
-"Single AMD MI300X. 192 GB VRAM. One GPU running a 72B parameter model in FP16 with a 65,536 token context window. No multi-GPU setup, no quantization tricks, no context fragmentation."
+"The app sees a stable OpenAI-compatible Gateway contract. The Gateway handles provider routing, request IDs, latency metrics, retries, and error normalization."
 
 ### Step 9: Architecture Slide (30 seconds — verbal only)
 
+<<<<<<< HEAD
 "Three layers. HuggingFace Spaces for the public UI — that's this React interface. AMD Developer Cloud for everything GPU — the 72B reasoner, the 14B planner, the BGE embedding and reranker, and the Qdrant vector store. And SEC EDGAR as the data source — all public filings, no data license required."
+=======
+"Three layers. HuggingFace Spaces for the public UI — that's this React interface. The backend host runs the Agent API, Gateway, Qdrant, and SQLite. NVIDIA NIM provides hosted LLM inference. SEC EDGAR is the data source — all public filings, no data license required."
+>>>>>>> origin/dev
 
-"The models are pulled from HuggingFace Hub — Qwen, BGE — and served with vLLM over the ROCm backend."
+"The key engineering choice is that all model calls go through the Inference Gateway, so the workflow stays stable even when the serving backend changes."
 
 ---
 
@@ -170,11 +176,11 @@ Show:
 - Chat history with SSE streaming (tokens appear one by one)
 - Citation cards appear below each answer when streaming completes
 
-### Tab 7: AMD Benchmark
+### Tab 7: Inference Metrics
 - Gauge: tokens per second (Qwen2.5-72B and Qwen2.5-14B)
-- Gauge: GPU memory utilization
+- Gauge: request latency
 - Table: benchmark scenario | latency | tokens in | tokens out
-- Note: "Running on AMD Instinct MI300X · 192 GB VRAM · ROCm · vLLM"
+- Note: "LLM inference via the Gateway · local retrieval and citation metrics"
 
 ---
 
@@ -182,7 +188,7 @@ Show:
 
 | What judges care about | What we say |
 |----------------------|-------------|
-| AMD integration | "72B model, FP16, single MI300X, 192 GB VRAM, vLLM on ROCm. Benchmark panel shows real numbers." |
+| Inference architecture | "NVIDIA NIM hosted inference behind an OpenAI-compatible Gateway. Benchmark panel shows real request metrics." |
 | HuggingFace integration | "Qwen and BGE pulled from HF Hub. Demo UI is a public HuggingFace Space." |
 | Agentic workflow | "4 LangGraph agents with typed shared state. Portfolio context → retrieval → disclosure diff → memo." |
 | Real-world usefulness | "SEC EDGAR data, real filings, real citations, links to actual SEC documents." |
@@ -195,11 +201,11 @@ Show:
 
 | When | Post topic | Platform |
 |------|-----------|----------|
-| Day 7 (May 17) | Getting vLLM running on AMD ROCm — what worked, what didn't | X and LinkedIn |
+| Day 7 (May 17) | Swapping the inference backend to NVIDIA NIM without changing the agent graph | X and LinkedIn |
 | Day 8 (May 18) | BM25 + vector hybrid retrieval on financial text — real precision numbers | X and LinkedIn |
-| Day 9 (May 19) | AMD MI300X 192 GB — running Qwen2.5-72B FP16 on a single GPU | X and LinkedIn |
+| Day 9 (May 19) | Hosted 72B inference with NVIDIA NIM plus local citation-grounded retrieval | X and LinkedIn |
 
-Tag every post: `#AMDDevHackathon` `#HuggingFace` `#LangGraph` `#vLLM`
+Tag every post: `#AMDDevHackathon` `#HuggingFace` `#LangGraph` `#NVIDIA`
 
 These posts qualify for the Build-in-Public prize pool AND make the submission visible to judges before they open it.
 
@@ -209,9 +215,9 @@ These posts qualify for the Build-in-Public prize pool AND make the submission v
 
 | Risk | Probability | Fallback |
 |------|-------------|----------|
-| AMD VM unreachable during demo | Low | Record demo video on Day 8, show video |
-| HuggingFace Space can't reach AMD VM | Medium | ngrok tunnel as fallback, test this before demo |
-| 72B model OOM or crash | Low | Fall back to 14B for memo generation, note it in demo |
+| Backend unreachable during demo | Low | Record demo video on Day 8, show video |
+| HuggingFace Space can't reach backend | Medium | ngrok tunnel as fallback, test this before demo |
+| NIM endpoint unavailable or rate-limited | Medium | Fall back to smaller hosted model for memo generation, note it in demo |
 | EDGAR parsing gave bad results for a ticker | Low | Pre-demo manual check, remove problematic ticker from seed portfolio |
-| vLLM generates citation hallucination | Medium | Citation post-processor strips them, mention this in demo as a feature |
+| Hosted model generates citation hallucination | Medium | Citation post-processor strips them, mention this in demo as a feature |
 | Analysis takes > 3 minutes | Low | Pre-run analysis and show results rather than live run |

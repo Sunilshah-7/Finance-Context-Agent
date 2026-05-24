@@ -22,7 +22,7 @@ FinContext provides AI-assisted research summaries based on source documents and
 
 - Encrypt data in transit with HTTPS.
 - Require Agent API bearer-token authentication for all non-health endpoints.
-- Store portfolios, generated reports, and job artifacts on the AMD VM with restricted filesystem permissions.
+- Store portfolios, generated reports, and job artifacts on the backend host with restricted filesystem permissions.
 - Use signed URLs with short expiration.
 - Separate tenants by user and portfolio ID.
 - Log metadata, not raw portfolio contents, unless necessary for debugging.

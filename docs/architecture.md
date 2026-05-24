@@ -1,10 +1,16 @@
 # Architecture
 
-## Decision: Single-VM Architecture
+## Decision: Lightweight Prototype Backend + Hosted Inference
 
+<<<<<<< HEAD
 The MVP runs compute, storage, retrieval, and orchestration on one AMD Developer Cloud VM. This keeps the backend simple: localhost service calls, one database file, one vector store, one GPU host, and one public React Static Space on HuggingFace Spaces.
 
 The frontend is a Vite React app on HuggingFace Static Spaces. The original fast-ship plan used Gradio, but the project moved to React after the deadline to get a more polished analyst-console UI while keeping HuggingFace integration.
+=======
+The MVP runs app orchestration, retrieval, metadata, and ingestion on one lightweight backend host. LLM inference is hosted by NVIDIA NIM through the Inference Gateway. This keeps the prototype simple without requiring us to run 70B-class GPU infrastructure.
+
+The frontend is a Vite React app on HuggingFace Static Spaces, giving the demo a polished analyst-console UI while keeping HuggingFace integration.
+>>>>>>> origin/dev
 
 ## High-Level Architecture
 
@@ -17,7 +23,7 @@ HuggingFace Spaces — React Static Space (apps/demo-ui/)
   │
   │  HTTPS  →  AMD_VM_PUBLIC_IP:8090
   ▼
-AMD Developer Cloud VM
+Backend host
   ├── Agent API (port 8090) ─────────────────────────────────────┐
   │     FastAPI + LangGraph                                       │
   │     4-node agent graph                                        │
@@ -27,14 +33,13 @@ AMD Developer Cloud VM
   │                                                               │
   ├── Inference Gateway (port 8080) ←────────────────────────────┘
   │     FastAPI proxy
-  │     Routes completions → vLLM 72B or vLLM 14B
+  │     Routes completions → NVIDIA NIM
   │     Routes embeddings → BGE embedding service
   │     Routes rerank → BGE reranker service
   │     Logs latency, token counts, error rates
   │
-  ├── vLLM reasoner (port 8000)     Qwen2.5-72B-Instruct, FP16, ROCm
-  ├── vLLM planner (port 8001)      Qwen2.5-14B-Instruct, FP16, ROCm
-  ├── Embedding service (port 8002) BAAI/bge-large-en-v1.5, TEI or vLLM
+  ├── NVIDIA NIM hosted chat        Qwen2.5-72B / Qwen2.5-14B compatible endpoints
+  ├── Embedding service (port 8002) BAAI/bge-large-en-v1.5 compatible backend
   ├── Reranker service (port 8003)  BAAI/bge-reranker-large, TEI
   ├── Qdrant (port 6333)            Docker, persistent volume, HNSW index
   └── SQLite (on-disk)              Metadata: portfolios, holdings, jobs, findings, chunks
@@ -77,7 +82,11 @@ This service makes the Agent API independent of which specific model is loaded. 
 
 ### Demo UI (`apps/demo-ui/`)
 
+<<<<<<< HEAD
 A Vite React app that provides the judge-facing interface. It communicates with the Agent API over HTTPS using the AMD VM's public IP. It is deployed as a HuggingFace Static Space.
+=======
+A Vite React app that provides the judge-facing interface. It communicates with the Agent API over HTTPS using the backend host's public IP. It is deployed as a HuggingFace Static Space.
+>>>>>>> origin/dev
 
 Key UI tabs:
 1. Portfolio Upload — CSV upload, holdings display
@@ -85,7 +94,7 @@ Key UI tabs:
 3. Disclosure Diff — side-by-side filing comparison with change labels
 4. Risk Scores — per-holding score table with drivers
 5. Analyst Memo — streaming memo display with citation cards
-6. AMD Benchmark — tokens/sec, latency, GPU memory utilization panel
+6. Inference Metrics — tokens/sec, latency, provider/model status panel
 
 ## Data Flow: Full Request Lifecycle
 
@@ -187,21 +196,20 @@ Both teammates should restore from the same snapshot before demo day to ensure i
 ## Security Notes (minimal, hackathon scope)
 
 - Static browser apps cannot keep `AGENT_API_KEY` secret. For the public demo, Agent API should expose demo-safe frontend endpoints with CORS and rate limiting, while private/admin operations can still require bearer auth.
+<<<<<<< HEAD
 - The AMD VM's firewall should expose only port 8090 (Agent API) externally; ports 8000, 8001, 8002, 8003, 8080, and 6333 should be internal-only
+=======
+- The backend host's firewall should expose only port 8090 (Agent API) externally; embedding, reranker, Gateway, and Qdrant ports should be internal-only
+>>>>>>> origin/dev
 - The `SEC_USER_AGENT` header must identify the application and include a contact email — EDGAR will block requests that omit it or use a generic user agent
 
-## Why This Beats the NVIDIA Story
+## Why This Fits The Prototype
 
-AMD MI300X has 192 GB of HBM3 VRAM. Qwen2.5-72B in FP16 requires approximately 144 GB of VRAM. A single MI300X runs it without tensor parallelism. NVIDIA H100 SXM has 80 GB — it cannot hold a 72B FP16 model and would require a multi-GPU setup with tensor-parallel configuration.
-
-Our demo shows:
-- Full 10-K text (average 200–350 pages, ~150,000 tokens) processed in a single context window pass
-- `--max-model-len 65536` in vLLM, using the full long-context capability
-- No chunked multi-pass inference, no context fragmentation, no multi-GPU orchestration overhead
+The product value is the disclosure-drift workflow, citation discipline, and portfolio impact memo. Running a 70B-class model ourselves would add infrastructure cost and operational risk without improving the prototype's core evidence pipeline. NVIDIA NIM gives us hosted, OpenAI-compatible chat completions while the Gateway keeps the rest of the system provider-neutral.
 
 For the benchmark panel, record and display:
 - Tokens per second (input + output)
 - Time to first token (ms)
-- GPU memory utilization (%)
+- Provider/model status
 - Number of concurrent analysis requests handled
-- Cost proxy: GPU-minutes per full portfolio analysis
+- Cost proxy: hosted inference calls per full portfolio analysis

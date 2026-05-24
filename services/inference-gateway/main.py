@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import time
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
@@ -52,14 +53,9 @@ def _usage_metrics(payload: dict[str, Any]) -> tuple[int | None, int | None]:
 
 
 def _upstream_headers(request: Request, route_model: str | None = None) -> dict[str, str]:
-    """Build headers for an upstream request.
-
-    Always includes x-request-id for tracing. When NIM_API_KEY is set and the
-    route is a chat model, injects the Bearer token so NIM accepts the request.
-    """
-    headers: dict[str, str] = {"x-request-id": request.state.request_id}
-    if route_model in {"fincontext-reasoner", "fincontext-planner"}:
-        nim_api_key = os.getenv("NIM_API_KEY", "")
+    headers = {"x-request-id": request.state.request_id}
+    if route_model in CHAT_MODEL_ROUTES:
+        nim_api_key = os.getenv("NIM_API_KEY")
         if nim_api_key:
             headers["Authorization"] = f"Bearer {nim_api_key}"
     return headers
@@ -154,8 +150,8 @@ async def _stream_proxy(
 async def health(request: Request) -> dict[str, Any]:
     checks: list[HealthCheckResult] = []
     services = {
-        "reasoner": CHAT_MODEL_ROUTES["fincontext-reasoner"].upstream_base_url,
-        "planner": CHAT_MODEL_ROUTES["fincontext-planner"].upstream_base_url,
+        "nim_reasoner": CHAT_MODEL_ROUTES["fincontext-reasoner"].upstream_base_url,
+        "nim_planner": CHAT_MODEL_ROUTES["fincontext-planner"].upstream_base_url,
         "embedding": embedding_route().upstream_base_url,
         "reranker": rerank_route().upstream_base_url,
     }
@@ -170,6 +166,11 @@ async def health(request: Request) -> dict[str, Any]:
             checks.append(HealthCheckResult(name=name, status=svc_status, url=base_url, detail=detail))
             continue
         url = f"{base_url.rstrip('/')}/health"
+        if name in {"nim_reasoner", "nim_planner"}:
+            status = "ready" if os.getenv("NIM_API_KEY") else "error"
+            detail = None if status == "ready" else "NIM_API_KEY is not set"
+            checks.append(HealthCheckResult(name=name, status=status, url=base_url, detail=detail))
+            continue
         try:
             response = await request.app.state.http.get(url)
             svc_status = "ready" if response.is_success else "error"
@@ -205,8 +206,15 @@ async def chat_completions(request: Request):
         detail["request_id"] = request.state.request_id
         return JSONResponse(status_code=exc.status_code, content={"error": detail})
 
-    # If the route specifies an upstream model name (e.g. NIM uses the full HF model ID
-    # while the agent uses the internal alias), translate it in the forwarded payload.
+    if route.requires_api_key and not os.getenv("NIM_API_KEY"):
+        return _error_response(
+            request.state.request_id,
+            "missing_nim_api_key",
+            "NIM_API_KEY is required for hosted chat completions.",
+            False,
+            503,
+        )
+
     upstream_payload = dict(payload)
     if route.upstream_model_name:
         upstream_payload["model"] = route.upstream_model_name

@@ -40,35 +40,34 @@ This output is research assistance only and does not constitute investment advic
 
 The system never gives buy, sell, hold, or short recommendations.
 
-## Why AMD Hardware Matters
+## Why Hosted Inference
 
-The demo is built around one AMD Developer Cloud VM.
+The prototype does not need to own 70B-class GPU serving. We tested AMD
+Developer Cloud, but the available credit was not enough for comfortable
+development and demo rehearsal with a 70B model. The final MVP uses NVIDIA NIM
+hosted chat completions behind the Inference Gateway.
 
-The key hardware story is that an AMD MI300X has 192 GB of HBM3 VRAM. A 70B
-parameter model in FP16 needs roughly 140 GB of GPU memory, so Qwen2.5-72B can
-run on one MI300X without multi-GPU tensor parallelism. That lets the demo use a
-large model for the final analyst memo while keeping the rest of the system
-simple enough for the hackathon.
-
-The planned model split is:
+The model split is:
 
 - Qwen2.5-14B for planning and disclosure-change classification.
 - Qwen2.5-72B for the final analyst memo only.
 - BAAI/bge-large-en-v1.5 for embeddings.
 - BAAI/bge-reranker-large for reranking retrieval candidates.
 
-All models come from Hugging Face.
+The important architecture point is the Gateway contract: Agent API and
+ingestion code call one local Gateway, and the Gateway handles provider routing,
+request IDs, latency metrics, retries, and normalized errors.
 
 ## System Architecture
 
-Everything important runs on one AMD Developer Cloud VM:
+Everything application-specific runs on one lightweight backend host:
 
 ```text
 HuggingFace Space
   React Static Space UI
     |
     v
-AMD Developer Cloud VM
+Backend host
   Agent API, port 8090
     FastAPI plus LangGraph workflow
     |
@@ -76,16 +75,15 @@ AMD Developer Cloud VM
   Inference Gateway, port 8080
     Routes all model, embedding, and rerank calls
     |
-    +-- vLLM 72B, port 8000
-    +-- vLLM 14B, port 8001
-    +-- TEI embeddings, port 8002
-    +-- TEI reranker, port 8003
+    +-- NVIDIA NIM hosted chat completions
+    +-- Embedding backend, port 8002
+    +-- Reranker backend, port 8003
     +-- Qdrant vector store, port 6333
     +-- SQLite file, fincontext.db
 ```
 
 Important rule: Agent API code and ingestion code call the Inference Gateway.
-They do not call vLLM or TEI directly.
+They do not call NVIDIA NIM, embedding backends, or reranker backends directly.
 
 ## Current Build State
 
@@ -105,7 +103,7 @@ Open or pending:
 - Agent API PR #19 is marked "DONOT MERGE THIS PR: Still in review".
 - Validation CLI PR #24 is open for review.
 - Eval fixture scaffolding PR #23 is open for review.
-- Real AMD VM ingestion has not run yet.
+- Real backend host ingestion has not run yet.
 - Demo corpus has not been loaded into Qdrant/SQLite yet.
 
 ## Repository Map
@@ -113,7 +111,7 @@ Open or pending:
 ```text
 services/
   ingestion-worker/      EDGAR fetch, SEC HTML parse, chunk, embed, write data
-  inference-gateway/     FastAPI proxy to vLLM, embeddings, and reranker
+  inference-gateway/     FastAPI proxy to NIM, embeddings, and reranker
   agent-api/             FastAPI plus LangGraph analysis workflow
 
 apps/
@@ -125,7 +123,7 @@ packages/
 
 infra/
   schema.sql             SQLite tables, indexes, and FTS5 triggers
-  amd-gpu/               Docker Compose for AMD VM model stack
+  docker-compose.yml     Lightweight prototype services, currently Qdrant
   qdrant/                Qdrant collection initialization
   ops/                   Demo backup and snapshot helpers
 
@@ -197,7 +195,7 @@ python3 -m pytest services/inference-gateway/tests -x
 python3 -m pytest infra/tests -x
 ```
 
-Some future tests will require the AMD VM, Qdrant, Gateway, or live model
+Some future tests will require the backend host, Qdrant, Gateway, or live model
 services. The current foundation tests mostly use mocked HTTP and temporary
 SQLite files.
 

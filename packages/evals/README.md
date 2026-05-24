@@ -1,8 +1,8 @@
 # packages/evals
 
-Evaluation harness for retrieval quality, citation precision, disclosure diff accuracy, and AMD GPU performance benchmarks.
+Evaluation harness for retrieval quality, citation precision, disclosure diff accuracy, and inference performance benchmarks.
 
-Run evals after the full pipeline is working (Day 7 in the milestone plan) and before demo polish. Eval results feed the AMD benchmark panel in the Gradio UI.
+Run evals after the full pipeline is working and before demo polish. Eval results feed the inference metrics panel in the React UI.
 
 ## Eval Suites
 
@@ -60,7 +60,7 @@ is loaded, replace the null anchors with manually verified old/new citations.
 
 ### 4. Latency Benchmark (`eval_latency.py`)
 
-Runs 5 benchmark scenarios and records AMD GPU performance metrics.
+Runs 5 benchmark scenarios and records Gateway/NIM performance metrics.
 
 ```bash
 python eval_latency.py --agent-api-url http://localhost:8090 --runs 3

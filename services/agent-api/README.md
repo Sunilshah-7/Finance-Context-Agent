@@ -1,16 +1,15 @@
 # services/agent-api
 
-FastAPI service that runs the 4-node LangGraph financial analysis workflow on AMD Developer Cloud.
+FastAPI service that runs the 4-node LangGraph financial analysis workflow.
 
 ## What this service does
 
-- Receives portfolio upload and analysis requests from the React demo UI (HuggingFace Static Space) via HTTPS
+- Receives portfolio upload and analysis requests from the React UI via HTTPS
 - Runs the LangGraph agent graph: portfolio_context_planner → filing_retrieval → disclosure_change → analyst_memo
 - Calls the Inference Gateway for all LLM, embedding, and reranking operations
 - Reads and writes SQLite for portfolio metadata, job status, cached analysis results, and findings
 - Reads Qdrant for vector retrieval during the filing_retrieval node
 - Streams SSE tokens to the React UI for the chat endpoint
-- Caches completed analysis state in `analysis_jobs.results_json` to avoid re-running the graph
 
 ## Stack
 
@@ -88,13 +87,9 @@ pytest tests/integration/ -x                       # integration tests (needs Qd
 `GET /api/findings` endpoint reads from this cache — it never re-runs the graph, which
 would waste Qwen2.5-72B GPU credits on every React UI poll.
 
-**Agents never call each other directly.** Each node function has the signature
-`async def node_name(state: AnalysisState) -> AnalysisState`. LangGraph handles routing.
-Nodes read from state, perform their work, and return updated state.
+**All model calls go through the Inference Gateway at port 8080.** Never call NVIDIA NIM, embedding, or reranker backends directly. The gateway adds request IDs, logs metrics, and normalizes responses.
 
-**All model calls go through the Inference Gateway at port 8080.** Never call vLLM, TEI
-embedding, or TEI reranker directly. The gateway adds request IDs, logs metrics, and
-normalizes responses.
+**The reasoner model is used only in the analyst_memo node.** All other LLM calls use the smaller planner model (`fincontext-planner`) to keep latency and hosted inference cost under control.
 
 **72B model is used only in the analyst_memo node.** All other LLM calls use the 14B
 model (port 8001, `fincontext-planner`). This protects the $100 AMD credit.
@@ -110,12 +105,12 @@ The graph continues and returns partial results rather than raising an unhandled
 
 See `docs/api-contracts.md` for full request/response specifications.
 
-- `GET /health` — service + dependency health (no auth)
-- `GET /api/jobs/{job_id}` — poll job status and progress (no auth)
-- `GET /api/documents/{ticker}` — list ingested documents (no auth)
-- `GET /api/diff/{ticker}` — disclosure diffs from SQLite chunks (no auth)
-- `GET /api/benchmark/metrics` — AMD GPU performance metrics (no auth)
-- `GET /api/findings/{portfolio_id}` — cached analysis results (no auth; 202 if still running)
-- `POST /api/portfolio/upload` — CSV upload → SQLite (auth required if AGENT_API_KEY set)
-- `POST /api/analyze` — start async analysis job (auth required if AGENT_API_KEY set)
-- `POST /api/chat` — SSE streaming citation-backed Q&A (auth required if AGENT_API_KEY set)
+- `GET /health` — service + dependency health
+- `POST /api/portfolio/upload` — CSV upload → SQLite
+- `POST /api/analyze` — start async analysis job
+- `GET /api/jobs/{job_id}` — poll job status and progress
+- `GET /api/findings/{portfolio_id}` — get analysis results
+- `GET /api/diff/{ticker}` — get disclosure changes for a ticker
+- `POST /api/chat` — SSE streaming citation-backed Q&A
+- `GET /api/documents/{ticker}` — list ingested documents
+- `GET /api/benchmark/metrics` — inference performance metrics

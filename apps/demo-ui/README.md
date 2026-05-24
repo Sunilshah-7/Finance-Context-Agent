@@ -13,9 +13,8 @@ pinned: false
 This directory contains the React/Vite demo console for FinContext Agent. It is
 designed for HuggingFace Static Spaces and calls only the public Agent API.
 
-The original deadline-focused UI plan used Gradio. The project moved to React
-after the deadline so the demo could use the polished analyst-console design in
-the local prototype while still deploying through HuggingFace Spaces.
+The demo uses the polished analyst-console design from the local prototype while
+still deploying through HuggingFace Spaces.
 
 ## What The UI Shows
 

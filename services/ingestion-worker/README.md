@@ -130,7 +130,7 @@ Required fields (see `docs/data-and-retrieval.md` for full specification):
 
 ## Demo Data Backups
 
-After successful demo ingestion on the AMD VM, use `docs/demo-data-ops.md` to
+After successful demo ingestion on the backend host, use `docs/demo-data-ops.md` to
 create a SQLite backup, Qdrant snapshot, and manifest. Generated DBs, Qdrant
 storage, snapshots, and `backups/` output are local artifacts and must not be
 committed.
