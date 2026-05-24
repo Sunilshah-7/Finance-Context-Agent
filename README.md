@@ -85,6 +85,106 @@ Backend host
 Important rule: Agent API code and ingestion code call the Inference Gateway.
 They do not call NVIDIA NIM, embedding backends, or reranker backends directly.
 
+## Run The Whole App Locally
+
+The local app has four running processes plus one SQLite file:
+
+| Component         | Command           | Port                          |
+| ----------------- | ----------------- | ----------------------------- |
+| Qdrant            | Docker Compose    | `6333`                        |
+| Inference Gateway | FastAPI / Uvicorn | `8080`                        |
+| Agent API         | FastAPI / Uvicorn | `8090`                        |
+| React UI          | Vite              | shown by Vite, usually `5173` |
+| SQLite            | local file        | no server process             |
+
+### 1. Configure Environment
+
+```bash
+cp configs/.env.example .env
+```
+
+Set these values in `.env`:
+
+```bash
+NIM_API_KEY=your-nim-api-key
+NIM_BASE_URL=https://integrate.api.nvidia.com/v1
+SEC_USER_AGENT=FinContextAgent/0.1 your-email@example.com
+AGENT_API_KEY=your-local-dev-token
+```
+
+`NIM_API_KEY` is required for planner and reasoner chat completions. Do not
+commit `.env`. `AGENT_API_KEY` is a local environment key, you don't need to put into production. Generate one for you using `openssl rand -hex 32`.
+
+### 2. Start Qdrant
+
+From the repo root:
+
+```bash
+docker compose -f infra/docker-compose.yml up -d qdrant
+curl http://localhost:6333/healthz
+```
+
+### 3. Create SQLite DB And Qdrant Collection
+
+```bash
+sqlite3 fincontext.db < infra/schema.sql
+python3 infra/qdrant/init_collection.py
+```
+
+This creates the local metadata DB and the `fincontext_chunks` Qdrant
+collection.
+
+### 4. Start Inference Gateway
+
+In a new terminal:
+
+```bash
+cd services/inference-gateway
+pip install -r requirements.txt
+uvicorn main:app --host 0.0.0.0 --port 8080 --reload
+```
+
+Check it:
+
+```bash
+curl http://localhost:8080/health
+```
+
+### 5. Start Agent API
+
+In a new terminal:
+
+```bash
+cd services/agent-api
+pip install -r requirements.txt
+uvicorn main:app --host 0.0.0.0 --port 8090 --reload
+```
+
+Check it:
+
+```bash
+curl http://localhost:8090/health
+```
+
+### 6. Start React UI
+
+In a new terminal:
+
+```bash
+cd apps/demo-ui
+npm install
+VITE_AGENT_API_URL=http://localhost:8090 npm run dev
+```
+
+Open the local Vite URL printed in the terminal, usually:
+
+```text
+http://localhost:5173
+```
+
+The UI can show sample data without the backend, but real analysis requires
+Qdrant, SQLite, Inference Gateway, Agent API, and NIM credentials to be working.
+
 ## Current Build State
 
 Merged into `dev`:
@@ -222,13 +322,13 @@ eval(evals): add retrieval fixture scaffolding
 
 ## Useful Docs
 
-| Document | Purpose |
-| --- | --- |
-| `docs/fincontext-agent-explained.md` | Beginner-friendly full project explanation |
-| `docs/codex-work-handoff.md` | What agent-built branches added and why |
-| `docs/ingestion-output-contract.md` | SQLite/Qdrant fields used by retrieval and UI |
-| `docs/data-and-retrieval.md` | Retrieval architecture and Qdrant/BM25 design |
-| `docs/agent-design.md` | LangGraph node specs |
-| `docs/api-contracts.md` | Agent API request and response contracts |
-| `docs/demo-data-ops.md` | SQLite backup and Qdrant snapshot commands |
-| `docs/demo-plan.md` | Judge-facing demo flow |
+| Document                             | Purpose                                       |
+| ------------------------------------ | --------------------------------------------- |
+| `docs/fincontext-agent-explained.md` | Beginner-friendly full project explanation    |
+| `docs/codex-work-handoff.md`         | What agent-built branches added and why       |
+| `docs/ingestion-output-contract.md`  | SQLite/Qdrant fields used by retrieval and UI |
+| `docs/data-and-retrieval.md`         | Retrieval architecture and Qdrant/BM25 design |
+| `docs/agent-design.md`               | LangGraph node specs                          |
+| `docs/api-contracts.md`              | Agent API request and response contracts      |
+| `docs/demo-data-ops.md`              | SQLite backup and Qdrant snapshot commands    |
+| `docs/demo-plan.md`                  | Judge-facing demo flow                        |
