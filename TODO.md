@@ -169,8 +169,10 @@ Do not build a separate edge/API platform or second frontend. The project uses t
 - [x] Implement `services/agent-api/app/graph.py` with the 4-node LangGraph sequence.
 - [x] Implement `portfolio_context_planner` node with NIM planner structured retrieval-plan output and fallback plan.
 - [x] Implement `filing_retrieval` node using the hybrid retrieval module.
-- [x] Implement `disclosure_change` node with text normalization, comparison grouping, NIM planner structured classification, and low-confidence filtering.
-- [x] Implement `analyst_memo` node with risk score computation, NIM reasoner memo generation, citation verification, planner fallback, and hardcoded disclaimer.
+- [x] Implement MVP `disclosure_change` node with comparison grouping, NIM planner classification, and heuristic fallback.
+- [ ] Validate and harden `disclosure_change` with real NIM outputs, stronger text normalization, and low-confidence filtering.
+- [x] Implement MVP `analyst_memo` node with risk score computation, NIM reasoner call, citation verification, fallback memo, and hardcoded disclaimer.
+- [ ] Validate and harden `analyst_memo` with real NIM outputs, structured memo parsing, and citation-quality review.
 - [ ] Add isolated unit tests for all 4 LangGraph nodes with mocked Gateway and DB/Qdrant clients.
 - [x] Add `GET /api/findings/{portfolio_id}` endpoint.
 - [x] Add `GET /api/diff/{ticker}` endpoint.
@@ -203,7 +205,8 @@ Do not build a separate edge/API platform or second frontend. The project uses t
 ## Integration Tasks
 
 - [x] Run full graph smoke test: portfolio_context_planner → filing_retrieval → disclosure_change → analyst_memo.
-- [x] Verify full analysis returns `risk_scores`, `memo`, `disclosure_changes`, and `citation_pass_rate` in fallback graph tests.
+- [x] Verify fallback graph tests return `risk_scores`, `memo`, `disclosure_changes`, and `citation_pass_rate`.
+- [ ] Verify live graph run returns useful `risk_scores`, `memo`, `disclosure_changes`, and `citation_pass_rate` against real ingested data.
 - [x] Verify unsupported memo citations are removed during post-processing logic.
 - [ ] Verify every React tab works against the deployed backend host.
 - [ ] Verify Chat tab streams tokens and renders citation cards after completion.
