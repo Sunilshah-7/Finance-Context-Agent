@@ -961,29 +961,41 @@ function normalizeBenchmark(payload) {
   if (!metrics || Object.keys(metrics).length === 0) {
     return null;
   }
+  const provider = metrics.provider_info || metrics.providerInfo || {};
+  const recent = metrics.recent_requests || metrics.recentRequests || {};
+  const reasoner = recent["fincontext-reasoner"] || recent.fincontext_reasoner || {};
+  const embedding = recent.embedding || {};
 
   return {
-    sourceLabel: "Live Agent API metrics",
-    status: metrics.status || "Live metrics returned by Agent API",
+    sourceLabel: provider.provider ? `Live ${provider.provider} metrics` : "Live Agent API metrics",
+    status: provider.status || metrics.status || "Live metrics returned by Agent API",
     metrics: [
       {
         label: "Reasoner tokens/sec",
-        value: valueOrUnavailable(metrics.tokens_per_second ?? metrics.tokensPerSecond),
+        value: valueOrUnavailable(
+          reasoner.avg_tokens_per_second ?? reasoner.avgTokensPerSecond ?? metrics.tokens_per_second ?? metrics.tokensPerSecond,
+        ),
         note: "Reported by backend metrics endpoint",
       },
       {
         label: "Time to first token",
-        value: valueOrUnavailable(metrics.time_to_first_token_ms ?? metrics.timeToFirstTokenMs, " ms"),
+        value: valueOrUnavailable(
+          reasoner.avg_time_to_first_token_ms ?? reasoner.avgTimeToFirstTokenMs ?? metrics.time_to_first_token_ms ?? metrics.timeToFirstTokenMs,
+          " ms",
+        ),
         note: "Reported by backend metrics endpoint",
       },
       {
         label: "Provider status",
-        value: valueOrUnavailable(metrics.provider_status ?? metrics.providerStatus),
+        value: valueOrUnavailable(provider.status ?? metrics.provider_status ?? metrics.providerStatus),
         note: "Reported by backend metrics endpoint",
       },
       {
         label: "Embedding latency",
-        value: valueOrUnavailable(metrics.embedding_latency_ms ?? metrics.embeddingLatencyMs, " ms"),
+        value: valueOrUnavailable(
+          embedding.avg_latency_ms ?? embedding.avgLatencyMs ?? metrics.embedding_latency_ms ?? metrics.embeddingLatencyMs,
+          " ms",
+        ),
         note: "Reported by backend metrics endpoint",
       },
     ],
