@@ -51,16 +51,16 @@ from fincontext_schemas import (
     EmbeddingMetrics,
     FindingsMemo,
     FindingsResponse,
-    GpuInfo,
     JobStatusResponse,
+    ModelMetrics,
     PortfolioExposure,
     PortfolioImpact,
     PortfolioUploadResponse,
+    ProviderInfo,
     RecentRequests,
     RerankerMetrics,
     RiskDriver,
     FindingsRiskScore,
-    VllmMetrics,
 )
 
 from app.clients.db import SQLiteClient, utc_now
@@ -435,7 +435,7 @@ async def chat(
 
 @app.get("/api/benchmark/metrics", response_model=BenchmarkMetricsResponse)
 async def benchmark_metrics() -> BenchmarkMetricsResponse:
-    empty_vllm = VllmMetrics(
+    empty_model = ModelMetrics(
         count=0,
         avg_input_tokens=0,
         avg_output_tokens=0,
@@ -443,14 +443,23 @@ async def benchmark_metrics() -> BenchmarkMetricsResponse:
         avg_total_latency_ms=0,
         avg_tokens_per_second=0,
     )
+    # These are truthful placeholders until this endpoint aggregates live
+    # Gateway /metrics output. Do not present zero values as measured results.
+    recent_requests = RecentRequests.model_validate(
+        {
+            "fincontext-reasoner": empty_model,
+            "fincontext-planner": empty_model,
+            "embedding": EmbeddingMetrics(count=0, avg_batch_size=0, avg_latency_ms=0),
+            "reranker": RerankerMetrics(count=0, avg_candidates=0, avg_latency_ms=0),
+        }
+    )
     return BenchmarkMetricsResponse(
-        gpu_info=GpuInfo(device="AMD Instinct", vram_gb=192.0, vram_used_gb=0.0),
-        recent_requests=RecentRequests(
-            vllm_72b=empty_vllm,
-            vllm_14b=empty_vllm,
-            embedding=EmbeddingMetrics(count=0, avg_batch_size=0, avg_latency_ms=0),
-            reranker=RerankerMetrics(count=0, avg_candidates=0, avg_latency_ms=0),
+        provider_info=ProviderInfo(
+            provider="nvidia-nim",
+            base_url=os.getenv("NIM_BASE_URL", "https://integrate.api.nvidia.com/v1"),
+            status="configured" if os.getenv("NIM_API_KEY") else "missing_nim_api_key",
         ),
+        recent_requests=recent_requests,
         benchmark_scenarios=BenchmarkScenarios(
             single_10k_analysis_seconds=0.0,
             five_stock_portfolio_seconds=0.0,
