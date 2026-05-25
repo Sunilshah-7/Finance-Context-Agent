@@ -1,3 +1,10 @@
+"""Route logical FinContext model names to their configured upstream services.
+
+Chat completions currently go to NVIDIA NIM. Embeddings and reranking remain
+separate Gateway routes so ingestion and retrieval can keep the stable
+1024-dimensional BGE/Qdrant contract regardless of the chat provider.
+"""
+
 from __future__ import annotations
 
 import os

@@ -55,6 +55,8 @@ def _usage_metrics(payload: dict[str, Any]) -> tuple[int | None, int | None]:
 def _upstream_headers(request: Request, route_model: str | None = None) -> dict[str, str]:
     headers = {"x-request-id": request.state.request_id}
     if route_model in CHAT_MODEL_ROUTES:
+        # Only chat routes receive NIM credentials. Embedding and rerank routes
+        # use their own configured backend URLs and must not inherit this token.
         nim_api_key = os.getenv("NIM_API_KEY")
         if nim_api_key:
             headers["Authorization"] = f"Bearer {nim_api_key}"
