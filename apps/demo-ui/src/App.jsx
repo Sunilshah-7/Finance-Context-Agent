@@ -24,7 +24,7 @@ const TABS = [
   { id: "evidence", num: "04", label: "Evidence" },
   { id: "risk", num: "05", label: "Risk Scores" },
   { id: "memo", num: "06", label: "Analyst Memo" },
-  { id: "benchmark", num: "07", label: "AMD Benchmark" },
+  { id: "benchmark", num: "07", label: "Inference Metrics" },
 ];
 
 function StatusDot({ tone = "bad", pulse = false }) {
@@ -624,17 +624,17 @@ function BenchmarkTab({ client, backendOnline }) {
   const [benchmark, setBenchmark] = useState(SAMPLE_BENCHMARK);
   const [status, setStatus] = useState(
     backendOnline
-      ? "Benchmark placeholders are visible. Load live metrics when Gateway metrics are available through Agent API."
-      : "Agent API is offline. Benchmark values are intentionally unavailable.",
+      ? "Metric placeholders are visible. Load live NIM/Gateway metrics when Agent API exposes them."
+      : "Agent API is offline. Inference metrics are intentionally unavailable.",
   );
 
   async function loadBenchmark() {
     try {
-      setStatus("Loading benchmark metrics from Agent API...");
+      setStatus("Loading inference metrics from Agent API...");
       const result = await client.getBenchmarkMetrics();
       const nextBenchmark = normalizeBenchmark(result);
       setBenchmark(nextBenchmark || SAMPLE_BENCHMARK);
-      setStatus(nextBenchmark ? "Live benchmark metrics loaded." : "No live metrics returned; showing unavailable placeholders.");
+      setStatus(nextBenchmark ? "Live inference metrics loaded." : "No live metrics returned; showing unavailable placeholders.");
     } catch (error) {
       setStatus(formatError(error));
     }
@@ -646,7 +646,7 @@ function BenchmarkTab({ client, backendOnline }) {
         <div className="panel-head">
           <div>
             <div className="eyebrow">{benchmark.sourceLabel}</div>
-            <h2>AMD benchmark panel</h2>
+            <h2>Inference metrics panel</h2>
           </div>
           <Chip tone={benchmark.sourceLabel.toLowerCase().includes("sample") ? "warn" : "ok"}>
             {benchmark.sourceLabel}
@@ -967,7 +967,7 @@ function normalizeBenchmark(payload) {
     status: metrics.status || "Live metrics returned by Agent API",
     metrics: [
       {
-        label: "72B tokens/sec",
+        label: "Reasoner tokens/sec",
         value: valueOrUnavailable(metrics.tokens_per_second ?? metrics.tokensPerSecond),
         note: "Reported by backend metrics endpoint",
       },
@@ -977,8 +977,8 @@ function normalizeBenchmark(payload) {
         note: "Reported by backend metrics endpoint",
       },
       {
-        label: "GPU memory utilization",
-        value: valueOrUnavailable(metrics.gpu_memory_utilization ?? metrics.gpuMemoryUtilization),
+        label: "Provider status",
+        value: valueOrUnavailable(metrics.provider_status ?? metrics.providerStatus),
         note: "Reported by backend metrics endpoint",
       },
       {
