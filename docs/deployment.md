@@ -12,6 +12,8 @@ Gateway; the backend host runs the application services, Qdrant, and SQLite.
 | Agent API | Backend host | FastAPI + LangGraph |
 | Inference Gateway | Backend host | FastAPI proxy to NIM and retrieval backends |
 | LLM inference | NVIDIA NIM | OpenAI-compatible chat completions |
+| Embeddings | Backend host or teammate-hosted service | BGE-compatible 1024-dimensional embedding endpoint |
+| Reranker | Backend host or teammate-hosted service | BGE-compatible rerank endpoint |
 | Vector store | Backend host | Qdrant Docker container |
 | Metadata DB | Backend host | SQLite |
 
@@ -19,7 +21,8 @@ Gateway; the backend host runs the application services, Qdrant, and SQLite.
 
 ```bash
 cp configs/.env.example .env
-# Set NIM_API_KEY, NIM_BASE_URL, SEC_USER_AGENT, and AGENT_API_KEY.
+# Set NIM_API_KEY, NIM_BASE_URL, SEC_USER_AGENT, AGENT_API_KEY,
+# EMBEDDING_URL, and RERANKER_URL.
 
 docker compose -f infra/docker-compose.yml up -d qdrant
 sqlite3 fincontext.db < infra/schema.sql
@@ -40,6 +43,15 @@ uvicorn main:app --host 0.0.0.0 --port 8090
 
 Only the Agent API should be publicly reachable. Keep Qdrant, SQLite, the
 Gateway, embedding, and reranker services private to the backend host.
+
+The current code uses NVIDIA NIM only for chat completions. Ingestion and
+retrieval still need embedding and reranker backends behind the Gateway:
+
+- `POST /v1/embeddings` routes to `EMBEDDING_URL`.
+- `POST /v1/rerank` routes to `RERANKER_URL`.
+
+Do not start full demo ingestion until both routes are healthy; otherwise
+SQLite may contain chunks without matching Qdrant vectors.
 
 ## HuggingFace Static Space
 
@@ -76,5 +88,7 @@ NIM is the only chat-completions backend for the prototype:
 - `NIM_API_KEY` must be configured on the backend host.
 - Gateway metrics are the source for latency, token throughput, provider status,
   and request counts.
+- NIM does not replace the configured embedding or reranker backends in this
+  repository.
 
 This avoids local 70B infrastructure while preserving a clean provider boundary.
