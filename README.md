@@ -183,7 +183,10 @@ http://localhost:5173
 ```
 
 The UI can show sample data without the backend, but real analysis requires
-Qdrant, SQLite, Inference Gateway, Agent API, and NIM credentials to be working.
+Qdrant, SQLite, Inference Gateway, Agent API, NIM credentials, and configured
+embedding/reranker backends to be working. NIM handles chat completions only in
+the current code; document embeddings and reranking still go through the
+Gateway to `EMBEDDING_URL` and `RERANKER_URL`.
 
 ## Current Build State
 
@@ -192,19 +195,22 @@ Merged into `dev`:
 - Shared schema package under `packages/schemas`.
 - SQLite schema under `infra/schema.sql`.
 - Qdrant collection init script.
-- Ingestion worker foundation.
-- Inference Gateway foundation.
+- Ingestion worker foundation, validation CLI, and handoff export.
+- Inference Gateway with NVIDIA NIM chat routing plus embedding/rerank proxy routes.
+- Agent API endpoints, result cache, retrieval pipeline, and MVP LangGraph nodes.
+- React Static Space demo UI with sample fallbacks and Agent API client.
 - Demo-data backup and snapshot ops.
-- Ingestion validation helpers.
 - Human-readable handoff and ingestion output contract docs.
+- CI for Python services, frontend tests/build, and repository policy checks.
 
 Open or pending:
 
-- Agent API PR #19 is marked "DONOT MERGE THIS PR: Still in review".
-- Validation CLI PR #24 is open for review.
-- Eval fixture scaffolding PR #23 is open for review.
+- Real backend host deployment has not been verified.
+- NIM credentials have not been validated through a live Gateway run.
+- Embedding and reranker backends still need to be configured and tested.
 - Real backend host ingestion has not run yet.
 - Demo corpus has not been loaded into Qdrant/SQLite yet.
+- HuggingFace Static Space has not been verified against a live public Agent API.
 
 ## Repository Map
 
@@ -298,8 +304,6 @@ python3 -m pytest infra/tests -x
 Some future tests will require the backend host, Qdrant, Gateway, or live model
 services. The current foundation tests mostly use mocked HTTP and temporary
 SQLite files.
-
-After PR #23 merges, eval fixture checks can also run with:
 
 ```bash
 python3 -m pytest packages/evals/tests -x

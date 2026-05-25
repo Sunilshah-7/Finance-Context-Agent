@@ -26,7 +26,7 @@ still deploying through HuggingFace Spaces.
 | Evidence | Inspect citation-ready chunks returned by Agent API |
 | Risk Scores | Show holding-level research risk movement |
 | Analyst Memo | Render memo structure, watchlist questions, and disclaimer |
-| AMD Benchmark | Show live metrics only when backend returns them |
+| Inference Metrics | Show NIM/Gateway metrics only when backend returns them |
 
 ## Backend Boundary
 
@@ -71,4 +71,4 @@ AGENT_API_URL=https://your-agent-api-url
 ```
 
 The app also runs without Agent API. In that mode, it shows clearly labeled
-sample data and unavailable benchmark placeholders.
+sample data and unavailable inference-metric placeholders.

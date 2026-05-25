@@ -2,7 +2,7 @@
  * Clearly labeled sample data used when Agent API is unavailable.
  *
  * Values are illustrative UI fixtures, not live market data, investment advice,
- * or measured AMD VM benchmark output.
+ * or measured NIM/Gateway inference metrics.
  */
 
 export const SAMPLE_PORTFOLIO = {
@@ -141,12 +141,12 @@ export const SAMPLE_MEMO = {
 };
 
 export const SAMPLE_BENCHMARK = {
-  sourceLabel: "Sample benchmark placeholders",
+  sourceLabel: "Sample inference placeholders",
   status: "Unavailable until backend metrics are connected",
   metrics: [
-    { label: "72B tokens/sec", value: "Unavailable", note: "Requires live Gateway metrics" },
+    { label: "Reasoner tokens/sec", value: "Unavailable", note: "Requires live Gateway metrics" },
     { label: "Time to first token", value: "Unavailable", note: "Requires live Gateway metrics" },
-    { label: "GPU memory utilization", value: "Unavailable", note: "Requires AMD VM telemetry" },
+    { label: "Provider status", value: "Unavailable", note: "Requires live NIM/Gateway health" },
     { label: "Embedding latency", value: "Unavailable", note: "Requires Gateway metrics" },
   ],
 };

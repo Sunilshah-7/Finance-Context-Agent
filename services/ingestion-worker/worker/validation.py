@@ -115,6 +115,8 @@ def validate_qdrant_count(
     allowed_delta: int = 0,
     timeout_seconds: float = 10.0,
 ) -> QdrantCountValidation:
+    # This comparison is the fastest way to catch partial ingestion: SQLite may
+    # have chunk text even when embedding or Qdrant upsert failed mid-run.
     sqlite_chunks_count = _scalar_count(conn, "SELECT count(*) FROM chunks")
     qdrant_points_count = fetch_qdrant_point_count(
         qdrant_url=qdrant_url,

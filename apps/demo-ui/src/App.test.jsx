@@ -48,7 +48,7 @@ describe("App", () => {
       screen.getByText("This output is research assistance only and does not constitute investment advice."),
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /07 AMD Benchmark/i }));
+    fireEvent.click(screen.getByRole("button", { name: /07 Inference Metrics/i }));
     expect(screen.getByText("No live number is displayed unless backend returns it.")).toBeInTheDocument();
   });
 
