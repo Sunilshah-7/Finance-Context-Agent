@@ -1,0 +1,30 @@
+[
+  {
+    "id": "change_amd_supply_chain_intensified",
+    "ticker": "AMD",
+    "section": "Item 1A",
+    "from_year": 2022,
+    "to_year": 2025,
+    "change_type": "intensified_language",
+    "materiality": "high",
+    "confidence": 0.89,
+    "summary": "AMD's supply-chain disclosure moved from limited-supplier language to a more specific dependency on third-party manufacturers for advanced process nodes.",
+    "old_text": "We source certain components from a limited number of suppliers and depend on third parties for some manufacturing, assembly, testing and packaging services.",
+    "new_text": "We have significant concentration of supply chain dependency on certain third-party manufacturers, particularly for advanced process nodes used in high-performance and AI products.",
+    "citation_ids": ["amd_2022_supply_chain", "amd_2025_supply_chain"]
+  },
+  {
+    "id": "change_amd_export_controls_new",
+    "ticker": "AMD",
+    "section": "Item 1A",
+    "from_year": 2022,
+    "to_year": 2025,
+    "change_type": "new_risk",
+    "materiality": "high",
+    "confidence": 0.84,
+    "summary": "AMD adds explicit AI accelerator export-control risk in the newer filing.",
+    "old_text": "",
+    "new_text": "Government export restrictions on advanced AI accelerators may limit our ability to sell certain products into restricted markets and could affect future revenue opportunities.",
+    "citation_ids": ["amd_2025_export_controls"]
+  }
+]

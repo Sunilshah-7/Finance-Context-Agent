@@ -1,0 +1,9 @@
+{
+  "provider": "fixture-provider",
+  "planner_latency_ms": 280,
+  "memo_latency_ms": 540,
+  "time_to_first_token_ms": 90,
+  "tokens_per_second": 120,
+  "citation_pass_rate": 1,
+  "last_portfolio_analysis": "1.8s deterministic workflow"
+}

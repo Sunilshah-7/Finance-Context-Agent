@@ -1,0 +1,48 @@
+{
+  "id": "portfolio_demo",
+  "name": "Semiconductor Risk Review",
+  "total_value": 59000,
+  "disclaimer": "This output is research assistance only and does not constitute investment advice.",
+  "holdings": [
+    {
+      "ticker": "AMD",
+      "company": "Advanced Micro Devices, Inc.",
+      "shares": 100,
+      "market_value": 15000,
+      "weight": 0.254,
+      "sector": "Semiconductors"
+    },
+    {
+      "ticker": "NVDA",
+      "company": "NVIDIA Corporation",
+      "shares": 25,
+      "market_value": 12500,
+      "weight": 0.212,
+      "sector": "Semiconductors"
+    },
+    {
+      "ticker": "MSFT",
+      "company": "Microsoft Corporation",
+      "shares": 40,
+      "market_value": 17000,
+      "weight": 0.288,
+      "sector": "Software"
+    },
+    {
+      "ticker": "JPM",
+      "company": "JPMorgan Chase & Co.",
+      "shares": 50,
+      "market_value": 10000,
+      "weight": 0.169,
+      "sector": "Financials"
+    },
+    {
+      "ticker": "TSLA",
+      "company": "Tesla, Inc.",
+      "shares": 18,
+      "market_value": 4500,
+      "weight": 0.077,
+      "sector": "Consumer Discretionary"
+    }
+  ]
+}

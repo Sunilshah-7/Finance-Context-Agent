@@ -1,0 +1,52 @@
+[
+  {
+    "id": "amd_2022_supply_chain",
+    "ticker": "AMD",
+    "anchor": "AMD 2022 10-K Item 1A paragraph 31",
+    "filing_type": "10-K",
+    "year": 2022,
+    "section": "Item 1A",
+    "excerpt": "We source certain components from a limited number of suppliers and depend on third parties for some manufacturing, assembly, testing and packaging services.",
+    "source_url": "https://www.sec.gov/Archives/edgar/data/2488/"
+  },
+  {
+    "id": "amd_2025_supply_chain",
+    "ticker": "AMD",
+    "anchor": "AMD 2025 10-K Item 1A paragraph 42",
+    "filing_type": "10-K",
+    "year": 2025,
+    "section": "Item 1A",
+    "excerpt": "We have significant concentration of supply chain dependency on certain third-party manufacturers, particularly for advanced process nodes used in high-performance and AI products.",
+    "source_url": "https://www.sec.gov/Archives/edgar/data/2488/"
+  },
+  {
+    "id": "amd_2025_export_controls",
+    "ticker": "AMD",
+    "anchor": "AMD 2025 10-K Item 1A paragraph 18",
+    "filing_type": "10-K",
+    "year": 2025,
+    "section": "Item 1A",
+    "excerpt": "Government export restrictions on advanced AI accelerators may limit our ability to sell certain products into restricted markets and could affect future revenue opportunities.",
+    "source_url": "https://www.sec.gov/Archives/edgar/data/2488/"
+  },
+  {
+    "id": "nvda_2025_customer_concentration",
+    "ticker": "NVDA",
+    "anchor": "NVDA 2025 10-K Item 1A paragraph 27",
+    "filing_type": "10-K",
+    "year": 2025,
+    "section": "Item 1A",
+    "excerpt": "A limited number of customers and partners account for a meaningful share of revenue associated with accelerated computing products.",
+    "source_url": "https://www.sec.gov/Archives/edgar/data/1045810/"
+  },
+  {
+    "id": "msft_2025_cloud_capacity",
+    "ticker": "MSFT",
+    "anchor": "MSFT 2025 10-K Item 1A paragraph 36",
+    "filing_type": "10-K",
+    "year": 2025,
+    "section": "Item 1A",
+    "excerpt": "Demand for cloud and AI infrastructure may require significant capital investment and execution discipline across datacenter capacity planning.",
+    "source_url": "https://www.sec.gov/Archives/edgar/data/789019/"
+  }
+]

@@ -1,0 +1,74 @@
+[
+  {
+    "ticker": "AMD",
+    "score": 58,
+    "delta": 12,
+    "exposure_level": "high",
+    "weight": 0.254,
+    "top_driver": "Supply-chain concentration and export-control exposure",
+    "drivers": [
+      {
+        "category": "supply_chain",
+        "score": 72,
+        "summary": "Newer AMD disclosures are more specific about advanced-node manufacturing dependency.",
+        "citation_ids": ["amd_2025_supply_chain"]
+      },
+      {
+        "category": "regulatory",
+        "score": 66,
+        "summary": "AI accelerator export controls are now a direct risk factor.",
+        "citation_ids": ["amd_2025_export_controls"]
+      }
+    ]
+  },
+  {
+    "ticker": "NVDA",
+    "score": 62,
+    "delta": 8,
+    "exposure_level": "high",
+    "weight": 0.212,
+    "top_driver": "Customer concentration in accelerated computing",
+    "drivers": [
+      {
+        "category": "customer_concentration",
+        "score": 69,
+        "summary": "NVDA evidence highlights revenue concentration around a limited customer and partner base.",
+        "citation_ids": ["nvda_2025_customer_concentration"]
+      }
+    ]
+  },
+  {
+    "ticker": "MSFT",
+    "score": 35,
+    "delta": 3,
+    "exposure_level": "medium",
+    "weight": 0.288,
+    "top_driver": "Cloud and AI infrastructure capacity execution",
+    "drivers": [
+      {
+        "category": "capital_intensity",
+        "score": 42,
+        "summary": "Cloud and AI capacity demand can increase capital intensity.",
+        "citation_ids": ["msft_2025_cloud_capacity"]
+      }
+    ]
+  },
+  {
+    "ticker": "JPM",
+    "score": 22,
+    "delta": 0,
+    "exposure_level": "low",
+    "weight": 0.169,
+    "top_driver": "No semiconductor disclosure exposure in curated review",
+    "drivers": []
+  },
+  {
+    "ticker": "TSLA",
+    "score": 28,
+    "delta": 2,
+    "exposure_level": "low",
+    "weight": 0.077,
+    "top_driver": "Outside the semiconductor scope of this question",
+    "drivers": []
+  }
+]

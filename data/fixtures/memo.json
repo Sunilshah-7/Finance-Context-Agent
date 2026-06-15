@@ -1,0 +1,89 @@
+{
+  "executive_summary": "Semiconductor exposure is the main portfolio area affected by the reviewed disclosure changes. AMD shows intensified supply-chain language and a new export-control risk, while NVDA adds a related customer-concentration signal.",
+  "exposure_affected": [
+    {
+      "ticker": "AMD",
+      "company": "Advanced Micro Devices, Inc.",
+      "shares": 100,
+      "market_value": 15000,
+      "weight": 0.254,
+      "sector": "Semiconductors"
+    },
+    {
+      "ticker": "NVDA",
+      "company": "NVIDIA Corporation",
+      "shares": 25,
+      "market_value": 12500,
+      "weight": 0.212,
+      "sector": "Semiconductors"
+    }
+  ],
+  "top_changes": [
+    {
+      "ticker": "AMD",
+      "section": "Item 1A",
+      "summary": "AMD's supply-chain risk language intensified from limited-supplier phrasing to concentrated dependency on third-party advanced-node manufacturers.",
+      "citation_ids": ["amd_2022_supply_chain", "amd_2025_supply_chain"]
+    },
+    {
+      "ticker": "AMD",
+      "section": "Item 1A",
+      "summary": "AMD now explicitly calls out export-control restrictions for advanced AI accelerators.",
+      "citation_ids": ["amd_2025_export_controls"]
+    },
+    {
+      "ticker": "NVDA",
+      "section": "Item 1A",
+      "summary": "NVDA evidence adds a customer-concentration comparison point for accelerated computing revenue.",
+      "citation_ids": ["nvda_2025_customer_concentration"]
+    }
+  ],
+  "risk_scores": [
+    {
+      "ticker": "AMD",
+      "score": 58,
+      "delta": 12,
+      "exposure_level": "high",
+      "weight": 0.254,
+      "top_driver": "Supply-chain concentration and export-control exposure",
+      "drivers": [
+        {
+          "category": "supply_chain",
+          "score": 72,
+          "summary": "Newer AMD disclosures are more specific about advanced-node manufacturing dependency.",
+          "citation_ids": ["amd_2025_supply_chain"]
+        }
+      ]
+    },
+    {
+      "ticker": "NVDA",
+      "score": 62,
+      "delta": 8,
+      "exposure_level": "high",
+      "weight": 0.212,
+      "top_driver": "Customer concentration in accelerated computing",
+      "drivers": [
+        {
+          "category": "customer_concentration",
+          "score": 69,
+          "summary": "NVDA evidence highlights revenue concentration around a limited customer and partner base.",
+          "citation_ids": ["nvda_2025_customer_concentration"]
+        }
+      ]
+    }
+  ],
+  "watchlist": [
+    "What share of AMD's AI accelerator revenue is exposed to export restrictions?",
+    "How is AMD diversifying advanced-node manufacturing and packaging capacity?",
+    "How concentrated is NVDA's accelerated-computing demand across hyperscale customers?"
+  ],
+  "limitations": "This V2 prototype uses curated filing excerpts for a deterministic product demo. It does not perform live EDGAR ingestion, vector retrieval, or investment recommendation generation.",
+  "confidence": 0.86,
+  "citation_ids": [
+    "amd_2022_supply_chain",
+    "amd_2025_supply_chain",
+    "amd_2025_export_controls",
+    "nvda_2025_customer_concentration"
+  ],
+  "disclaimer": "This output is research assistance only and does not constitute investment advice."
+}

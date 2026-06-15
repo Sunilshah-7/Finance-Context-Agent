@@ -1,0 +1,16 @@
+.DS_Store
+.env
+node_modules/
+.next/
+out/
+dist/
+coverage/
+*.log
+fincontext.db
+qdrant_storage/
+.venv/
+__pycache__/
+*.pyc
+backend/fincontext
+.gocache/
+.gomodcache/
