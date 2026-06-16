@@ -1,94 +1,105 @@
-# Deployment: HuggingFace Spaces + NVIDIA NIM
+# Deployment
 
-This is the prototype deployment plan. The app does not require an AMD GPU VM or
-local 70B model serving. LLM calls go through NVIDIA NIM via the Inference
-Gateway; the backend host runs the application services, Qdrant, and SQLite.
+`README.md` is the source of truth. The current deployment is Go-first:
+Agent API, Inference Gateway, Qdrant, and SQLite are run through Docker Compose
+for a production-shaped local stack. The root `Dockerfile` builds the public
+HuggingFace container with the Go Agent API serving the exported Next.js UI.
 
 ## Components
 
 | Component | Where it runs | Technology |
-|-----------|--------------|------------|
-| Demo UI | HuggingFace Spaces | Vite React Static Space |
-| Agent API | Backend host | FastAPI + LangGraph |
-| Inference Gateway | Backend host | FastAPI proxy to NIM and retrieval backends |
+|-----------|---------------|------------|
+| Demo UI | Served by Agent API container | Next.js static export |
+| Agent API | Container or local process | Go HTTP service |
+| Inference Gateway | Container or local process | Go HTTP proxy |
 | LLM inference | NVIDIA NIM | OpenAI-compatible chat completions |
-| Embeddings | Backend host or teammate-hosted service | BGE-compatible 1024-dimensional embedding endpoint |
-| Reranker | Backend host or teammate-hosted service | BGE-compatible rerank endpoint |
-| Vector store | Backend host | Qdrant Docker container |
-| Metadata DB | Backend host | SQLite |
+| Embeddings | Configured external/backend service | Gateway passthrough |
+| Reranker | Configured external/backend service | Gateway passthrough |
+| Vector store | Container | Qdrant |
+| Metadata DB | Local/container filesystem | SQLite |
 
-## Backend Setup
+## Local Production-Shaped Stack
 
 ```bash
 cp configs/.env.example .env
-# Set NIM_API_KEY, NIM_BASE_URL, SEC_USER_AGENT, AGENT_API_KEY,
-# EMBEDDING_URL, and RERANKER_URL.
-
-docker compose -f infra/docker-compose.yml up -d qdrant
-sqlite3 fincontext.db < infra/schema.sql
-python3 infra/qdrant/init_collection.py
+docker compose -f infra/docker-compose.yml --env-file .env up --build
 ```
 
-Start the services:
-
-```bash
-cd services/inference-gateway
-pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8080
-
-cd ../agent-api
-pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8090
-```
-
-Only the Agent API should be publicly reachable. Keep Qdrant, SQLite, the
-Gateway, embedding, and reranker services private to the backend host.
-
-The current code uses NVIDIA NIM only for chat completions. Ingestion and
-retrieval still need embedding and reranker backends behind the Gateway:
-
-- `POST /v1/embeddings` routes to `EMBEDDING_URL`.
-- `POST /v1/rerank` routes to `RERANKER_URL`.
-
-Do not start full demo ingestion until both routes are healthy; otherwise
-SQLite may contain chunks without matching Qdrant vectors.
-
-## HuggingFace Static Space
-
-The Space repository should use `apps/demo-ui/` as its root.
-
-```yaml
----
-title: FinContext Agent
-colorFrom: slate
-colorTo: blue
-sdk: static
-app_build_command: npm run build
-app_file: dist/index.html
-pinned: false
----
-```
-
-Configure the public Agent API URL for the frontend:
+Open:
 
 ```text
-AGENT_API_URL=https://your-agent-api-url
+http://localhost:8090
 ```
 
-Static browser apps cannot keep secrets. Do not embed `AGENT_API_KEY` in the
-React frontend; use demo-safe public endpoints, CORS, and rate limiting on the
-Agent API.
+Health checks:
 
-## Inference Operations
+```bash
+curl http://localhost:8090/api/health
+curl http://localhost:8080/health
+curl http://localhost:6333/healthz
+```
 
-NIM is the only chat-completions backend for the prototype:
+## Local Backend Development
 
-- `fincontext-planner` routes to `NIM_PLANNER_MODEL`.
-- `fincontext-reasoner` routes to `NIM_REASONER_MODEL`.
-- `NIM_API_KEY` must be configured on the backend host.
-- Gateway metrics are the source for latency, token throughput, provider status,
-  and request counts.
-- NIM does not replace the configured embedding or reranker backends in this
-  repository.
+Gateway:
 
-This avoids local 70B infrastructure while preserving a clean provider boundary.
+```bash
+cd backend
+PORT=8080 NIM_API_KEY=... go run ./cmd/inference-gateway
+```
+
+Agent API:
+
+```bash
+cd backend
+FIXTURE_DIR=../data/fixtures \
+SQLITE_DB_PATH=../fincontext.db \
+QDRANT_URL=http://localhost:6333 \
+INFERENCE_GATEWAY_URL=http://localhost:8080 \
+go run ./cmd/agent-api
+```
+
+Frontend only:
+
+```bash
+cd apps/demo-ui
+npm install
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8090 npm run dev
+```
+
+## HuggingFace Space
+
+The root `Dockerfile` is the HuggingFace container path. It:
+
+1. Builds the Next.js UI.
+2. Builds `backend/cmd/agent-api`.
+3. Copies the static UI export to `/app/public`.
+4. Runs the Go Agent API on `PORT=7860`.
+
+For the single-container Space, configure external services with environment
+variables:
+
+```text
+PORT=7860
+FIXTURE_DIR=/app/data/fixtures
+STATIC_DIR=/app/public
+SQLITE_DB_PATH=/tmp/fincontext.db
+QDRANT_URL=https://your-qdrant-host
+INFERENCE_GATEWAY_URL=https://your-gateway-host
+NIM_API_KEY=...
+```
+
+## Network Notes
+
+- Only the Agent API needs to be public for the demo.
+- Qdrant, Gateway, embedding, and reranker services should stay private when
+  deployed as separate services.
+- Static browser code cannot keep secrets, so do not embed private API keys in
+  the UI.
+
+## Current Limitations
+
+- The public app runs on curated fixtures.
+- Qdrant collection setup is implemented, but live vector retrieval is not yet
+  connected to the Agent API run path.
+- Embedding/reranker URLs are passthrough configuration, not bundled services.

@@ -1,88 +1,56 @@
-# services/inference-gateway
+# Inference Gateway
 
-Lightweight FastAPI proxy that sits between the Agent API and all model providers. In the current MVP, chat completions route to NVIDIA NIM hosted endpoints. Embeddings and reranking stay behind the same Gateway contract.
+This service is implemented in Go under `backend/cmd/inference-gateway`. The
+Gateway exposes OpenAI-compatible endpoints and routes logical FinContext model
+names to NVIDIA NIM or configured retrieval-model backends.
 
-## Why this exists
+`README.md` is the source of truth for the runnable architecture.
 
-- Agent API code is independent of which model is loaded or where it runs — swap models without touching agent code
-- All model calls get request IDs, latency logging, and error normalization in one place
-- The inference metrics panel gets its latency and token metrics from gateway logs
-- Rate limiting and circuit-breaking can be added here without touching the Agent API
+## Current Responsibilities
 
-## Routing
+- `POST /v1/chat/completions` proxies to NVIDIA NIM.
+- `fincontext-planner` is rewritten to `NIM_PLANNER_MODEL`.
+- `fincontext-reasoner` is rewritten to `NIM_REASONER_MODEL`.
+- `POST /v1/embeddings` proxies to `EMBEDDING_URL` when configured.
+- `POST /v1/rerank` proxies to `RERANKER_URL` when configured.
+- `GET /health` reports configured upstream status.
+- `GET /metrics` returns simple request/error counters.
 
-| Request | Model field | Routes to | Port |
-|---------|-------------|-----------|------|
-| POST /v1/chat/completions | fincontext-reasoner | NVIDIA NIM reasoner | hosted |
-| POST /v1/chat/completions | fincontext-planner | NVIDIA NIM planner | hosted |
-| POST /v1/embeddings | fincontext-embedding | local BGE-large embedding service | 8002 |
-| POST /v1/rerank | fincontext-reranker | local BGE reranker service | 8003 |
-| GET /health | — | all services | — |
-| GET /metrics | — | aggregated logs | — |
+The Gateway does not inject prompts or business logic. It only routes,
+normalizes errors, and records lightweight metrics.
 
-## Endpoints
-
-```
-POST /v1/chat/completions  — OpenAI-compatible, routed by model name
-POST /v1/embeddings        — OpenAI-compatible, routes to embedding backend
-POST /v1/rerank            — rerank format used by retrieval
-GET  /health               — checks all 4 backend services
-GET  /metrics              — returns recent request latency and token stats
-```
-
-## Stack
-
-- Python 3.12
-- FastAPI
-- httpx (async proxy to backends)
-- structlog (structured JSON logging for metrics collection)
-
-## File Structure (target)
-
-```
-services/inference-gateway/
-  main.py          # FastAPI app + route definitions
-  router.py        # Routing logic based on model name
-  middleware.py    # Request ID injection, latency measurement
-  metrics.py       # In-memory metrics store (last N requests)
-  models.py        # Pydantic request/response models
-  requirements.txt
-```
-
-## Running
+## Local Run
 
 ```bash
-pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8080 --reload
+cd backend
+PORT=8080 NIM_API_KEY=... go run ./cmd/inference-gateway
+```
 
-# Verify all backends are reachable
+Health check:
+
+```bash
 curl http://localhost:8080/health
 ```
 
-## Metrics Output (for benchmark panel)
+## Environment
 
-`GET /metrics` returns the last 1,000 requests aggregated by model:
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `8080` | Gateway listen port |
+| `NIM_BASE_URL` | `https://integrate.api.nvidia.com/v1` | NVIDIA NIM OpenAI-compatible base URL |
+| `NIM_API_KEY` | empty | Required for chat completions |
+| `NIM_PLANNER_MODEL` | `Qwen/Qwen2.5-14B-Instruct` | Upstream planner model |
+| `NIM_REASONER_MODEL` | `Qwen/Qwen2.5-72B-Instruct` | Upstream reasoner model |
+| `EMBEDDING_URL` | empty | Optional embedding backend base URL |
+| `RERANKER_URL` | empty | Optional reranker backend base URL |
+| `UPSTREAM_TIMEOUT_SECONDS` | `60` | Gateway upstream timeout |
 
-```json
-{
-  "fincontext-reasoner": {
-    "count": 12,
-    "avg_input_tokens": 8420,
-    "avg_output_tokens": 1850,
-    "avg_time_to_first_token_ms": 380,
-    "avg_total_latency_ms": 18240,
-    "avg_tokens_per_second": 52.3
-  },
-  "fincontext-planner": {
-    "count": 47,
-    "avg_total_latency_ms": 2850,
-    "avg_tokens_per_second": 112.1
-  }
-}
-```
+## Routes
 
-The Agent API metrics endpoint (`GET /api/benchmark/metrics`) fetches this and can add provider metadata such as upstream model name and NIM request status.
-
-## Important: No Business Logic Here
-
-This service is a transparent proxy. It must not modify request bodies, inject prompts, or alter model outputs. Its only jobs are routing, logging, and health checking.
+| Endpoint | Current behavior |
+|----------|------------------|
+| `GET /health` | Reports NIM, embedding, reranker configuration |
+| `GET /metrics` | Returns request/error counters |
+| `POST /v1/chat/completions` | Rewrites logical model names and proxies to NIM |
+| `POST /v1/embeddings` | Proxies to configured embedding backend |
+| `POST /v1/rerank` | Proxies to configured reranker backend |

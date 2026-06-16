@@ -1,78 +1,90 @@
 # CLAUDE.md
 
 This file provides guidance to Claude Code when working with this repository.
+`README.md` is the source of truth for current architecture and commands.
 
 ## Project
 
-FinContext Agent is an AMD Developer Hackathon 2026 Track 1 project. It ingests
-SEC filings, detects disclosure-language drift, scores holding-level research
-risk, and produces citation-grounded analyst memos.
+FinContext Agent is an AMD Developer Hackathon 2026 Track 1 project. It turns
+filings and curated evidence into citation-grounded portfolio context, with a
+hero workflow around disclosure-language drift.
 
 ## Current Architecture Decision
 
-This is a prototype. Do not build or assume local 70B GPU inference. The final
-plan is NVIDIA NIM for hosted OpenAI-compatible chat completions through the
-Inference Gateway.
-
-The backend host runs:
+The current implementation is Go-first. Python is reserved for future offline
+parsing/evaluation workflows where its document/NLP ecosystem is useful.
 
 ```text
-Agent API           port 8090  FastAPI + LangGraph
-Inference Gateway   port 8080  Proxy to NVIDIA NIM + retrieval backends
+Agent API           port 8090  Go HTTP service
+Inference Gateway   port 8080  Go proxy to NVIDIA NIM + retrieval backends
 Qdrant              port 6333  Vector store
-SQLite              on disk    Metadata and chunk text
+SQLite              on disk    Run and fixture metadata
+Demo UI             served by Agent API as exported Next.js static assets
 ```
 
-The public demo UI is the Vite React app in `apps/demo-ui/`, deployed as a
-HuggingFace Static Space. The browser calls only the Agent API.
+The app currently runs in fixture mode: curated JSON data powers the demo while
+live EDGAR ingestion, retrieval, embeddings, reranking, and live memo generation
+are connected incrementally.
 
 ## Commands
 
+Production-shaped local stack:
+
 ```bash
 cp configs/.env.example .env
-# Fill NIM_API_KEY, NIM_BASE_URL, SEC_USER_AGENT, and AGENT_API_KEY.
-
-docker compose -f infra/docker-compose.yml up -d qdrant
-sqlite3 fincontext.db < infra/schema.sql
-python3 infra/qdrant/init_collection.py
+docker compose -f infra/docker-compose.yml --env-file .env up --build
 ```
 
-Run services:
+Backend tests:
 
 ```bash
-cd services/inference-gateway
-pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8080
-
-cd services/agent-api
-pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8090
+cd backend
+GOCACHE=/absolute/path/to/.gocache GOMODCACHE=/absolute/path/to/.gomodcache go test ./...
 ```
 
-Run React demo locally:
+Run Gateway locally:
+
+```bash
+cd backend
+PORT=8080 NIM_API_KEY=... go run ./cmd/inference-gateway
+```
+
+Run Agent API locally:
+
+```bash
+cd backend
+FIXTURE_DIR=../data/fixtures \
+SQLITE_DB_PATH=../fincontext.db \
+QDRANT_URL=http://localhost:6333 \
+INFERENCE_GATEWAY_URL=http://localhost:8080 \
+go run ./cmd/agent-api
+```
+
+Run demo UI separately:
 
 ```bash
 cd apps/demo-ui
 npm install
-VITE_AGENT_API_URL=http://localhost:8090 npm run dev
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8090 npm run dev
 ```
 
-## Model Allocation
+## Model Boundary
 
-| Task | Gateway model | Backend |
-|------|---------------|---------|
-| Retrieval planning | `fincontext-planner` | NVIDIA NIM planner model |
-| Disclosure classification | `fincontext-planner` | NVIDIA NIM planner model |
-| Final analyst memo | `fincontext-reasoner` | NVIDIA NIM reasoner model |
-| Embeddings | `fincontext-embedding` | configured embedding backend |
-| Reranking | `fincontext-reranker` | configured reranker backend |
+All model-related calls go through the Inference Gateway:
 
-All model calls go through the Inference Gateway. Do not call NVIDIA NIM,
-embedding backends, rerankers, or Qdrant directly from LangGraph nodes.
+| Task | Gateway route/model | Backend |
+|------|---------------------|---------|
+| Planner calls | `fincontext-planner` | NVIDIA NIM planner model |
+| Final memo calls | `fincontext-reasoner` | NVIDIA NIM reasoner model |
+| Embeddings | `POST /v1/embeddings` | configured embedding backend |
+| Reranking | `POST /v1/rerank` | configured reranker backend |
+
+Do not call NVIDIA NIM, embedding services, or reranker services directly from
+Agent API code.
 
 ## Compliance Rules
 
-- Every factual claim in a memo must have a citation referencing a retrieved chunk.
+- Every factual memo/chat claim should be traceable to a known citation.
 - Never generate buy, sell, hold, short, or other investment recommendations.
-- Every memo must include the research-assistance disclaimer.
-- Risk scores must include confidence and citations.
+- Every memo/chat answer must include the research-assistance disclaimer.
+- Do not add a second public Agent API or frontend app without a team decision.

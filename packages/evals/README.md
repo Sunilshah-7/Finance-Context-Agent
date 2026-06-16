@@ -1,8 +1,10 @@
 # packages/evals
 
-Evaluation harness for retrieval quality, citation precision, disclosure diff accuracy, and inference performance benchmarks.
+Evaluation harness for future retrieval quality, citation precision, disclosure
+diff accuracy, and inference performance benchmarks.
 
-Run evals after the full pipeline is working and before demo polish. Eval results feed the inference metrics panel in the React UI.
+Run evals after the full live pipeline is working and before demo polish. The
+current runnable app uses fixture metrics from `data/fixtures/metrics.json`.
 
 ## Eval Suites
 
@@ -79,7 +81,8 @@ python eval_latency.py --agent-api-url http://localhost:8090 --runs 3
 # Saving results to benchmark_results.json
 ```
 
-Results are saved to `benchmark_results.json` in this directory. The Agent API benchmark endpoint reads this file.
+Results should be saved to `benchmark_results.json` in this directory when the
+live benchmark path is implemented.
 
 ### 5. Risk Score Stability (`eval_risk_stability.py`)
 
@@ -112,11 +115,13 @@ Validate fixture shape without live services:
 python -m pytest packages/evals/tests -x
 ```
 
-## Running All Evals
+## Future Running All Evals
 
 ```bash
 pip install -r requirements.txt
 python run_all_evals.py 2>&1 | tee eval_results.txt
 ```
 
-`run_all_evals.py` runs all evals in sequence and prints a summary table. A citation precision below 0.85 or retrieval recall below 0.70 should be fixed before demo day.
+`run_all_evals.py` is target tooling for the live retrieval pipeline. A citation
+precision below 0.85 or retrieval recall below 0.70 should be fixed before a
+live-ingestion demo.

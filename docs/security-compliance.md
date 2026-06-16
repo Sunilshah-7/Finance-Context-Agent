@@ -18,10 +18,11 @@ FinContext provides AI-assisted research summaries based on source documents and
 - Generated memos: sensitive if tied to holdings.
 - API keys and tokens: secret.
 
-## Controls
+## Target Controls
 
 - Encrypt data in transit with HTTPS.
-- Require Agent API bearer-token authentication for all non-health endpoints.
+- Add Agent API authentication/rate limiting before exposing private or
+  user-specific operations beyond the public fixture demo.
 - Store portfolios, generated reports, and job artifacts on the backend host with restricted filesystem permissions.
 - Use signed URLs with short expiration.
 - Separate tenants by user and portfolio ID.
@@ -66,7 +67,7 @@ Avoid:
 
 ## Auditability
 
-Every memo should store:
+Future generated memos should store:
 
 - model name.
 - prompt template version.

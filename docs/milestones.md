@@ -1,280 +1,66 @@
 # Milestones
 
-Build phase: May 11–19, 2026. Two developers. Hosted inference via NVIDIA NIM.
-
-## Pre-Build Phase (Before May 11 — do this NOW)
-
-These tasks must be completed before the official build phase starts. They are not optional.
-
-### Task 1: Backend host and NIM inference verified
-
-```bash
-cp configs/.env.example .env
-# Fill NIM_API_KEY, NIM_BASE_URL, SEC_USER_AGENT, and AGENT_API_KEY
-docker compose -f infra/docker-compose.yml up -d qdrant
-uvicorn services.inference-gateway.main:app --host 0.0.0.0 --port 8080
-curl http://localhost:8080/health      # Gateway and NIM routing ready
-curl http://localhost:6333/healthz     # Qdrant ready
-```
-
-Expected time: 1–2 hours, mostly environment and secret setup.
-
-### Task 2: EDGAR filings pre-ingested for all demo tickers
-
-```bash
-cd services/ingestion-worker
-python ingest.py --tickers AMD,NVDA,MSFT,JPM,TSLA \
-                 --filing-types 10-K,10-Q \
-                 --years 4
-```
-
-Expected output:
-- ~50 documents parsed
-- ~12,000–18,000 chunks stored in Qdrant
-- ~12,000–18,000 chunk metadata rows in SQLite with FTS5 index
-- Both teammates should be able to load the Qdrant snapshot and reproduce
-
-Expected time: 3–5 hours (mostly EDGAR download + embedding generation).
-
-### Task 3: Retrieval verified manually
-
-Before writing any agent code, verify the retrieval pipeline works:
-```bash
-# Quick test: search for AMD supply chain risk
-python -c "
-from services.ingestion_worker.vector_store import search
-results = search('supply chain third party manufacturing risk', tickers=['AMD'], filing_types=['10-K'])
-for r in results[:3]:
-    print(r.citation_anchor, '|', r.text[:100])
-"
-```
-
-Expected: 3 results returned, citation anchors make sense, text is relevant to supply chain.
-
-### Deliverable: Everything listed above working before May 11.
-
----
-
-## Day 1 — May 11: Infrastructure and Skeleton
-
-**Owner split:** Both developers together on backend setup, then split.
-
-### Developer A: Agent API skeleton
-- [ ] Create `services/agent-api/` directory structure
-- [ ] FastAPI app with health endpoint: `GET /health → {"status": "ok", "inference_provider": "nvidia-nim"}`
-- [ ] FastAPI portfolio upload endpoint: `POST /api/portfolio/upload` — read CSV, write to SQLite, return `portfolio_id`
-- [ ] Stub for `POST /api/analyze` — creates a job record in SQLite, returns `job_id`, runs empty graph
-- [ ] Stub for `GET /api/jobs/{job_id}` — returns job status from SQLite
-- [ ] `AnalysisState` and all schema models in `packages/schemas/python/state.py`
-- [ ] SQLite schema applied: `sqlite3 fincontext.db < infra/schema.sql`
-
-### Developer B: Inference Gateway + Demo UI skeleton
-- [ ] Create `services/inference-gateway/` with FastAPI
-- [ ] Routes: `POST /v1/chat/completions`, `POST /v1/embeddings`, `POST /v1/rerank`, `GET /health`
-- [ ] Each route proxies to the appropriate NIM or local retrieval backend with request ID logging
-- [ ] Create `apps/demo-ui/` with basic React app
-- [ ] React tab 1: Portfolio upload (CSV file input → POST to Agent API → show holdings table)
-- [ ] React tab 2: Analysis (button → POST to Agent API → poll job status → show "Analysis complete")
-
-### Day 1 Deliverable
-- Portfolio CSV can be uploaded via React, appears in SQLite, React shows the holdings table
-- `GET /health` returns 200 from both Agent API and Inference Gateway
-- Gateway, NIM routing, and Qdrant confirmed running
-
----
-
-## Day 2 — May 12: Retrieval Pipeline
-
-**Note:** Pre-ingested data should already exist in Qdrant from the pre-build phase. This day is about building the retrieval service layer on top of it.
-
-### Developer A: Hybrid retrieval implementation
-- [ ] `services/agent-api/app/retrieval.py` — hybrid BM25 + Qdrant retrieval function
-- [ ] BM25: SQLite FTS5 query on `chunks_fts` virtual table, return top 50 candidates
-- [ ] Vector: Qdrant query with payload filters (ticker, filing_type, date range), return top 50 candidates
-- [ ] RRF merge: combine BM25 and vector results with k=60 formula
-- [ ] Reranker: call Inference Gateway `/v1/rerank` with merged candidates
-- [ ] Diversity filter: max 3 chunks per section per ticker
-- [ ] Standalone test: `pytest tests/test_retrieval.py -x` must pass
-- [ ] `GET /api/retrieve` endpoint (for debugging during development): accepts query + tickers, returns chunks
-
-### Developer B: Ingestion worker cleanup + SQLite FTS5 index
-- [ ] Verify FTS5 index is correctly populated: `SELECT count(*) FROM chunks_fts` should match `chunks` table
-- [ ] If pre-ingestion didn't create FTS5 index, build it: `INSERT INTO chunks_fts SELECT text, ticker, filing_type, filed_at, citation_anchor FROM chunks`
-- [ ] Fix any parsing issues found in ingested data (section labels, missing fields)
-- [ ] Add `GET /api/documents/{ticker}` endpoint — list all ingested documents for a ticker
-- [ ] Add React tab 3: Filing Explorer — dropdown to select ticker, show list of ingested documents with filing dates and types
-
-### Day 2 Deliverable
-- Retrieval endpoint returns citation-grounded chunks for a test query like "AMD supply chain risk"
-- Filing Explorer in React shows all pre-ingested documents for each ticker
-- Retrieval tests pass
-
----
-
-## Day 3 — May 13: LangGraph Graph and Node 1
-
-### Developer A: LangGraph graph wiring + Node 1
-- [ ] `services/agent-api/app/graph.py` — StateGraph with 4 nodes (3 stubbed, 1 real)
-- [ ] `portfolio_context_planner` node — full implementation (see agent-design.md Node 1)
-- [ ] Inference Gateway client: `services/agent-api/app/clients/gateway.py` with `async def chat_completion(model, messages) -> str`
-- [ ] Node 1 unit test: mock Gateway + SQLite, verify `retrieval_plan` is populated correctly
-- [ ] Wire `POST /api/analyze` to run the graph async (background task)
-- [ ] `GET /api/jobs/{job_id}` returns progress stage: "planning" → "retrieving" → "analyzing" → "writing" → "complete"
-
-### Developer B: React real-time job status polling
-- [ ] React Analysis tab: after clicking "Analyze", poll `GET /api/jobs/{job_id}` every 2 seconds
-- [ ] Show progress stage as text (e.g. "Planning retrieval queries...")
-- [ ] When status = "complete", fetch and display a placeholder result (even if it's just "Analysis complete - 5 tickers processed")
-- [ ] Test the full round-trip: upload CSV → trigger analysis → watch status change → see completion
-
-### Day 3 Deliverable
-- End-to-end: upload portfolio, trigger analysis, see job status progress through stages, reach "complete"
-- Node 1 (portfolio_context_planner) produces a valid `RetrievalPlan` for the demo portfolio
-- Node 1 unit tests pass
-
----
-
-## Day 4 — May 14: Nodes 2 and 3 (Retrieval + Disclosure Diff)
-
-This is the most technically important day. The disclosure diff is the hero demo feature.
-
-### Developer A: Node 2 — filing_retrieval
-- [ ] `services/agent-api/app/agents/filing_retrieval.py` — full implementation (see agent-design.md Node 2)
-- [ ] Parallel retrieval for all tickers with `asyncio.gather`
-- [ ] Integration test against real Qdrant: verify retrieval returns chunks for AMD + NVDA
-- [ ] Update graph: Node 2 runs after Node 1, state contains `retrieved_chunks` after Node 2
-
-### Developer B: Node 3 — disclosure_change
-- [ ] `services/agent-api/app/agents/disclosure_change.py` — full implementation (see agent-design.md Node 3)
-- [ ] Section text normalization function (strip boilerplate, XBRL, whitespace)
-- [ ] Diff classification with the 14B planner model (structured output)
-- [ ] Node 3 unit test: use hardcoded example chunk pairs, verify correct classification
-- [ ] `GET /api/diff/{ticker}` endpoint — runs Node 3 on pre-loaded chunks for a ticker, returns `DisclosureChange` list
-
-### Day 4 Deliverable
-- `GET /api/diff/AMD` returns a list of classified disclosure changes with citation anchors
-- The disclosure diff for AMD shows at least 2-3 real changes between 2022 and 2025 10-K filings
-- Graph runs Nodes 1, 2, and 3 in sequence when `/api/analyze` is called
-
----
-
-## Day 5 — May 15: Node 4 (Analyst Memo) + End-to-End
-
-This is the day the full pipeline runs end-to-end for the first time.
-
-### Developer A: Node 4 — analyst_memo
-- [ ] `services/agent-api/app/agents/analyst_memo.py` — full implementation (see agent-design.md Node 4)
-- [ ] Risk score computation function
-- [ ] 72B reasoner memo generation with citation instructions
-- [ ] Citation post-processing: `verify_citations()` function
-- [ ] Disclaimer injection (hardcoded, always appended)
-- [ ] Node 4 test: mock 72B call, verify disclaimer is always present, verify unsupported citations are removed
-- [ ] `GET /api/findings/{portfolio_id}` endpoint — return all findings for a portfolio
-
-### Developer B: React Disclosure Diff and Memo display
-- [ ] React tab 3: Disclosure Diff viewer — select ticker + year range → call `/api/diff/{ticker}` → render side-by-side diff with change type labels and materiality badges
-- [ ] React tab 4: Analyst Memo — after analysis completes, fetch memo from `/api/findings/{portfolio_id}` → render formatted memo with inline citation references
-- [ ] Citation cards: each `[citation_anchor]` in the memo renders as a clickable card showing the chunk text and the SEC EDGAR source URL
-
-### Day 5 Deliverable
-- Full pipeline: upload CSV → analyze → see memo with citations in React
-- Disclosure diff viewer shows real AMD filing changes with before/after text
-- Citation cards link to actual EDGAR URLs
-
----
-
-## Day 6 — May 16: Risk Scores and React Polish
-
-### Developer A: Risk score panel and API refinements
-- [ ] Risk score panel data: ensure `GET /api/findings/{portfolio_id}` includes full risk score breakdown per holding
-- [ ] Streaming SSE: implement `POST /api/chat` as a streaming endpoint that streams memo tokens
-- [ ] Test streaming with `httpx` SSE client
-- [ ] Bug fixes from Day 5 end-to-end run
-
-### Developer B: React Risk panel and streaming chat
-- [ ] React tab 5: Risk Scores — table showing per-holding score, score delta, top driver, exposure level
-- [ ] Color coding: score 0-20 green, 21-40 yellow, 41-60 orange, 61-80 red, 81-100 dark red
-- [ ] React tab 6: Citation-Backed Chat — text input → SSE stream from `/api/chat` → live token rendering → citation cards below
-- [ ] Deploy React app to HuggingFace Spaces (even if not all tabs are polished yet — get the public URL early)
-
-### Day 6 Deliverable
-- Public HuggingFace Spaces URL works with the backend
-- Risk score panel shows per-holding scores with color coding
-- Streaming chat tab shows live token generation through the Gateway
-
----
-
-## Day 7 — May 17: Inference Metrics Panel + Evals
-
-### Developer A: Benchmark metrics collection
-- [ ] Add latency tracking to Inference Gateway: record `time_to_first_token`, `total_latency`, `input_tokens`, `output_tokens` per request
-- [ ] `GET /api/benchmark/metrics` endpoint — return aggregated metrics from the last N requests
-- [ ] Run benchmark scenarios from `docs/nvidia-nim-plan.md`:
-  1. Single 10-K analysis (AMD only)
-  2. Latest vs prior 10-Q diff (AMD)
-  3. 5-stock portfolio review (full demo portfolio)
-- [ ] Record and document actual measured values (not estimated)
-
-### Developer B: React benchmark panel + Build-in-Public posts
-- [ ] React tab 7: Inference Metrics — tokens/sec gauge, latency histogram, provider/model labels, concurrent request count, cost proxy
-- [ ] Write and post first Build-in-Public post on X/LinkedIn: "Swapping the inference backend to NVIDIA NIM without changing the agent graph" (tag #AMDDevHackathon)
-- [ ] Screenshot the running demo on HuggingFace Spaces for the post
-
-### Day 7 Deliverable
-- Real benchmark numbers collected and displayed in React
-- First Build-in-Public post published
-- End-to-end demo takes under 60 seconds for the demo seed portfolio (pre-ingested data)
-
----
-
-## Day 8 — May 18: Demo Polish and Submission Prep
-
-### Both developers:
-- [ ] Demo run-through: follow the exact demo script from `docs/demo-plan.md` start to finish, fix any blocking issues
-- [ ] React UI polish: loading states, error messages, responsive layout
-- [ ] HuggingFace Space README — explain the NVIDIA NIM inference architecture and Gateway abstraction
-- [ ] Project README updated with architecture diagram (ASCII is fine), setup instructions, and demo instructions
-- [ ] Second Build-in-Public post: "Hybrid BM25 + vector retrieval on financial text — benchmark comparison" (with real numbers)
-- [ ] Record a demo video (3-5 minutes) following the demo script
-
-### Day 8 Deliverable
-- Demo runs end-to-end without intervention in under 90 seconds
-- HuggingFace Space is public and loads correctly
-- Demo video recorded
-
----
-
-## Day 9 — May 19: Final Submission
-
-### Both developers:
-- [ ] Final check: all React tabs functional on HuggingFace Spaces
-- [ ] Submission write-up on lablab.ai: project description, architecture diagram, AMD inference story, HuggingFace integration description, demo video link, GitHub repo link
-- [ ] Third Build-in-Public post: "Hosted inference plus citation-grounded retrieval for financial filings" (tag #AMDDevHackathon)
-- [ ] Verify submission is complete before the hackathon deadline
-
----
-
-## Stretch Goals (only if Days 1-9 are complete)
-
-Do not start these until the core pipeline is demo-ready.
-
-- Add 8-K filing ingestion for material event alerts
-- Add earnings transcript samples (pre-downloaded, parsed)
-- Add peer comparison: for each holding, compare risk language against sector peers
-- Add historical risk score chart (score over time as filings are analyzed)
-- Add PDF parsing for investor presentation PDFs (one specific document only, not general PDF support)
-- Add a second portfolio for comparison ("tech-heavy" vs "diversified" demo portfolios)
-
----
-
-## Time Budget
-
-| Day | Primary risk | Mitigation |
-|-----|-------------|------------|
-| Pre-build | Backend or NIM credential setup takes longer than expected | Start immediately, not on May 11 |
-| Pre-build | Hosted model access is delayed | Verify API access before building Gateway-dependent flows |
-| Day 1-2 | EDGAR HTML parsing is messier than expected | Use only the 5 pre-ingested demo tickers |
-| Day 3-4 | LangGraph state mutations cause unexpected behavior | Test each node in complete isolation before graph integration |
-| Day 5 | Hosted reasoner generates hallucinated citations | Citation post-processor handles this — test it first |
-| Day 6-7 | HuggingFace Spaces can't reach backend | Expose Agent API with ngrok as a temporary fallback |
-| Day 8 | Demo run-through reveals blocking issues | Reserve full Day 8 for this — do not add features on Day 8 |
+`README.md` is the source of truth. This milestone plan starts from the current
+Go-first fixture-backed implementation.
+
+## Completed
+
+- Go Agent API boundary.
+- Go Inference Gateway boundary.
+- Next.js analyst console.
+- Citation fixture validation.
+- SQLite persistence for agent runs and seeded fixture metadata.
+- Qdrant health check and collection initialization.
+- Docker Compose stack.
+- HuggingFace-ready root Dockerfile.
+- Demo fixture data for portfolio, filings, evidence, disclosure changes, risk
+  scores, memo, and metrics.
+
+## Milestone 1: Stabilize Demo Runtime
+
+- Keep `README.md`, `docs/architecture.md`, and service READMEs aligned.
+- Verify `docker compose -f infra/docker-compose.yml --env-file .env up --build`.
+- Verify `GET /api/health`, `GET /health`, and Qdrant health.
+- Confirm the UI works when served by Agent API and when run separately with
+  `NEXT_PUBLIC_API_BASE_URL`.
+
+## Milestone 2: Gateway-Backed Retrieval Services
+
+- Deploy/configure embedding backend.
+- Deploy/configure reranker backend.
+- Verify Gateway `/v1/embeddings` and `/v1/rerank`.
+- Add request/error metrics that the UI can display beyond fixture metrics.
+
+## Milestone 3: EDGAR Ingestion
+
+- Fetch EDGAR HTML filings with a compliant `SEC_USER_AGENT`.
+- Extract target filing sections.
+- Chunk text with stable citation anchors.
+- Write chunk text/metadata to SQLite.
+- Write vectors/payloads to Qdrant.
+- Produce a snapshot/backup process for demo data.
+
+## Milestone 4: Live Retrieval
+
+- Implement BM25 search over SQLite chunk text.
+- Implement Qdrant vector search with payload filters.
+- Merge candidates with reciprocal rank fusion.
+- Rerank through Gateway.
+- Apply section/ticker diversity.
+- Return citation-ready evidence chunks.
+
+## Milestone 5: Replace Fixture Run Path
+
+- Preserve current Agent API response contracts.
+- Swap curated evidence with retrieved evidence.
+- Generate disclosure changes from retrieved filing pairs.
+- Generate memo through Gateway reasoner.
+- Keep citation validation/post-processing mandatory.
+
+## Milestone 6: Public Demo Hardening
+
+- Add public-demo-safe rate limiting.
+- Decide auth boundary for admin/private endpoints.
+- Keep Qdrant, Gateway, embedding, and reranker services private.
+- Record final demo metrics.
+- Freeze fixture/live data snapshots for rehearsal.

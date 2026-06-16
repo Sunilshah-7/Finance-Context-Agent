@@ -5,7 +5,7 @@ RUN npm install
 COPY apps/demo-ui/ ./
 RUN npm run build
 
-FROM golang:1.25-bookworm AS backend
+FROM golang:1.25-bookworm AS build
 WORKDIR /app
 COPY backend/go.mod backend/go.sum* ./backend/
 WORKDIR /app/backend
@@ -16,12 +16,12 @@ RUN cd backend && CGO_ENABLED=0 GOOS=linux go build -o /out/agent-api ./cmd/agen
 
 FROM gcr.io/distroless/static-debian12
 WORKDIR /app
-COPY --from=backend /out/agent-api /app/agent-api
+COPY --from=build /out/agent-api /app/agent-api
 COPY --from=ui /app/apps/demo-ui/out /app/public
 COPY data/fixtures /app/data/fixtures
-ENV PORT=7860
+ENV PORT=8090
 ENV FIXTURE_DIR=/app/data/fixtures
 ENV STATIC_DIR=/app/public
-ENV SQLITE_DB_PATH=/tmp/fincontext.db
-EXPOSE 7860
+ENV SQLITE_DB_PATH=/app/state/fincontext.db
+EXPOSE 8090
 ENTRYPOINT ["/app/agent-api"]

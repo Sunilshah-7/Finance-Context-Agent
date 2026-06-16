@@ -1,0 +1,10 @@
+.git
+.gocache
+.gomodcache
+apps/demo-ui/node_modules
+apps/demo-ui/.next
+apps/demo-ui/out
+fincontext.db
+*.db
+qdrant_storage
+.env

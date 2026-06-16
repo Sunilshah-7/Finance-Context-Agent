@@ -1,74 +1,43 @@
----
-title: FinContext Agent
-colorFrom: slate
-colorTo: blue
-sdk: static
-app_build_command: npm run build
-app_file: dist/index.html
-pinned: false
----
+# Demo UI
 
-# FinContext Agent Demo UI
+This directory contains the Next.js analyst console for FinContext Agent. The
+root Dockerfile builds it as static assets and the Go Agent API serves the
+exported UI from `STATIC_DIR`.
 
-This directory contains the React/Vite demo console for FinContext Agent. It is
-designed for HuggingFace Static Spaces and calls only the public Agent API.
+`README.md` is the source of truth for the runnable architecture.
 
-The demo uses the polished analyst-console design from the local prototype while
-still deploying through HuggingFace Spaces.
+## Current Behavior
 
-## What The UI Shows
+- Calls only the Agent API.
+- Uses `NEXT_PUBLIC_API_BASE_URL` when running separately from the Agent API.
+- Reads the fixture-backed demo portfolio, disclosure diff, metrics, chat answer,
+  and agent run state from the Go backend.
+- Polls `GET /api/agent-runs/{run_id}` for progress in the current UI.
 
-| Tab | Purpose |
-| --- | --- |
-| Portfolio | Preview sample holdings and upload a CSV to Agent API |
-| Analysis Run | Start an analysis job and refresh job status |
-| Disclosure Drift | Compare old and current filing language with citation anchors |
-| Evidence | Inspect citation-ready chunks returned by Agent API |
-| Risk Scores | Show holding-level research risk movement |
-| Analyst Memo | Render memo structure, watchlist questions, and disclaimer |
-| Inference Metrics | Show NIM/Gateway metrics only when backend returns them |
-
-## Backend Boundary
-
-The browser app calls only Agent API. It does not call SQLite, Qdrant, the
-Inference Gateway, vLLM, TEI, or EDGAR directly.
-
-Static browser apps cannot keep secrets. Do not embed `AGENT_API_KEY` in this
-frontend. Public demo authentication, CORS, and rate limiting must be handled by
-the Agent API.
+The browser app never calls SQLite, Qdrant, the Inference Gateway, NVIDIA NIM,
+embedding services, rerankers, or EDGAR directly.
 
 ## Local Development
 
 ```bash
 npm install
-npm run dev
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8090 npm run dev
 ```
-
-Open the Vite URL shown in the terminal.
 
 ## Build
 
 ```bash
 npm run build
-npm run preview
 ```
 
-The static build is emitted to `dist/` and is the artifact served by
-HuggingFace Static Spaces.
+The current Next config exports static assets. In the HuggingFace container, the
+root `Dockerfile` copies the export to `/app/public` and runs the Go Agent API.
 
-## Environment
+## UI Sections
 
-For local development:
-
-```bash
-VITE_AGENT_API_URL=http://localhost:8090 npm run dev
-```
-
-For HuggingFace Static Spaces, configure:
-
-```text
-AGENT_API_URL=https://your-agent-api-url
-```
-
-The app also runs without Agent API. In that mode, it shows clearly labeled
-sample data and unavailable inference-metric placeholders.
+- Portfolio
+- Agent run
+- Disclosure diff
+- Risk scores
+- Analyst memo
+- Chat and metrics

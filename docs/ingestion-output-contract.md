@@ -1,57 +1,41 @@
 # Ingestion Output Contract
 
-This is the quick handoff for retrieval, memo generation, and UI citation-card
-work. The ingestion foundation is already merged into `dev` through PR #17.
+`README.md` is the source of truth. Live ingestion is not implemented in the
+current runnable stack. This document describes the target output contract for
+the future ingestion worker.
 
-## Is Chunking, Embedding, SQLite, and Qdrant Done?
+## Target SQLite Output
 
-Yes, the foundation exists.
+Future ingestion should write one row per filing to `documents` and one row per
+evidence chunk to `chunks`.
 
-- Chunking: `services/ingestion-worker/worker/chunking.py`
-- Embeddings through Gateway: `services/ingestion-worker/worker/embeddings.py`
-- SQLite document/chunk writes: `services/ingestion-worker/worker/db.py`
-- Qdrant payload/vector upserts: `services/ingestion-worker/worker/vector_store.py`
-- Shared row/payload schemas: `packages/schemas/python/db.py`
-- Physical SQLite schema and FTS triggers: `infra/schema.sql`
-
-What is not done yet: a real ingestion run against live Gateway/Qdrant.
-The code is unit-tested, but demo data still has to be loaded and validated on
-the runtime environment.
-
-## SQLite Output
-
-Ingestion writes one row per filing to `documents` and one row per evidence
-chunk to `chunks`.
-
-Important `chunks` fields for retrieval/UI:
+Important target `chunks` fields:
 
 - `id`: chunk UUID and Qdrant point id.
 - `document_id`: joins back to `documents.id`.
-- `ticker`: portfolio/retrieval filter, for example `AMD`.
+- `ticker`: retrieval filter, for example `AMD`.
 - `filing_type`: `10-K` or `10-Q`.
 - `filed_at`: filing date as ISO text.
-- `section`: normalized section id, for example `item_1a`.
+- `section`: normalized section id.
 - `item_label`: citation-facing label, for example `Item 1A`.
 - `section_title`: human title, for example `Risk Factors`.
 - `chunk_index`: stable ordering within the document.
-- `text`: full chunk text for BM25 and display.
+- `text`: full chunk text for retrieval and display.
 - `text_hash`: dedupe key.
 - `token_count`: chunk size estimate.
 - `citation_anchor`: exact source anchor, for example `AMD 10-K Item 1A paragraph 42`.
 - `source_url`: SEC filing URL.
-- `is_table`: `1` for table chunks, `0` for paragraph chunks.
+- `is_table`: table marker.
 - `vector_id`: same value as `id`, linking SQLite to Qdrant.
 
-`chunks_fts` is populated by SQLite triggers in `infra/schema.sql`, so retrieval
-can run BM25 over `chunks.text` without a separate indexing job.
+The current Go SQLite store does not yet include these tables.
 
-## Qdrant Output
+## Target Qdrant Output
 
-Ingestion upserts vectors into collection `fincontext_chunks`.
+Future ingestion should upsert vectors into collection `fincontext_chunks`.
 
-The Qdrant point id is the same value as SQLite `chunks.id`. The vector is the
-1024-dimensional embedding returned by Gateway `/v1/embeddings`. The payload is
-built from `QdrantChunkPayload` and includes:
+The Qdrant point id should match SQLite `chunks.id`. Payload fields should
+include:
 
 - `chunk_id`
 - `document_id`
@@ -73,8 +57,7 @@ built from `QdrantChunkPayload` and includes:
 - `source_url`
 - `is_table`
 
-Kishan can use either SQLite rows or Qdrant payloads to render citation cards.
-The safest join key is:
+Join invariant:
 
 ```text
 SQLite chunks.id == SQLite chunks.vector_id == Qdrant point id == Qdrant payload.chunk_id
@@ -101,24 +84,12 @@ AMD 10-K Item 1A paragraph 42
 AMD 10-K Item 8 table 3
 ```
 
-These anchors are generated during chunking before embeddings or storage. The
-validation follow-up branch checks sampled anchors against this format.
+## Validation Goals
 
-## Retrieval Starting Points
+When ingestion is implemented, validation should confirm:
 
-For BM25, query `chunks_fts` and join back to `chunks` by `rowid`.
-
-For vector retrieval, search Qdrant collection `fincontext_chunks` with payload
-filters such as:
-
-- `ticker = "AMD"`
-- `filing_type in ["10-K", "10-Q"]`
-- `section in ["item_1a", "item_7"]`
-- `filed_at` bounded by the retrieval plan date range
-
-The validation helpers merged in PR #22 can confirm:
-
-- SQLite `chunks` are searchable through `chunks_fts`;
-- Qdrant point count matches SQLite chunk count;
-- citation anchors match paragraph/table format;
-- documents can be summarized by ticker and filing type.
+- SQLite chunk count is nonzero.
+- Qdrant point count matches SQLite chunk count.
+- citation anchors match the paragraph/table format.
+- source URLs are populated.
+- repeated ingestion is idempotent.

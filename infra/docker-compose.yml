@@ -1,0 +1,47 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.12.6
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+
+  inference-gateway:
+    build:
+      context: ..
+      dockerfile: Dockerfile.inference-gateway
+    environment:
+      PORT: "8080"
+      NIM_BASE_URL: ${NIM_BASE_URL:-https://integrate.api.nvidia.com/v1}
+      NIM_API_KEY: ${NIM_API_KEY:-}
+      NIM_PLANNER_MODEL: ${NIM_PLANNER_MODEL:-Qwen/Qwen2.5-14B-Instruct}
+      NIM_REASONER_MODEL: ${NIM_REASONER_MODEL:-Qwen/Qwen2.5-72B-Instruct}
+      EMBEDDING_URL: ${EMBEDDING_URL:-}
+      RERANKER_URL: ${RERANKER_URL:-}
+    ports:
+      - "8080:8080"
+
+  agent-api:
+    build:
+      context: ..
+      dockerfile: Dockerfile.agent-api
+    environment:
+      PORT: "8090"
+      FIXTURE_DIR: /app/data/fixtures
+      STATIC_DIR: /app/public
+      SQLITE_DB_PATH: /app/state/fincontext.db
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_COLLECTION: fincontext_chunks
+      INFERENCE_GATEWAY_URL: http://inference-gateway:8080
+      STRICT_DEPENDENCIES: ${STRICT_DEPENDENCIES:-false}
+    depends_on:
+      - qdrant
+      - inference-gateway
+    ports:
+      - "8090:8090"
+    volumes:
+      - agent_data:/app/state
+
+volumes:
+  qdrant_storage:
+  agent_data:

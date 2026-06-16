@@ -1,0 +1,15 @@
+FROM golang:1.25-bookworm AS build
+WORKDIR /app
+COPY backend/go.mod backend/go.sum* ./backend/
+WORKDIR /app/backend
+RUN go mod download
+WORKDIR /app
+COPY backend/ ./backend/
+RUN cd backend && CGO_ENABLED=0 GOOS=linux go build -o /out/inference-gateway ./cmd/inference-gateway
+
+FROM gcr.io/distroless/static-debian12
+WORKDIR /app
+COPY --from=build /out/inference-gateway /app/inference-gateway
+ENV PORT=8080
+EXPOSE 8080
+ENTRYPOINT ["/app/inference-gateway"]
