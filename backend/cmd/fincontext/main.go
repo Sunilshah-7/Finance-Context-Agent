@@ -24,9 +24,9 @@ func main() {
 		os.Exit(1)
 	}
 	validator := citations.NewValidator(store)
-	runner := agent.NewRunner(store, validator)
+	runner := agent.NewRunner(store, validator, nil)
 	chatProvider := provider.NewFixtureProvider(store, validator)
-	server := httpapi.New(store, runner, chatProvider, staticDir)
+	server := httpapi.New(store, runner, chatProvider, staticDir, httpapi.Dependencies{})
 
 	httpServer := &http.Server{
 		Addr:              ":" + port,

@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -22,10 +23,21 @@ type Server struct {
 	store    *data.Store
 	runner   *agent.Runner
 	provider provider.ChatProvider
+	deps     Dependencies
 }
 
-func New(store *data.Store, runner *agent.Runner, chatProvider provider.ChatProvider, staticDir string) *Server {
-	s := &Server{store: store, runner: runner, provider: chatProvider}
+type Dependencies struct {
+	SQLite  HealthChecker
+	Qdrant  HealthChecker
+	Gateway HealthChecker
+}
+
+type HealthChecker interface {
+	Health(ctx context.Context) error
+}
+
+func New(store *data.Store, runner *agent.Runner, chatProvider provider.ChatProvider, staticDir string, deps Dependencies) *Server {
+	s := &Server{store: store, runner: runner, provider: chatProvider, deps: deps}
 	r := chi.NewRouter()
 	r.Use(cors)
 	r.Get("/api/health", s.health)
@@ -48,11 +60,33 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) health(w http.ResponseWriter, r *http.Request) {
+	deps := map[string]string{}
+	status := "ok"
+	for name, checker := range map[string]HealthChecker{
+		"sqlite":  s.deps.SQLite,
+		"qdrant":  s.deps.Qdrant,
+		"gateway": s.deps.Gateway,
+	} {
+		if checker == nil {
+			deps[name] = "not_configured"
+			continue
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		err := checker.Health(ctx)
+		cancel()
+		if err != nil {
+			status = "degraded"
+			deps[name] = err.Error()
+			continue
+		}
+		deps[name] = "ok"
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"status":       "ok",
+		"status":       status,
 		"runtime":      "go",
 		"fixture_mode": true,
 		"evidence":     len(s.store.Evidence),
+		"dependencies": deps,
 		"disclaimer":   "research-assistance-only",
 	})
 }

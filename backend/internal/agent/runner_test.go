@@ -13,7 +13,7 @@ func TestRunnerCompletesDeterministicRun(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	runner := NewRunner(store, citations.NewValidator(store))
+	runner := NewRunner(store, citations.NewValidator(store), nil)
 	run := runner.Start("What changed?")
 
 	deadline := time.Now().Add(5 * time.Second)

@@ -55,5 +55,5 @@ func testServer(t *testing.T) *Server {
 		t.Fatal(err)
 	}
 	validator := citations.NewValidator(store)
-	return New(store, agent.NewRunner(store, validator), provider.NewFixtureProvider(store, validator), "")
+	return New(store, agent.NewRunner(store, validator, nil), provider.NewFixtureProvider(store, validator), "", Dependencies{})
 }
