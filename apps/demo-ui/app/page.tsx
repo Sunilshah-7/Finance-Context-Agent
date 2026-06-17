@@ -38,8 +38,8 @@ export default function Page() {
 
   const evidenceByID = useMemo(() => {
     const map = new Map<string, EvidenceCitation>();
-    run?.retrieved_evidence.forEach((ev) => map.set(ev.id, ev));
-    chat?.citations.forEach((ev) => map.set(ev.id, ev));
+    (run?.retrieved_evidence ?? []).forEach((ev) => map.set(ev.id, ev));
+    (chat?.citations ?? []).forEach((ev) => map.set(ev.id, ev));
     return map;
   }, [run, chat]);
 

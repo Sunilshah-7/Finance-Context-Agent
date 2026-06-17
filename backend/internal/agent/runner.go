@@ -34,14 +34,17 @@ func NewRunner(store *data.Store, validator citations.Validator, repo RunReposit
 func (r *Runner) Start(question string) domain.AgentRun {
 	now := time.Now().UTC()
 	run := &domain.AgentRun{
-		ID:        newID(),
-		Status:    "queued",
-		Question:  question,
-		Stages:    initialStages(),
-		Portfolio: r.store.Portfolio,
-		Metrics:   r.store.Metrics,
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:                newID(),
+		Status:            "queued",
+		Question:          question,
+		Stages:            initialStages(),
+		Portfolio:         r.store.Portfolio,
+		RetrievedEvidence: []domain.EvidenceCitation{},
+		DisclosureChanges: []domain.DisclosureChange{},
+		RiskScores:        []domain.RiskScore{},
+		Metrics:           r.store.Metrics,
+		CreatedAt:         now,
+		UpdatedAt:         now,
 	}
 
 	r.mu.Lock()

@@ -36,6 +36,15 @@ func TestHealthAndRunEndpoints(t *testing.T) {
 	if payload["id"] == "" {
 		t.Fatal("expected run id")
 	}
+	for _, key := range []string{"retrieved_evidence", "disclosure_changes", "risk_scores"} {
+		values, ok := payload[key].([]any)
+		if !ok {
+			t.Fatalf("expected %s to be an array, got %T", key, payload[key])
+		}
+		if len(values) != 0 {
+			t.Fatalf("expected queued %s to be empty, got %d items", key, len(values))
+		}
+	}
 }
 
 func TestDiffEndpoint(t *testing.T) {
