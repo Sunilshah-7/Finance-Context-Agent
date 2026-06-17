@@ -42,6 +42,9 @@ func New(store *data.Store, runner *agent.Runner, chatProvider provider.ChatProv
 	r.Use(cors)
 	r.Get("/api/health", s.health)
 	r.Get("/api/demo/portfolio", s.portfolio)
+	r.Get("/api/demo/risk-scores", s.riskScores)
+	r.Get("/api/demo/evidence", s.evidence)
+	r.Get("/api/demo/memo", s.memo)
 	r.Post("/api/agent-runs", s.startRun)
 	r.Get("/api/agent-runs/{runID}", s.getRun)
 	r.Get("/api/agent-runs/{runID}/events", s.runEvents)
@@ -93,6 +96,18 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) portfolio(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, s.store.Portfolio)
+}
+
+func (s *Server) riskScores(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{"risk_scores": s.store.Risks})
+}
+
+func (s *Server) evidence(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{"evidence": s.store.Evidence})
+}
+
+func (s *Server) memo(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, s.store.Memo)
 }
 
 func (s *Server) startRun(w http.ResponseWriter, r *http.Request) {

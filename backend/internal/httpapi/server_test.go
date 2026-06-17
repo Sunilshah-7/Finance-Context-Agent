@@ -57,6 +57,17 @@ func TestDiffEndpoint(t *testing.T) {
 	}
 }
 
+func TestDemoReadEndpoints(t *testing.T) {
+	server := testServer(t)
+	for _, path := range []string{"/api/demo/risk-scores", "/api/demo/evidence", "/api/demo/memo"} {
+		res := httptest.NewRecorder()
+		server.ServeHTTP(res, httptest.NewRequest(http.MethodGet, path, nil))
+		if res.Code != http.StatusOK {
+			t.Fatalf("%s code = %d body=%s", path, res.Code, res.Body.String())
+		}
+	}
+}
+
 func testServer(t *testing.T) *Server {
 	t.Helper()
 	store, err := data.Load("../../../data/fixtures")

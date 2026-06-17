@@ -1,4 +1,13 @@
-import type { AgentRun, ChatAnswer, DisclosureChange, Metrics, Portfolio } from './types';
+import type {
+  AgentRun,
+  AnalystMemo,
+  ChatAnswer,
+  DemoEvidenceResponse,
+  DemoRiskScoresResponse,
+  DisclosureChange,
+  Metrics,
+  Portfolio
+} from './types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || '';
 
@@ -18,11 +27,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   portfolio: () => request<Portfolio>('/api/demo/portfolio'),
+  riskScores: () => request<DemoRiskScoresResponse>('/api/demo/risk-scores'),
+  evidence: () => request<DemoEvidenceResponse>('/api/demo/evidence'),
+  memo: () => request<AnalystMemo>('/api/demo/memo'),
   startRun: (question: string) =>
     request<AgentRun>('/api/agent-runs', { method: 'POST', body: JSON.stringify({ question }) }),
   getRun: (id: string) => request<AgentRun>(`/api/agent-runs/${id}`),
-  diff: () =>
-    request<{ changes: DisclosureChange[] }>('/api/diff?ticker=AMD&section=Item%201A&from=2022&to=2025'),
+  diff: (ticker = 'AMD') =>
+    request<{ changes: DisclosureChange[] }>(`/api/diff?ticker=${encodeURIComponent(ticker)}&section=Item%201A&from=2022&to=2025`),
   chat: (question: string) =>
     request<ChatAnswer>('/api/chat', { method: 'POST', body: JSON.stringify({ question }) }),
   metrics: () => request<Metrics>('/api/metrics')

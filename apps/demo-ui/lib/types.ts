@@ -7,6 +7,12 @@ export type Holding = {
   sector: string;
 };
 
+export type PortfolioItem = Holding & {
+  risk_score?: number;
+  risk_delta?: number;
+  drift_state: 'up' | 'flat' | 'down';
+};
+
 export type Portfolio = {
   id: string;
   name: string;
@@ -41,6 +47,11 @@ export type DisclosureChange = {
   citation_ids: string[];
 };
 
+export type DiffBlock = DisclosureChange & {
+  risk_label: string;
+  changed_phrases: string[];
+};
+
 export type RiskDriver = {
   category: string;
   score: number;
@@ -56,6 +67,18 @@ export type RiskScore = {
   weight: number;
   top_driver: string;
   drivers: RiskDriver[];
+};
+
+export type RiskMetric = RiskScore & {
+  confidence: number;
+};
+
+export type LogEvent = {
+  id: string;
+  stage_id: string;
+  timestamp: string;
+  level: 'info' | 'warn' | 'ok';
+  message: string;
 };
 
 export type AnalystMemo = {
@@ -106,4 +129,12 @@ export type ChatAnswer = {
   answer: string;
   citations: EvidenceCitation[];
   disclaimer: string;
+};
+
+export type DemoRiskScoresResponse = {
+  risk_scores: RiskScore[];
+};
+
+export type DemoEvidenceResponse = {
+  evidence: EvidenceCitation[];
 };
