@@ -1,12 +1,16 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Activity, BarChart3, CheckCircle2, FileDiff, MessageSquare, Play, ShieldCheck } from 'lucide-react';
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { api } from '../lib/api';
 import type { AgentRun, AgentStage, ChatAnswer, DisclosureChange, EvidenceCitation, Metrics, Portfolio, RiskScore } from '../lib/types';
 
 const question = 'What changed in supply-chain or customer concentration risk for my semiconductor holdings?';
+const RiskChart = dynamic(() => import('./risk-chart').then((mod) => mod.RiskChart), {
+  ssr: false,
+  loading: () => <div className="h-64 rounded bg-panel" />
+});
 
 export default function Page() {
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
@@ -116,17 +120,7 @@ export default function Page() {
         </Panel>
 
         <Panel title="Risk scores" icon={<BarChart3 size={18} />}>
-          <div className="h-64">
-            <ResponsiveContainer>
-              <BarChart data={run?.risk_scores || []}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#d8ded7" />
-                <XAxis dataKey="ticker" />
-                <YAxis domain={[0, 100]} />
-                <Tooltip />
-                <Bar dataKey="score" fill="#315f72" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <RiskChart scores={run?.risk_scores || []} />
           <RiskList scores={run?.risk_scores || []} />
         </Panel>
       </section>
