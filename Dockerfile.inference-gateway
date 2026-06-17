@@ -1,4 +1,4 @@
-FROM golang:1.25-bookworm AS build
+FROM golang:1.25.1-bookworm AS build
 ENV GOCACHE=/tmp/go-build-cache
 ENV GOMODCACHE=/tmp/go-mod-cache
 WORKDIR /app
@@ -7,7 +7,13 @@ WORKDIR /app/backend
 RUN go mod download
 WORKDIR /app
 COPY backend/ ./backend/
-RUN mkdir -p /app/bin && cd backend && CGO_ENABLED=0 GOOS=linux go build -o /app/bin/inference-gateway ./cmd/inference-gateway && test -x /app/bin/inference-gateway
+RUN set -eux; \
+    mkdir -p /app/bin; \
+    cd backend; \
+    go env GOCACHE GOMODCACHE GOOS GOARCH; \
+    CGO_ENABLED=0 GOOS=linux go build -v -o inference-gateway ./cmd/inference-gateway; \
+    cp inference-gateway /app/bin/inference-gateway; \
+    ls -l /app/bin/inference-gateway
 
 FROM gcr.io/distroless/static-debian12
 WORKDIR /app

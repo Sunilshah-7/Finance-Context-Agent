@@ -5,7 +5,7 @@ RUN npm install
 COPY apps/demo-ui/ ./
 RUN npm run build
 
-FROM golang:1.25-bookworm AS backend
+FROM golang:1.25.1-bookworm AS backend
 ENV GOCACHE=/tmp/go-build-cache
 ENV GOMODCACHE=/tmp/go-mod-cache
 WORKDIR /app
@@ -14,7 +14,13 @@ WORKDIR /app/backend
 RUN go mod download
 WORKDIR /app
 COPY backend/ ./backend/
-RUN mkdir -p /app/bin && cd backend && CGO_ENABLED=0 GOOS=linux go build -o /app/bin/agent-api ./cmd/agent-api && test -x /app/bin/agent-api
+RUN set -eux; \
+    mkdir -p /app/bin; \
+    cd backend; \
+    go env GOCACHE GOMODCACHE GOOS GOARCH; \
+    CGO_ENABLED=0 GOOS=linux go build -v -o agent-api ./cmd/agent-api; \
+    cp agent-api /app/bin/agent-api; \
+    ls -l /app/bin/agent-api
 
 FROM gcr.io/distroless/static-debian12
 WORKDIR /app
