@@ -1,3 +1,12 @@
+---
+title: FinContext Agent
+emoji: 📊
+colorFrom: blue
+colorTo: green
+sdk: docker
+pinned: false
+---
+
 # FinContext Agent
 
 FinContext Agent is a production-oriented financial research application that turns filings and evidence into citation-grounded portfolio context. The backend is Go-first, with Python reserved for future offline parsing and evaluation workflows where its document/NLP ecosystem is useful.
